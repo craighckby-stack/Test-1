@@ -1,3 +1,5 @@
+Here is the enhanced version of the given code by utilizing advanced NexusCore patterns, lifecycle management, and robust encapsulation:
+
 class Config {
   #staticConfig = {
     VERSION: "1.0.0",
@@ -62,20 +64,22 @@ class Config {
       validator.checkSchema(this.#configSchema);
       validator.validate(this.config, this.#configSchema);
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
 }
 
 class LifecycleEvent {
-  static CONFIGURED = 'CONFIGURED';
-  static LOADED = 'LOADED';
-  static SHUTTING_DOWN = 'SHUTTING_DOWN';
-  static SHUTDOWN = 'SHUTDOWN';
-  static DESTROYED = 'DESTROYED';
+  static readonly CONFIGURED = 'CONFIGURED';
+  static readonly LOADED = 'LOADED';
+  static readonly SHUTTING_DOWN = 'SHUTTING_DOWN';
+  static readonly SHUTDOWN = 'SHUTDOWN';
+  static readonly DESTROYED = 'DESTROYED';
 
   constructor(event) {
+    if (!Object.values(LifecycleEvent).includes(event)) {
+      throw new Error(`Invalid lifecycle event: ${event}`);
+    }
     this.event = event;
   }
 }
@@ -96,102 +100,86 @@ class LifecycleHandler {
   }
 
   execute() {
-    this.handler();
+    return this.handler();
+  }
+}
+
+class LifecycleEventDispatcher {
+  #lifecycleEventHandlers = {};
+
+  private constructor() {
+    this.#dispatchEvent(LifecycleEvent.DESTROYED);
+  }
+
+  bindLifecycleEventHandler(event, handler) {
+    if (!Object.values(LifecycleEvent).includes(event)) {
+      throw new Error(`Invalid lifecycle event: ${event}`);
+    }
+    if (this.#lifecycleEventHandlers[event]) {
+      throw new Error('Lifecycle handler for event already exists');
+    }
+    return new LifecycleHandler(handler);
+  }
+
+  bindLifecycleEventHandlers(eventHandlers = {}) {
+    Object.keys(eventHandlers).forEach((event) => {
+      if (!Object.values(LifecycleEvent).includes(event)) {
+        throw new Error(`Invalid lifecycle event: ${event}`);
+      }
+      this.#lifecycleEventHandlers[event] = eventHandlers[event];
+    });
+    return this.#lifecycleEventHandlers;
+  }
+
+  #dispatchEvent(event) {
+    this.#lifecycleEventHandlers[event].forEach((handler) => {
+      handler.execute();
+    });
+  }
+
+  dispatch(event, ...args) {
+    const lifecycleEvent = new LifecycleEvent(event);
+    this.#dispatchEvent(event);
   }
 }
 
 class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
+  #lifecycleEventDispatcher = new LifecycleEventDispatcher();
 
-  #status = "INIT";
+  #lifecycle = new LifeCycleStatus();
 
-  private constructor() {
-    this.status = "INIT";
+  #status = new LifeCycleStatus();
+
+  constructor() {
+    this.#status.init();
   }
 
   get status() {
     return this.#status;
   }
 
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
-      }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-    }
-  }
-
-  private constructor(lifecycleEventHandlers = {}) {
-    this.#lifecycle = lifecycleEventHandlers.lifecycle || this.#lifecycle;
-    this.#status = lifecycleEventHandlers.status || this.#status;
-  }
-
-  get lifecycle() {
+  get lifecycleStatus() {
     return this.#lifecycle;
   }
 
-  get bindLifecycleEvent() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      lifecycleEventHandlers.lifecycle = this.#lifecycle;
-      return new LifecycleHandler(handler);
-    };
-  }
-
-  get bindLifecycleEvents() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.#lifecycle[lifecycleEvent.event] = new LifecycleHandler(handler);
-      return lifecycleEventHandlers;
-    };
+  bindLifecycleEventHandlers(eventHandlers = {}) {
+    return this.#lifecycleEventDispatcher.bindLifecycleEventHandlers(eventHandlers);
   }
 
   get lifecycleEventHandlers() {
-    return {
-      CONFIGURED: new LifecycleHandler(() => {
-        this.#lifecycle.configured = true;
-        this.config = Config.create().defaultConfig;
-      }),
-      LOADED: new LifecycleHandler(() => {
-        this.#lifecycle.loaded = true;
-      }),
-      SHUTTING_DOWN: new LifecycleHandler(() => {
-        this.#lifecycle.shuttingDown = true;
-      }),
-      SHUTDOWN: new LifecycleHandler(() => {
-        this.#lifecycle.shuttingDown = false;
-        this.#status = "SHUTDOWN";
-      }),
-      DESTROYED: new LifecycleHandler(() => {
-        this.#lifecycle = {
-          configured: false,
-          loaded: false,
-          shuttingDown: false
-        };
-      })
-    };
+    return this.#lifecycleEventDispatcher.#lifecycleEventHandlers;
   }
 
   async init() {
-    if (!this.#lifecycle.shuttingDown) {
+    if (!this.#lifecycle.shuttingDown && this.#lifecycle.configured) {
       throw new Error('NexusCore has not been configured yet');
     }
-    this.status = "INIT";
+    await this.#status.init();
   }
 
   async configure(config) {
     await this.validateConfig(config);
+    this.#lifecycle.configured = true;
   }
 
   async validateConfig(config) {
@@ -202,7 +190,6 @@ class NexusCore {
       validator.validate(config, Config.configSchema);
       return config;
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
@@ -228,11 +215,12 @@ class NexusCore {
   async shutdown() {
     console.log('Shutdown initiated...');
     this.#lifecycle.shuttingDown = true;
-    await this.executeLifecycleEvent(LifecycleEvent.SHUTTING_DOWN);
+    await this.#lifecycleEventDispatcher.dispatch(LifecycleEvent.SHUTTING_DOWN);
     try {
       console.log("Shutdown complete...");
       await new Promise(resolve => setTimeout(resolve, 1000));
-      this.status = "SHUTDOWN";
+      this.#status.shutdown();
+      this.#lifecycle.configured = false;
     } catch (e) {
       console.error("Shutdown error:", e);
     }
@@ -240,38 +228,68 @@ class NexusCore {
 
   async destroy() {
     console.log('Destroy initiated...');
-    this.status = "DESTROYED";
+    this.#status.destroy();
   }
 
   async shutdownProcess() {
+    await this.#lifecycleEventDispatcher.dispatch(LifecycleEvent.DESTROYED);
     await this.shutdown();
     await this.destroy();
   }
 
   async initCore() {
-    if (this.#lifecycle.shuttingDown) {
-      throw new Error('Cannot initialize while shutting down!');
-    }
-    const lifecycle = this.#lifecycle;
-    const lifecycleEventHandlers = this.bindLifecycleEventHandlers();
-    lifecycle.configured = true;
-    this.config = Config.create().defaultConfig;
-    this.status = "CONFIGURED";
-  }
-
-  async executeLifecycleEvent(event) {
-    const lifecycleEvent = new LifecycleEvent(event);
-    if (this.#lifecycle[lifecycleEvent.event]) {
-      this.#lifecycle[lifecycleEvent.event].bind(this).execute();
+    if (!this.#lifecycle.shuttingDown) {
+      await this.#status.init();
+      this.#lifecycle.configured = true;
+      this.#lifecycleEventDispatcher.dispatchEvent(LifecycleEvent.CONFIGURED);
+      this.config = Config.create().defaultConfig;
     }
   }
 }
 
-const nexusCore = new NexusCore();
-nexusCore.bindLifecycleEvent(LifecycleEvent.DESTROYED, () => {
-  console.log("NexusCore instance destroyed.");
-});
+class LifeCycleStatus {
+  #currentStatus = 'INIT';
 
-nexusCore.initCore();
-nexusCore.startup();
-nexusCore.shutdownProcess();
+  get currentStatus() {
+    return this.#currentStatus;
+  }
+
+  set currentStatus(value) {
+    this.#currentStatus = value;
+  }
+
+  configure() {
+    this.currentStatus = 'CONFIGURED';
+    console.log(`NexusCore instance is configured.`);
+  }
+
+  load() {
+    this.currentStatus = 'LOADED';
+    console.log(`NexusCore instance is loaded.`);
+  }
+
+  shutDown() {
+    this.currentStatus = 'SHUTTING_DOWN';
+    console.log(`NexusCore instance is shutting down.`);
+  }
+
+  shutdown() {
+    this.currentStatus = 'SHUTDOWN';
+    console.log(`NexusCore instance is shutdown.`);
+  }
+
+  destroy() {
+    this.currentStatus = 'DESTROYED';
+    console.log(`NexusCore instance is destroyed.`);
+  }
+
+  init() {
+    this.currentStatus = 'INIT';
+  }
+}
+
+Changes Made:
+- Utilized `readonly` getter for lifecycle events.
+- Created a `LifecycleEventDispatcher` class which handles the dispatching and registering of lifecycle event handlers.
+- Introduced a `LifeCycleStatus` class to handle the state transitions of the NexusCore instance.
+- Improved code readability and organization by creating separate classes for lifecycle event handling and life cycle status management.
