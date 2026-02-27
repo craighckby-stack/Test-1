@@ -29,19 +29,19 @@ class Config {
         foo: { type: 'string' },
         baz: { type: 'boolean' },
         version: { type: 'string', $required: false },
-        env: { $required: false }
-      }
+        env: { type: 'string', $required: false }
+      },
+      required: ['foo', 'baz', 'env']
     };
   }
 
   validateConfig(config) {
+    const validator = new (require('jsonschema').Validator)();
     try {
       const schema = this.#configSchema;
-      const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
       validator.validate(config, schema);
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
@@ -70,6 +70,10 @@ class Config {
   set env(value) {
     this.setValues({ ...this.getValues(), env: value });
   }
+
+  toString() {
+    return JSON.stringify(this.getValues());
+  }
 }
 
 class LifecycleEvent {
@@ -88,23 +92,23 @@ class LifecycleHandler {
 
   bind(target = this) {
     this.#handler = this.#handler.bind(target);
+    return this.#handler;
   }
 
   execute(params) {
-    if (this.#handler) {
-      return this.#handler(params);
-    } else {
-      throw new Error('Handler not implemented.');
-    }
+    return this.#handler(params);
   }
 
   bindEvent(event) {
     const callback = this.execute.bind(this, { event });
-    this.#handler.push(callback);
+    return callback;
   }
 
   unbindEvent(event) {
-    this.#handler.splice(this.#handler.findIndex(fn => fn.event === event), 1);
+    const callbacks = this.#handler.find(fn => fn.event === event);
+    if (callbacks) {
+      this.#handler.splice(this.#handler.indexOf(callbacks), 1);
+    }
   }
 }
 
@@ -121,7 +125,6 @@ class NexusCore {
     configured: false,
     loaded: false,
     shuttingDown: false,
-    initialized: false,
     config: null,
   };
 
@@ -139,15 +142,13 @@ class NexusCore {
     const lifecycle = this.#lifecycle;
     if (value !== 'INIT') {
       console.log(`NexusCore instance is ${value}.`);
-      if (value === 'INIT') {
-        lifecycle.initialized = true;
-      }
       if (value === 'SHUTTING_DOWN') {
         lifecycle.shuttingDown = true;
       }
     }
     if (currentValue === 'INIT' && value !== 'INIT') {
       lifecycle.configured = true;
+      this.executeLifecycleEvent("CONFIGURED");
     }
   }
 
@@ -162,6 +163,8 @@ class NexusCore {
   set config(value) {
     this.validateConfig(value);
     this.#config = value;
+    this.status = "CONFIGURED";
+    this.executeLifecycleEvent("CONFIGURED");
   }
 
   createSchema() {
@@ -172,18 +175,18 @@ class NexusCore {
         env: { type: 'string' },
         foo: { type: 'string' },
         baz: { type: 'boolean' }
-      }
+      },
+      required: ['foo', 'baz', 'env']
     };
   }
 
   validateConfig(config) {
+    const validator = new (require('jsonschema').Validator)();
     try {
       const schema = this.createSchema();
-      const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
       validator.validate(config, schema);
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
@@ -209,40 +212,29 @@ class NexusCore {
   }
 
   async configure(config) {
-    if (!this.#config) {
-      this.config = new Config(config);
-    }
-    this.config.setValues(config);
-    this.executeLifecycleEvent('CONFIGURED');
-    this.#lifecycle.configured = true;
-    this.off('CONFIGURED');
+    this.config = new Config(config);
+    this.setValues(config);
   }
 
   async initialize() {
     console.log("Initializing...");
     await this.preInitialize();
-    this.#lifecycle.initialized = true;
+    this.#lifecycle.config = this.config;
   }
 
   async preInitialize() {
     console.log("Pre initialize lifecycle event executed.");
     // Hook for custom initialization logic before loading the config.
     await new Promise(resolve => setTimeout(resolve, 100));
+    return this.config;
   }
 
   async load() {
     console.log("Loading...");
-    await this.preLoad();
-    this.executeLifecycleEvent("LOADED");
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("Loading complete...");
+    await new Promise(resolve => setTimeout(resolve, 100));
     this.#lifecycle.loaded = true;
+    console.log("Loading complete...");
     await this.postLoad();
-  }
-
-  async preLoad() {
-    console.log("Pre load lifecycle event executed.");
-    // Hook for custom logic to run before the main app loading process.
   }
 
   async postLoad() {
@@ -257,7 +249,7 @@ class NexusCore {
       this.executeLifecycleEvent("SHUTTING_DOWN");
       try {
         console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
+        this.status = "DESTROYED";
         this.#config = null;
       } catch (e) {
         console.error("Shutdown error:", e);
@@ -265,22 +257,14 @@ class NexusCore {
     }
   }
 
-  async start() {
-    this.status = "CONFIGURED";
-    await this.initialize();
-    await this.load();
-  }
-
   async destroy() {
-    this.status = "DESTROYED";
-    this.#status = "DESTROYED";
     this.#lifecycle = {
       configured: false,
       loaded: false,
       shuttingDown: false,
-      initialized: false,
       config: null,
     };
+    this.#status = "DESTROYED";
     this.#config = null;
     this.#handlers.clear();
   }
@@ -297,8 +281,8 @@ nexusCore.on('CONFIGURED', onConfiguredHandler);
 
 (async () => {
   try {
-    nexusCore.configure(Config.defaultConfig);
-    nexusCore.start();
+    await nexusCore.configure(Config.defaultConfig);
+    await nexusCore.start();
     await nexusCore.shutdown();
   } catch (error) {
     console.error("Fatal error:", error);
@@ -307,52 +291,85 @@ nexusCore.on('CONFIGURED', onConfiguredHandler);
   }
 })();
 
-This code integrates ES6 classes, the latest JavaScript syntax, and best practices in a clean and maintainable codebase.
+class App {
+  onInit() {}
+  onConfigured() {}
+  onLoaded() {}
+  onShutdown() {}
+  onDestroy() {}
+}
 
-import { Validator } from 'jsonschema';
-const validator = new Validator();
+class AppRuntime extends App {
+  constructor() {
+    super();
+    this.runtime = null;
+  }
 
-Replaced the direct usage of the JSON schema validator with a better approach of importing the module and directly creating an instance of the Validator. This helps in avoiding potential global namespace pollution.
+  onInit() {
+    this.setRuntime(new NexusCore());
+  }
 
+  onConfigured(Runtime) {
+    this.runtime.config = Runtime.defaultConfig;
+  }
 
-#lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false,
-    initialized: false,
-    config: null,
-};
+  onLoaded(Runtime) {
+    // Perform logic after the application is loaded.
+  }
 
-Simplified the initial state of the `#lifecycle` object and removed the extra property for handling the "initialized" lifecycle event.
+  onShutdown(Runtime) {
+    Runtime.shutdown();
+  }
 
+  ondestroy(Runtime) {
+    Runtime.destroy();
+  }
 
-async start() {
-    this.status = "CONFIGURED";
-    await this.initialize();
-    await this.load();
-},
+  get runtime () {
+    return this.runtime;
+  }
 
-Added `await` before `this.initialize()` to correctly await the completion of the initialization process before proceeding to load.
+  set runtime (Runtime) {
+    this.runtime = Runtime;
+  }
+}
+class MyRuntime extends AppRuntime {
+  onInit() {
+    console.log('App initialized!');
+  }
 
+  onConfigured(Runtime) {
+    super.onConfigured(Runtime);
+    console.log('App configured!');
+  }
 
-off('CONFIGURED');
+  onLoaded(Runtime) {
+    super.onLoaded(Runtime);
+    console.log('App loaded!');
+  }
 
-Removed unnecessary line, this behavior is handled in the updated configure method.
+  onShutdown(Runtime) {
+    super.onShutdown(Runtime);
+    console.log('App shutting down!');
+  }
 
+  ondestroy(Runtime) {
+    super.ondestroy(Runtime);
+    console.log('App destroyed!');
+  }
+}
 
-// Hook for custom initialization logic before loading the config.
-await new Promise(resolve => setTimeout(resolve, 100));
+async function main() {
+  const runtime = new MyRuntime();
+  runtime.runtime = new NexusCore();
+  const config = Object.assign({}, runtime.runtime.config.toObject(), {
+    version: '1.0.3',
+    foo: 'bar',
+    baz: true
+  });
+  runtime.runtime.configure(config);
+  await runtime.runtime.start();
+  await runtime.runtime.shutdown();
+'}
 
-Added a small delay for simulation purposes before running the hook for custom initialization logic before loading the config.
-
-
-// Hook for custom logic to run before the main app loading process.
-await new Promise(resolve => setTimeout(resolve, 100));
-
-Added a small delay for simulation purposes before running the hook for custom logic to run before the main app loading process.
-
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-Imported the `require` function using `createRequire` to enable ES modules compatibility.
+main();
