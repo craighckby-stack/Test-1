@@ -133,10 +133,10 @@ class NexusCore {
     this.#validateConfig(config);
     this.executeLifecycleEvent("CONFIGURED");
     this.#privateLifecycle.configured = true;
+    this.#configLock = false;
   }
 
   async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -187,59 +187,31 @@ class NexusCore {
     }
   }
 
-  onLifecycleEvent(event, handler) {
+  on(event, handler) {
+    const lifecycleEvent = new LifecycleEvent(event);
     const lifecycleHandler = new LifecycleHandler(handler);
     this.#privateLifecycle[event] = lifecycleHandler;
+    lifecycleHandler.bind(this);
+    return lifecycleHandler;
   }
 
   get on() {
     return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
+      return this.on(event, handler);
     };
-  }
-
-  on(event, handler) {
-    return new Promise(resolve => {
-      this.#configLock = true;
-      this.onLifecycleEvent(event, handler);
-      resolve();
-      this.#configLock = false;
-    });
   }
 }
 
 const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
+const lifecycleHandler = nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 });
-nexusCore.on('CONFIGURED', () => {
+
+const lifecycleHandler1 = nexusCore.on('CONFIGURED', () => {
   console.log("NexusCore instance configured.");
 });
+
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-This code incorporates the following enhancements:
-
-1.  **Advanced Private Properties**: The code uses private properties with the `#` prefix to encapsulate certain properties and methods. This enhances the encapsulation of the class's internal state.
-
-2.  **Improved Configurator**: The `configure` method now checks for config lock before setting the config to prevent concurrent modifications.
-
-3.  **Lifecycle Management**: The `load`, `shutdown`, and `destroy` methods now execute lifecycle events for better lifecycle management.
-
-4.  **Config Schema Validation**: The `validateConfig` method is now used in the `configure` method to validate the config schema.
-
-5.  **NexusCore Usage**: The code demonstrates how to use NexusCore's `on` method to subscribe to lifecycle events and manage the instance's lifecycle using the `start` and `destroy` methods.
-
-6.  **Error Handling**: The code catches and logs errors for better error handling throughout the lifecycle methods.
-
-7.  **Refactored Methods**: Some methods have been refactored to make the code more maintainable and easier to understand.
-
-8.  **Proper Event Handling**: The code now properly handles events using the `on` method and lifecycle event handlers.
-
-9.  **Private Class Properties**: The code now uses private class properties (e.g., `#privateConfig`) to maintain encapsulation.
-
-10. **Proper Shutdown**: The code now properly initiates a shutdown sequence for the NexusCore instance.
