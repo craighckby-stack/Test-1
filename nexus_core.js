@@ -8,12 +8,14 @@ class Config {
   set cache(value) {
     this.#configCache = value;
   }
+
   static get defaultConfig() {
     return Config.defaultConfig || {};
   }
   set staticDefaultConfig(value) {
     Config.defaultConfig = value;
   }
+
   static get configSchema() {
     return Config.configSchema || {};
   }
@@ -36,7 +38,13 @@ class Config {
   async loadConfig() {
     if (this.cache.has(Config.CACHE_NAME)) return this.cache.get(Config.CACHE_NAME);
     try {
-      const config = await import('{config.json}').then(module => module.config.json);
+      let url = undefined;
+      if (process.env.NODE_ENV === 'development') {
+        url = `${process.cwd()}/config.json`;
+      } else {
+        url = import.meta.env.VITE_CONFIG_URL;
+      }
+      const config = await import(url).then(module => module.config.json);
       this.cache.set(Config.CACHE_NAME, config);
       return config;
     } catch (error) {
@@ -212,9 +220,9 @@ class StartupManager {
     this.nexusCore = nexusCore;
   }
 
-  run() {
+  async run() {
     const lifeCyleEvents = ["initialized", "configured", "loaded", "shutdown"];
-    this.nexusCore.start();
+    await this.nexusCore.start();
     lifeCyleEvents.forEach((event) => {
       this.nexusCore.lifecycleManager.setEvent(event, new LifecycleHandler(() => {
         console.log(`${event} event has been executed`);
@@ -224,16 +232,19 @@ class StartupManager {
 }
 
 async function main() {
-  const nexusCore = new NexusCore();
-  await Config.getStaticConfig().then(data => {
-    nexusCore.config = new Config(data);
-  });
-  const startupManager = new StartupManager(nexusCore);
-  startupManager.run();
-  await nexusCore.shutdown();
-  nexusCore.destroy();
+  try {
+    const nexusCore = new NexusCore();
+    await Config.getStaticConfig().then(data => {
+      nexusCore.config = new Config(data);
+    });
+    const startupManager = new StartupManager(nexusCore);
+    await startupManager.run();
+    await nexusCore.shutdown();
+    nexusCore.destroy();
+  } catch (error) {
+    console.error(error);
+    process.exit(1);
+  }
 }
 
 main();
-
-This code uses modern JavaScript features such as async/await, classes, and Map. It follows best practices such as encapsulation, robust exception handling, and proper lifecycle management. The NexusCore class has been extended with lifecycle management, and the Config class has been improved with a static cache and improved loading of configuration data. The StartupManager class has been updated to handle lifecycle events and execute corresponding handlers.
