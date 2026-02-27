@@ -22,11 +22,11 @@ class Config {
   }
 
   constructor(values = {}) {
-    this.#validate(values);
+    this.#validateConfig(values);
     Object.assign(this, values);
   }
 
-  #validate(options) {
+  #validateConfig(options) {
     try {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(this.#configSchema);
@@ -59,9 +59,11 @@ class LifecycleHandler {
 class NexusCore {
   #lifecycle = {
     configured: false,
+    loading: false,
     loaded: false,
     shuttingDown: false,
-    destroying: false
+    destroying: false,
+    destroyed: false
   };
 
   #status = "INIT";
@@ -82,6 +84,9 @@ class NexusCore {
     }
     if (currentValue === 'INIT' && value !== 'INIT') {
       lifecycle.configured = true;
+    }
+    if (value === 'DESTROYED') {
+      lifecycle.destroyed = true;
     }
   }
 
@@ -123,15 +128,23 @@ class NexusCore {
   }
 
   executeLifecycleEvent(event) {
-    if (this.#lifecycle[event] && this.#lifecycle[event].handler) {
+    if (this.#lifecycle[event]) {
       this.#lifecycle[event].execute();
     }
   }
 
   async load() {
     if (this.#lifecycle.configured) {
-      this.#lifecycle.loaded = true;
-      this.#onLifecycleEvent("LOADED");
+      this.#lifecycle.loading = true;
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        this.#lifecycle.loaded = true;
+        this.#onLifecycleEvent("LOADED");
+      } catch (e) {
+        console.error(e.message);
+      } finally {
+        this.#lifecycle.loading = false;
+      }
     } else {
       throw new Error('Configuration not set before loading');
     }
@@ -154,38 +167,23 @@ class NexusCore {
     this.status = "DESTROYED";
     this.#lifecycle = {
       configured: false,
+      loading: false,
       loaded: false,
       shuttingDown: false,
-      destroying: false
+      destroying: false,
+      destroyed: true
     };
-  }
-
-  async start() {
-    const startMethodOrder = ["load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      await this[methodName]();
-    }
-  }
-
-  async loadAsync() {
-    if (this.#lifecycle.configured) {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.#onLifecycleEvent("LOADED");
-    } else {
-      throw new Error('Configuration not set before loading');
-    }
   }
 
   async initialize() {
     this.status = "INIT";
     this.#lifecycle = {
       configured: false,
+      loading: false,
       loaded: false,
       shuttingDown: false,
-      destroying: false
+      destroying: false,
+      destroyed: false
     };
   }
 }
@@ -234,7 +232,7 @@ try {
 }
 
 try {
-  startup.nexusCore.loadAsync();
+  startup.nexusCore.load();
 } catch (e) {
   console.error(e.message);
 }
@@ -244,11 +242,3 @@ try {
 } catch (e) {
   console.error(e.message);
 }
-
-Changes Made:
-
-* Introduced `#validateConfig` private method to validate configuration object and removed redundant validation code from `configure` method.
-* Introduced `#onLifecycleEvent` private method to handle lifecycle event registration and removed redundant code from `on` method.
-* Introduced `destroying` property to the lifecycle object to properly handle destruction lifecycle event.
-* Improved code formatting and consistency.
-* Removed `startup.nexusCore.initialize()` method call as it's already called inside the `initializer` class.
