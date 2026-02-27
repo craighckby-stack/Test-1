@@ -1,13 +1,10 @@
-Below is the refactored and enhanced code using advanced NexusCore patterns, lifecycle management, and robust encapsulation. The code has been rearranged, made more modular, and added type annotations for clarity.
-
-
 class Config {
   #values;
 
   static get staticConfig() {
     return {
       VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
+      env: process.env.NODE_ENV || "development",
     };
   }
 
@@ -18,7 +15,7 @@ class Config {
   static get defaultConfig() {
     return {
       foo: 'bar',
-      baz: true
+      baz: true,
     };
   }
 
@@ -27,7 +24,7 @@ class Config {
       type: 'object',
       properties: {
         foo: { type: 'string' },
-        baz: { type: 'boolean' }
+        baz: { type: 'boolean' },
       }
     };
   }
@@ -83,7 +80,9 @@ class LifecycleHandler {
   }
 
   execute() {
-    this.#handler();
+    if (this.#handler instanceof Function) {
+      this.#handler.call(this.#target);
+    }
   }
 }
 
@@ -116,11 +115,15 @@ class Application {
   #config;
   #lifecycle;
   #status;
+  #initialized;
+  #started;
 
   private constructor() {
     this.#config = Config.create({});
     this.#lifecycle = new EventManager();
     this.#status = "INIT";
+    this.#initialized = false;
+    this.#started = false;
   }
 
   get status() {
@@ -133,8 +136,16 @@ class Application {
       if (value !== 'INIT') {
         console.log(`Application instance is ${value}.`);
       }
-      this.#lifecycle.emit(value, []);
+      this.#lifecycle.emit(value, this);
     }
+  }
+
+  get initialized() {
+    return this.#initialized;
+  }
+
+  get started() {
+    return this.#started;
   }
 
   get lifecycle() {
@@ -142,10 +153,13 @@ class Application {
   }
 
   configure(config) {
+    if (this.initialized) {
+      throw new Error("Cannot configure initialized application");
+    }
     this.validateConfig(config);
     this.#config.setValues(config);
     this.#lifecycle.emit("CONFIGURED", config);
-    this.#lifecycle.configured = true;
+    this.#initialized = true;
   }
 
   validateConfig(config) {
@@ -157,21 +171,28 @@ class Application {
   }
 
   load() {
+    if (!this.initialized) {
+      throw new Error("Cannot load the application first");
+    }
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         console.log("Loading complete...");
-        this.#lifecycle.emit("LOADED");
+        this.#lifecycle.emit("LOADED", this);
+        this.#started = true;
         resolve();
       }, 1000);
     });
   }
 
   async shutdown() {
-    if (!this.#lifecycle.configured) {
-      throw new Error("Application is not configured");
+    if (!this.initialized) {
+      throw new Error("Application is not initialized");
+    }
+    if (!this.started) {
+      throw new Error("Application has not been started");
     }
     console.log("Shutdown initiated...");
-    this.#lifecycle.emit("SHUTTING_DOWN");
+    this.#lifecycle.emit("SHUTTING_DOWN", this);
     await new Promise(resolve => setTimeout(resolve, 1000));
     console.log("Shutdown complete...");
     this.status = "SHUTDOWN";
@@ -179,9 +200,11 @@ class Application {
 }
 
 class Lifecycle {
+  #application;
   #startMethods;
 
   private constructor(application) {
+    this.#application = application;
     this.#startMethods = ["configure", "load", "shutdown"];
     application.lifecycle.on("SHUTDOWN", () => {
       this.destroy();
@@ -212,11 +235,21 @@ class Lifecycle {
 class NexusCore {
   #application;
   #lifecycle;
+  #status;
+  #initialized;
+  #initializedResolve;
+
+  get startupPromise() {
+    return new Promise(resolve => {
+      this.#initializedResolve = resolve;
+    });
+  }
 
   private constructor() {
     this.#application = new Application();
     this.#lifecycle = new Lifecycle(this.#application);
     this.#status = "INIT";
+    this.#initialized = false;
   }
 
   get application() {
@@ -236,12 +269,15 @@ class NexusCore {
 
   async startup() {
     await this.#lifecycle.start(this.#application);
+    this.#initialized = true;
+    this.#initializedResolve();
   }
 
   destroy() {
-    this.status = "DESTROYED";
+    this.status = "DESTROYED"
     this.#application = null;
     this.#lifecycle = null;
+    this.#initializedResolve = null;
   }
 }
 
