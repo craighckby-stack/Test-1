@@ -1,35 +1,11 @@
 class Config {
+  #configSchema;
+
   static get staticConfig() {
     return {
       VERSION: "1.0.0",
       env: process.env.NODE_ENV || "development"
     };
-  }
-
-  constructor(values = {}) {
-    this.setValues(values);
-
-    this.#validateConfig();
-  }
-
-  setValues(values) {
-    Object.assign(this, values);
-  }
-
-  validate() {
-    this.#validateConfig();
-  }
-
-  #validateConfig() {
-    try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
   }
 
   static get defaultConfig() {
@@ -40,13 +16,34 @@ class Config {
   }
 
   static get configSchema() {
-    return {
+    this.#configSchema = {
       type: 'object',
       properties: {
         foo: { type: 'string' },
         baz: { type: 'boolean' }
       }
     };
+    return this.#configSchema;
+  }
+
+  constructor(values = {}) {
+    this.#validateConfig(values);
+    this.#loadConfig(values);
+  }
+
+  #validateConfig(values) {
+    const validator = new (require('jsonschema').Validator)();
+    validator.checkSchema(this.constructor.configSchema);
+    try {
+      validator.validate(values, this.constructor.configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  #loadConfig(values) {
+    Object.assign(this, values);
   }
 }
 
@@ -91,9 +88,10 @@ class LifecycleHandler {
 }
 
 class NexusCore {
-  /**
-   * NexusCore constructor. Initializes the lifecycle object and the status.
-   */
+  #lifecycle;
+  #status;
+  #handlers = new Map();
+
   constructor() {
     this.#lifecycle = {
       configured: false,
@@ -104,18 +102,10 @@ class NexusCore {
     this.#status = "INIT";
   }
 
-  /**
-   * Gets the current status of the NexusCore instance.
-   * @returns {string}
-   */
   get status() {
     return this.#status;
   }
 
-  /**
-   * Sets the current status of the NexusCore instance.
-   * @param {string} value - The new status.
-   */
   set status(value) {
     this.#status = value;
     const currentValue = this.#status;
@@ -136,10 +126,6 @@ class NexusCore {
     this.#validateStatus();
   }
 
-  /**
-   * Confirms if the status has been properly validated without entering an unhandled error state.
-   * Also checks for any potential inconsistencies within lifecycle states.
-   */
   #validateStatus() {
     if (this.#lifecycle.configured && this.#status !== 'CONFIGURED' && this.#status !== 'INIT') {
       throw new Error("NexusCore lifecycle status inconsistency.");
@@ -152,100 +138,71 @@ class NexusCore {
     }
   }
 
-  /**
-   * Gets the lifecycle object.
-   * @returns {Object}
-   */
   get lifecycle() {
     return this.#lifecycle;
   }
 
-  /**
-   * Configures the NexusCore instance with a given configuration.
-   * The configuration will be validated against the defined schema.
-   * @param {Config} config - The configuration to apply.
-   */
-  configure(config) {
-    this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
+  get handlers() {
+    return this.#handlers;
   }
 
-  /**
-   * Validates the given configuration against the defined schema.
-   * If the validation fails, it will throw a validation error.
-   * @param {Config} config - The configuration to validate.
-   */
-  validateConfig(config) {
-    const configSchema = Config.configSchema;
+  #configLifecycleEvent(event) {
+    const handler = this.#handlers.get(event);
+    if (handler) {
+      handler.bind(this).execute();
+    }
+  }
+
+  configure(config) {
+    const validationPromise = new Promise(resolve => {
+      this.validateConfig(config, resolve);
+    });
+    validationPromise.then(() => {
+      this.onLifecycleEvent("CONFIGURED");
+      this.#lifecycle.configured = true;
+    });
+  }
+
+  #validateConfig(values, resolve) {
+    const validator = new (require('jsonschema').Validator)();
+    validator.checkSchema(this.constructor.configSchema);
     try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
+      validator.validate(values, this.constructor.configSchema);
+      resolve();
     } catch (e) {
       console.error('Config validation error:', e);
-      throw e;
+      reject(e);
     }
   }
 
-  /**
-   * Adds an event handler for the given lifecycle event.
-   * The handler will be bound to the current context.
-   * @param {LifecycleEvent} event - The lifecycle event to handle.
-   * @param {function} handler - The event handler function.
-   */
-  onLifecycleEvent(event, handler) {
+  addHandler(event, handler) {
     const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event].handler = lifecycleHandler.handler;
-    this.#lifecycle[event].event = event;
+    this.#handlers.set(event, lifecycleHandler.handler);
   }
 
-  /**
-   * Attaches a lifecycle event handler.
-   * @param {LifecycleEvent} event - The lifecycle event to handle.
-   * @param {function} handler - The event handler function.
-   */
   on(event, handler) {
-    const lifecycleEvent = new LifecycleEvent(event);
-    this.onLifecycleEvent(event, handler);
+    this.addHandler(event, handler);
   }
 
-  /**
-   * Executes the event handler for the given lifecycle event.
-   * @param {LifecycleEvent} event - The lifecycle event to execute.
-   */
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-  }
-
-  /**
-   * Loads the instance after configuration.
-   */
   async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
+    this.#configLifecycleEvent("CONFIGURED");
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
+      this.#configLifecycleEvent("LOADED");
     } catch (e) {
       console.error('Load error:', e);
     }
   }
 
-  /**
-   * Shuts down the instance.
-   */
   async shutdown() {
     try {
       if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
         this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
+        this.#configLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
         this.status = "SHUTDOWN";
       }
@@ -254,21 +211,19 @@ class NexusCore {
     }
   }
 
-  /**
-   * Starts the instance by configuring, loading, and shutting down.
-   */
   async start() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
+      try {
+        if (this[methodName] instanceof Function) {
+          await this[methodName]();
+        }
+      } catch (e) {
+        console.error(`Error in ${methodName} method:`, e);
       }
     }
   }
 
-  /**
-   * Destroys the NexusCore instance.
-   */
   async destroy() {
     this.status = "DESTROYED";
     this.#lifecycle = {
@@ -276,25 +231,25 @@ class NexusCore {
       loaded: false,
       shuttingDown: false
     };
+    const handlers = this.handlers;
+    this.handlers = new Map();
+    handlers.forEach(handler => {
+      try {
+        handler();
+      } catch (e) {
+        console.error('Error in handler:', e);
+      }
+    });
   }
 }
 
 const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', async () => {
+nexusCore.addHandler('DESTROYED', async () => {
   console.log("NexusCore instance destroyed.");
 });
-nexusCore.configure(Config.defaultConfig);
+const config = new Config(Config.defaultConfig);
+nexusCore.configure(config);
 nexusCore.start();
 await nexusCore.load();
 await nexusCore.shutdown();
 await nexusCore.destroy();
-
-Changes made:
-
-*   Encapsulated methods with `#` symbol for private usage
-*   Added lifecycle validation logic to maintain object immutability and data consistency
-*   Reorganized method execution order for a more modular lifecycle management system
-*   Used await/async keywords to improve asynchronous code structure
-*   Improved configuration validation using `jsonschema`
-*   Applied Object-oriented principles such as inheritance and polymorphism
-*   Introduced private properties to define immutable state and encapsulate internal workings
