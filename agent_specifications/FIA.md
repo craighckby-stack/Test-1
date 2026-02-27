@@ -1,10 +1,24 @@
 class Config {
-  #staticConfig;
   #defaultConfig;
   #configSchema;
+  #instance;
 
-  #constructor(...initialValues) {
+  static getInstance() {
+    return new WeakMap().get('instance') || new Config();
+  }
+
+  static setInstance(value) {
+    const configMap = new WeakMap();
+    configMap.set('instance', value);
+  }
+
+  constructor(...initialValues) {
+    if (this.#instance) {
+      return this.#instance;
+    }
+
     Object.assign(this, initialValues);
+    this.#instance = this;
     this.#configSchema = {
       type: 'object',
       properties: {
@@ -14,17 +28,12 @@ class Config {
     };
   }
 
-  static get instance() {
-    return new WeakMap().get('instance') || new Config();
-  }
-
-  static set instance(value) {
-    const configMap = new WeakMap();
-    configMap.set('instance', value);
+  get instance() {
+    return this.#instance;
   }
 
   static getDefaultConfig() {
-    const instance = Config.instance;
+    const instance = Config.getInstance();
     return instance.createConfig(instance.#defaultConfig);
   }
 
@@ -33,25 +42,29 @@ class Config {
   }
 
   setValues(values) {
-    Object.assign(this, values);
+    Object.assign(this.#defaultConfig, values);
   }
 
   validate() {
     try {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(this.#configSchema);
-      validator.validate(this, this.#configSchema);
+      validator.validate(this.#defaultConfig, this.#configSchema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
     }
+  }
+
+  get values() {
+    return this.#defaultConfig;
   }
 }
 
 class LifecycleEvent {
   #event;
 
-  #constructor(event) {
+  constructor(event) {
     this.#event = event;
   }
 
@@ -63,7 +76,7 @@ class LifecycleEvent {
 class LifecycleHandler extends LifecycleEvent {
   #handler;
 
-  #constructor(event, handler) {
+  constructor(event, handler) {
     super(event);
     this.#handler = handler;
   }
@@ -82,8 +95,8 @@ class LifecycleHandler extends LifecycleEvent {
 }
 
 class LifecycleManager {
-  #lifecycle;
   #status = "INIT";
+  #lifecycle;
 
   get status() {
     return this.#status;
@@ -115,7 +128,7 @@ class LifecycleManager {
   }
 
   validateConfig(config) {
-    const configSchema = Config.instance.#configSchema;
+    const configSchema = Config.getInstance().#configSchema;
     try {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(configSchema);
@@ -145,7 +158,7 @@ class LifecycleManager {
 }
 
 class NexuxCore extends LifecycleManager {
-  #lifecycle;
+  #initCalled = false;
 
   static initialize() {
     if (!NexuxCore.getInstance()) {
@@ -171,6 +184,7 @@ class NexuxCore extends LifecycleManager {
     this.on("DESTROYED", () => {
       console.log("NexusCore instance destroyed.");
     });
+    this.#initCalled = true;
   }
 
   async configure(config) {
@@ -182,11 +196,21 @@ class NexuxCore extends LifecycleManager {
   }
 
   async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
+    try {
+      if (this.#initCalled) {
+        await this.#init();
+
+        const startMethodOrder = ["configure", "load", "shutdown"];
+        for (const methodName of startMethodOrder) {
+          if (this[methodName] instanceof Function) {
+            await this[methodName]();
+          }
+        }
+      } else {
+        throw new Error("Initialization failed.");
       }
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -214,6 +238,10 @@ class NexuxCore extends LifecycleManager {
   }
 
   async destroy() {
+    if (!this.#initCalled) {
+      return;
+    }
+
     this.status = "DESTROYED";
     super.destroy();
   }
@@ -224,15 +252,6 @@ NexuxCore.initialize();
 const nexusCore = NexuxCore.instance;
 nexusCore.configure(Config.getDefaultConfig());
 nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
+// nexusCore.load();
+// nexusCore.shutdown();
 nexusCore.destroy();
-
-
-The code has been refactored to improve encapsulation, use advanced NexusCore patterns, and enhance lifecycle management. Here are the key changes:
-
-1.  **Improved Encapsulation**: Property access has been protected using the `#` symbol, which is a part of the ES6 private fields syntax.
-2.  **Advanced NexusCore Patterns**: The `NexuxCore` class now uses a WeakMap to store the instance, ensuring that the instance is properly garbage collected.
-3.  **Lifecycle Management**: The `configure` and `shutdown` methods have been updated to respect the lifecycle events properly. The `destroy` method has also been refactored to ensure proper lifecycle management.
-4.  **Robust Instantiation**: The `NexuxCore` class now uses a static method `initialize` to ensure that the instance is properly initialized.
-5.  **Custom Load Logic**: The `load` method has been updated to perform custom load logic after calling the parent class's `load` method.
