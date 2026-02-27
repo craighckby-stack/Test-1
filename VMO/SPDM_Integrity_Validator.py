@@ -8,7 +8,6 @@ class Config {
   }
 
   constructor(config) {
-    this.#defaultConfig = Config.defaultConfig;
     this.#configSchema = this.createConfigSchema();
     this.#cache = this.mergeDefaultConfig(config);
     this.validateConfig();
@@ -27,14 +26,14 @@ class Config {
   }
 
   mergeDefaultConfig(defaultConfig) {
-    const mergedConfig = Object.assign({}, this.#defaultConfig, defaultConfig);
+    const mergedConfig = Object.assign({}, Config.defaultConfig, defaultConfig);
     const configTimestamp = new Date().getTime();
     return {...mergedConfig, configTimestamp};
   }
 
   validateConfig() {
     const validator = new (require('jsonschema').Validator)();
-    validator.validate(this.#cache, this.createConfigSchema());
+    validator.validate(this.#cache, this.#configSchema);
   }
 
   get config() {
@@ -70,30 +69,6 @@ class LifecycleEvent {
 
   static get DESTROYED() {
     return 'DESTROYED';
-  }
-
-  #event;
-  #handler;
-
-  constructor(event, handler) {
-    this.#event = event;
-    this.#handler = handler;
-  }
-
-  get event() {
-    return this.#event;
-  }
-
-  set event(event) {
-    this.#event = event;
-  }
-
-  get handler() {
-    return this.#handler;
-  }
-
-  set handler(handler) {
-    this.#handler = handler;
   }
 }
 
@@ -142,6 +117,7 @@ class NexusCore {
 
   #status;
   #lifecycle;
+  #pendingDestroy;
 
   constructor() {
     this.#lifecycle = {
@@ -152,13 +128,14 @@ class NexusCore {
       lastLifecycleUpdate: Date.now(),
     };
     this.#status = NexusCore.INIT;
+    this.#pendingDestroy = false;
   }
 
   async configure(config) {
     await this.validateConfig(config);
     this.#lifecycle.configured = true;
-    this.#performLifecycleUpdate(NexusCore.CONFIGURED);
-    this.status = NexusCore.CONFIGURED;
+    this.#updateLifecycle(NexusCore.CONFIGURED);
+    this.#status = NexusCore.CONFIGURED;
     return this;
   }
 
@@ -176,15 +153,15 @@ class NexusCore {
       });
     }));
     this.#lifecycle.loaded = true;
-    this.#performLifecycleUpdate(NexusCore.LOADED);
-    this.status = NexusCore.LOADED;
+    this.#updateLifecycle(NexusCore.LOADED);
+    this.#status = NexusCore.LOADED;
     return this;
   }
 
   shutdown() {
     if (!this.#lifecycle.shuttingDown) {
       this.#lifecycle.shuttingDown = true;
-      this.#performLifecycleUpdate(NexusCore.SHUTTING_DOWN);
+      this.#updateLifecycle(NexusCore.SHUTTING_DOWN);
 
       return new Promise((resolve, reject) => {
         console.log("Shutdown initiated...");
@@ -199,7 +176,7 @@ class NexusCore {
             });
           });
         })).then(() => {
-          this.status = NexusCore.SHUTDOWN;
+          this.#status = NexusCore.SHUTDOWN;
           resolve(this);
         }).catch((e) => {
           console.error("Shutdown error:", e);
@@ -212,7 +189,7 @@ class NexusCore {
   }
 
   destroy() {
-    this.status = NexusCore.DESTROYED;
+    this.#pendingDestroy = true;
     this.#lifecycle = {
       configured: false,
       loaded: false,
@@ -220,6 +197,8 @@ class NexusCore {
       handlers: [],
       lastLifecycleUpdate: Date.now(),
     };
+    this.#status = NexusCore.DESTROYED;
+    this.#updateLifecycle(NexusCore.DESTROYED);
   }
 
   get status() {
@@ -232,7 +211,6 @@ class NexusCore {
   }
 
   #updateLifecycle(event) {
-    const lastLifecycleUpdate = this.#lifecycle.lastLifecycleUpdate;
     let updateStatusWithEvent;
     switch (event) {
       case NexusCore.CONFIGURED:
@@ -240,23 +218,23 @@ class NexusCore {
       case NexusCore.LOADED:
         break;
       case NexusCore.SHUTTING_DOWN:
-        if (lastLifecycleUpdate === NexusCore.INIT) {
+        if (this.#lifecycle.lastLifecycleUpdate === NexusCore.INIT) {
           break;
         }
         break;
       case NexusCore.SHUTDOWN:
-        if (lastLifecycleUpdate !== NexusCore.SHUTTING_DOWN) {
+        if (this.#lifecycle.lastLifecycleUpdate !== NexusCore.SHUTTING_DOWN) {
           break;
         }
         break;
       default:
       case NexusCore.INIT:
-        if (lastLifecycleUpdate !== NexusCore.INIT) {
+        if (this.#lifecycle.lastLifecycleUpdate !== NexusCore.INIT) {
           break;
         }
         break;
       case NexusCore.DESTROYED:
-        if (lastLifecycleUpdate) {
+        if (this.#lifecycle.lastLifecycleUpdate) {
           break;
         }
         break;
@@ -308,6 +286,12 @@ class NexusCore {
       this.onLifecycleUpdate(event, handler);
     };
   }
+
+  async waitForDestroy() {
+    while (this.#pendingDestroy) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }
 }
 
 const nexusCore = new NexusCore();
@@ -317,15 +301,4 @@ nexusCore.onLifecycleEvent(NexusCore.DESTROYED, async () => {
 
 await nexusCore.configure({ foo: 'baz', baz: false });
 nexusCore.status = NexusCore.LOADED;
-await nexusCore.shutdown();
-nexusCore.destroy();
-
-This code includes enhancements such as advanced NexusCore patterns, lifecycle management (configure, load, shutdown), and robust encapsulation.
-
-Here are some of the key improvements:
-
-* Simplified the status management by using a single property (`#status`)
-* Introduced a separate method (`#updateLifecycle`) to update the lifecycle state
-* Moved the event handling logic to the `#performLifecycleUpdate` method
-* Introduced a `createConfigSchema` method to create the JSON schema for the config validation
-* Updated the example usage to be more concise and clear.
+nexusCore.waitForDestroy().then(() => console.log("NexusCore instance has been destroyed."));
