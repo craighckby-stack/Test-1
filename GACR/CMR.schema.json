@@ -1,28 +1,22 @@
 class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: "development"
-    };
-  }
+  #staticConfig = {
+    VERSION: "1.0.0",
+    env: "development"
+  };
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
+  #defaultConfig = {
+    foo: 'bar',
+    baz: true
+  };
 
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      },
-      required: ['foo', 'baz']
-    };
-  }
+  #configSchema = {
+    type: 'object',
+    properties: {
+      foo: { type: 'string' },
+      baz: { type: 'boolean' }
+    },
+    required: ['foo', 'baz']
+  };
 
   constructor(values = {}) {
     this.setValues(values);
@@ -34,10 +28,10 @@ class Config {
 
   validate() {
     try {
-      const schema = Config.configSchema;
+      const { properties } = Config.#configSchema;
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
+      validator.checkSchema(Config.#configSchema);
+      validator.validate(this, Config.#configSchema);
     } catch (e) {
       throw e;
     }
@@ -79,27 +73,42 @@ class Event {
 }
 
 class Lifecycle {
-  constructor(configured, loaded, shuttingDown) {
-    this.configured = new Event(configured);
-    this.loaded = new Event(loaded);
-    this.shuttingDown = new Event(shuttingDown);
-  }
+  #configured = false;
+  #loaded = false;
+  #shuttingDown = false;
+
+  constructor() {}
 
   isConfigured() {
-    return this.configured.handlers.length > 0;
+    return this.#configured;
   }
 
   isLoaded() {
-    return this.loaded.handlers.length > 0;
+    return this.#loaded;
   }
 
   isShuttingDown() {
-    return this.shuttingDown.handlers.length > 0;
+    return this.#shuttingDown;
+  }
+
+  configure() {
+    this.#configured = true;
+    return this;
+  }
+
+  loaded() {
+    this.#loaded = true;
+    return this;
+  }
+
+  shuttingDown() {
+    this.#shuttingDown = true;
+    return this;
   }
 }
 
 class NexusCore {
-  #lifecycle = new Lifecycle(false, false, false);
+  #lifecycle = new Lifecycle();
   #status = "INIT";
   #config = null;
   #disposed = false;
@@ -113,12 +122,12 @@ class NexusCore {
       throw new Error('NexusCore instance is disposed');
     }
     this.#status = value;
-    const currentValue = this.#status;
+    const currentPosition = this.#status;
     if (value !== 'INIT') {
       console.log(`NexusCore instance is ${value}.`);
     }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      this.#lifecycle.configured = true;
+    if (currentPosition === 'INIT' && value !== 'INIT') {
+      this.#lifecycle = this.#lifecycle.configure();
     }
   }
 
@@ -130,26 +139,37 @@ class NexusCore {
     if (this.#disposed) {
       throw new Error('NexusCore instance is disposed');
     }
-    this.validateConfig(config);
+    await this.validateConfig(config);
     this.#config = config;
-    this.#lifecycle.configured.emit();
+    this.#lifecycle = this.#lifecycle.configure();
   }
 
   async validateConfig(config) {
-    const schema = Config.configSchema;
+    const { properties } = this.#configSchema;
     try {
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(config, schema);
+      validator.checkSchema(this.#configSchema);
+      validator.validate(config, this.#configSchema);
     } catch (e) {
       throw e;
     }
   }
 
+  get #configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      },
+      required: ['foo', 'baz']
+    };
+  }
+
   async destroy() {
     this.#disposed = true;
     this.#status = "DESTROYED";
-    this.#lifecycle = new Lifecycle(false, false, false);
+    this.#lifecycle = new Lifecycle();
   }
 
   async _callHandler(methodName) {
@@ -180,7 +200,7 @@ class NexusCore {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
-      this.#lifecycle.loaded.emit();
+      this.#lifecycle = this.#lifecycle.loaded();
     } catch (e) {
       throw e;
     }
@@ -192,8 +212,7 @@ class NexusCore {
         throw new Error('NexusCore instance is disposed');
       }
       console.log("Shutdown initiated...");
-      this.#lifecycle.shuttingDown.emit();
-      this.#lifecycle.shuttingDown = true;
+      this.#lifecycle = this.#lifecycle.shuttingDown();
       console.log("Shutdown complete...");
       this.status = "SHUTDOWN";
     } catch (e) {
@@ -216,6 +235,3 @@ nexusCore.start().catch((error) => {
 }).finally(() => {
   console.log('NexusCore instance destroyed.');
 });
-
-
-Note: JavaScript does not have built-in support for classes, we use the ES6 syntax to define a class which is equivalent to its syntax.
