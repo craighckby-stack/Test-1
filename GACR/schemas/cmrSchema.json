@@ -1,32 +1,62 @@
 class Config {
-  #staticConfig = {
-    VERSION: "1.0.0",
-    env: process.env.NODE_ENV || "development"
-  };
-
-  #defaultConfig = {
-    foo: 'bar',
-    baz: true
-  };
-
-  #configSchema = {
+  #_configSchema = {
     type: 'object',
     properties: {
       foo: { type: 'string' },
       baz: { type: 'boolean' }
-    }
+    },
+    required: ['foo', 'baz']
   };
 
   constructor(values = {}) {
+    this.#validate(values);
     this.#setValues(values);
   }
 
   #setValues(values) {
-    Object.assign(this, values);
+    Object.freeze(this.#values = Object.assign({}, { foo: '' }, values));
   }
 
-  static get staticConfig() {
-    return Config.#staticConfig;
+  #validate(values) {
+    const errorMessages = [];
+    for (const [key, value] of Object.entries(Config.#_schema(values))) {
+      if (key === 'foo') {
+        if (!value || !/^[^ ]+$/.test(value)) {
+          errorMessages.push(`'${key}' must not be blank and contain only non-space characters.`);
+        }
+      } else if (key === 'baz') {
+        if (typeof value !== 'boolean') {
+          errorMessages.push(`'${key}' must be a boolean.`);
+        }
+      }
+    }
+    if (errorMessages.length) {
+      throw new Error(errorMessages.join('\n'));
+    }
+  }
+
+  #_schema(values, prefix = '') {
+    const result = {};
+    for (const [key, value] of Object.entries(this.#_schemaProperties)) {
+      if (prefix) {
+        result[`${prefix}.${key}`] = value;
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+
+  get schema() {
+    return this.#_configSchema;
+  }
+
+  get values() {
+    return this.#values;
+  }
+
+  toJSON() {
+    return { ...this.#values };
   }
 
   static get defaultConfig() {
@@ -34,23 +64,16 @@ class Config {
   }
 
   static get configSchema() {
-    return Config.#configSchema;
+    return Config.#_configSchema;
   }
+}
+Config.#defaultConfig = { foo: 'bar', baz: true };
 
-  validate() {
-    try {
-      const schema = Config.#configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  toJSON() {
-    return { ...this };
+class ConfigValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ConfigValidationError';
+    this.status = 400;
   }
 }
 
@@ -61,48 +84,50 @@ class LifecycleEvent {
 }
 
 class LifecycleHandler {
-  #handler = null;
+  #eventName;
+  #handler;
+  #boundHandler;
 
-  constructor(handler) {
+  constructor(event, handler) {
+    this.#eventName = event;
     this.#handler = handler;
+    this.#boundHandler = null;
   }
 
   bind(target = this) {
-    this.#handler = this.#handler.bind(target);
+    this.#boundHandler = this.#handler.bind(target);
   }
 
   execute() {
-    this.#handler();
+    if (this.#boundHandler) {
+      this.#boundHandler();
+    }
   }
 
   get handler() {
-    return this.#handler;
-  }
-
-  set handler(value) {
-    this.#handler = value;
+    return this.#boundHandler;
   }
 }
 
 class NexusCore {
-  #lifecycle = {
+  #_lifecycle = {
     configured: false,
     loaded: false,
     shuttingDown: false
   };
 
-  #status = "INIT";
+  #_status = "INIT";
 
-  #config;
+  #_config;
 
   get status() {
-    return this.#status;
+    return this.#_status;
   }
 
   set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
+    this.#_status = value;
+    const currentValue = this.#_status;
+    const lifecycle = this.#_lifecycle;
     if (value !== 'INIT') {
       if (value === 'SHUTDOWN') {
         lifecycle.shuttingDown = false;
@@ -114,13 +139,13 @@ class NexusCore {
   }
 
   get lifecycle() {
-    return this.#lifecycle;
+    return this.#_lifecycle;
   }
 
   async configure(config) {
     await this.validateConfig(config);
     await this.#onLifecycleEvent("CONFIGURED");
-    this.#config = config;
+    this.#_config = Object.freeze(config);
     return this;
   }
 
@@ -130,19 +155,21 @@ class NexusCore {
       validator.checkSchema(Config.configSchema);
       validator.validate(config, Config.configSchema);
     } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
+      throw new ConfigValidationError(`Config validation error: ${e}`);
     }
   }
 
-  #onLifecycleEvent(event) {
-    const lifecycleHandler = new LifecycleHandler(() => this.#lifecycle[event].execute());
-    this.#lifecycle[event] = lifecycleHandler;
+  #onLifecycleEvent(event, handler) {
+    if (handler) {
+      const lifecycleHandler = new LifecycleHandler(event, handler);
+      lifecycleHandler.bind(this);
+      this.#_lifecycle[event] = lifecycleHandler;
+    }
   }
 
   async executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
+    if (this.#_lifecycle[event]) {
+      this.#_lifecycle[event].execute();
     }
   }
 
@@ -150,15 +177,15 @@ class NexusCore {
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
       await this.executeLifecycleEvent("LOADED");
+      console.log("Loading complete...");
     } catch (e) {
       console.error('Load error:', e);
     }
   }
 
   async shutdown() {
-    if (!this.#lifecycle.shuttingDown) {
+    if (!this.#_lifecycle.shuttingDown) {
       console.log("NexusCore instance is shutting down...");
       await this.executeLifecycleEvent("SHUTTING_DOWN");
       console.log("Shutdown complete...");
@@ -177,8 +204,8 @@ class NexusCore {
 
   async destroy() {
     this.status = "DESTROYED";
-    this.#config = undefined;
-    this.#lifecycle = {
+    this.#_config = undefined;
+    this.#_lifecycle = {
       configured: false,
       loaded: false,
       shuttingDown: false
@@ -195,8 +222,13 @@ nexusCore.on('DESTROYED', async () => {
   console.log("NexusCore instance destroyed.");
 });
 nexusCore.status = 'INIT';
-await nexusCore.configure({ ...Config.defaultConfig });
-await nexusCore.start();
-await nexusCore.load();
-await nexusCore.shutdown();
+try {
+  await nexusCore.configure({ ...Config.defaultConfig });
+  await nexusCore.start();
+  await nexusCore.load();
+  await nexusCore.shutdown();
+} catch (e) {
+  console.error(e);
+  process.exit(1);
+}
 await nexusCore.destroy();
