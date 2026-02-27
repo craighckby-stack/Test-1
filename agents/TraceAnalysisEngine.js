@@ -1,19 +1,24 @@
+Here is the refactored code using advanced NexusCore patterns, lifecycle management (configure, load, shutdown), and robust encapsulation in ES6:
+
+
 class Config {
-  static get staticConfig() {
+  #values;
+
+  get staticConfig() {
     return {
       VERSION: "1.0.0",
       env: globalThis.process.env.NODE_ENV || "development"
     };
   }
 
-  static get defaultConfig() {
+  get defaultConfig() {
     return Object.freeze({
       foo: 'bar',
       baz: true
     });
   }
 
-  static get configSchema() {
+  get configSchema() {
     return {
       type: 'object',
       properties: {
@@ -28,27 +33,54 @@ class Config {
     if (globalThis.Object Freeze) {
       Object.freeze(this);
     }
-    Object.assign(this, values);
+    this.#values = values;
+  }
+
+  get values() {
+    return this.#values;
+  }
+
+  set values(values) {
+    Object.assign(this.#values, values);
   }
 }
 
 class LifecycleEvent {
+  #event;
+
   constructor(event) {
-    this.event = event;
+    this.#event = event;
+  }
+
+  get event() {
+    return this.#event;
+  }
+
+  set event(event) {
+    this.#event = event;
   }
 }
 
 class LifecycleHandler {
+  #handler;
+  #target;
+
   constructor(handler) {
-    this.handler = handler;
+    this.#handler = handler;
+    this.#target = null;
   }
 
   bind(target = this) {
-    this.handler = this.handler.bind(target);
+    this.#handler = this.#handler.bind(target);
+    this.#target = target;
   }
 
   execute() {
-    this.handler();
+    this.#handler();
+  }
+
+  get target() {
+    return this.#target;
   }
 }
 
@@ -59,7 +91,10 @@ class NexusCore {
     shuttingDown: false
   };
 
+  #configurable = true;
+  #configurablePromise;
   #status = "INIT";
+  #destroyed = false;
 
   get status() {
     return this.#status;
@@ -85,15 +120,33 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  async configure(config) {
-    await this.validateConfig(config);
-    this.onLifecycleEvent('CONFIGURED', () => {
-      this.#lifecycle.configured = true;
-      this.config = config;
-    });
+  get configurable() {
+    return this.#configurable;
   }
 
-  async validateConfig(config) {
+  set configurable(bool) {
+    this.#configurable = bool;
+    if (!bool) {
+      this.config = null;
+      this.#lifecycle.configured = false;
+    }
+  }
+
+  get config() {
+    return this.#config;
+  }
+
+  configure(config) {
+    if (!this.#configurable) {
+      throw new Error("Config is not configurable");
+    }
+    if (this.config && Object.keys(this.config).some((key) => !Object.hasOwn(config, key))) {
+      throw new Error('Config schema has changed');
+    }
+    return this._validateConfig(config);
+  }
+
+  async _validateConfig(config) {
     const configSchema = Config.configSchema;
     try {
       await new Promise((resolve, reject) => {
@@ -112,6 +165,9 @@ class NexusCore {
       globalThis.console.error(e);
       throw e;
     }
+    this.config = config;
+    this.#lifecycle.configured = true;
+    this.configurable = false;
   }
 
   onLifecycleEvent(event, handler) {
@@ -130,10 +186,13 @@ class NexusCore {
   }
 
   async destroy() {
+    this.#destroyed = true;
+    this.status = "DESTROYED";
     delete this.config;
     this.#lifecycle.configured = false;
     this.#lifecycle.loaded = false;
     this.#lifecycle.shuttingDown = false;
+    this.configurable = false;
     Object.freeze(this);
   }
 
@@ -162,8 +221,6 @@ class NexusCore {
     }
   }
 
-  // Removed start() method, as it was redundant with execute()
-
   async execute(event, handler) {
     globalThis.console.log(`Executing event: ${event}`);
     if (this.#lifecycle[event]) {
@@ -171,13 +228,7 @@ class NexusCore {
     }
   }
 
-  onLifecycleEvent(event) {
-    this.#lifecycle[event].execute();
-  }
-
-  async on(event, handler) {
-    this.onLifecycleEvent(event);
-  }
+  // Removed redundant onLifecycleEvent method
 }
 
 const nexusCore = new NexusCore();
@@ -191,4 +242,16 @@ nexusCore.shutdown();
 nexusCore.execute('SHUTDOWN');
 nexusCore.destroy();
 
-Note that I've removed the `start()` method as it was not necessary and I've modified the `onLifecycleEvent()` method to take a single event argument and remove the redundant `this.onLifecycleEvent(event)` call. Additionally, I've added strict mode to the `globalThis.console` calls to maintain consistency with modern JavaScript practices.
+
+This code introduces the following advanced NexusCore patterns:
+
+* Improved encapsulation: 
+  - The `Config` class now properly encapsulates its values using a private field `#values`. 
+  - The `values` getter and setter ensure that the values are accessed and modified through these properties.
+* Configurability:
+  - The `configure` method now checks if the config is still configurable before validating it.
+  - The `configurable` property is set to `false` after configuration to prevent further modifications.
+* Lifecycle management:
+  - The `destroy` method now properly sets the `destroyed` property to `true` and deletes the config.
+* Robust error handling:
+  - The `configure` method now checks if the config schema has changed before validating it.
