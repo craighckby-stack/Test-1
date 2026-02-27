@@ -11,8 +11,36 @@ class Entity {
   }
 
   onCreate() {}
-
   onDispose() {}
+
+  appendLifecycleHandler(handler) {
+    const { event, lifecycleEvent } = handler;
+    if (!lifecycleEvent.#eventsToNotify[event]) {
+      lifecycleEvent.#eventsToNotify[event] = [];
+    }
+    lifecycleEvent.#eventsToNotify[event].push(handler);
+  }
+
+  invokeLifecycleHandler(lifecycleHandler, event) {
+    return new Promise((resolve) => {
+      if (lifecycleHandler.#handlersToNotify[event]) {
+        for (const handler of lifecycleHandler.#handlersToNotify[event]) {
+          handler.handler(this).then(result => {
+            resolve(result);
+          }).catch(e => {
+            console.error('Error:', e);
+          });
+        }
+      }
+      resolve();
+    });
+  }
+
+  destroyLifecycleHandler(lifecycleHandler) {
+    this.#lifecycleStatus = "DESTROYED";
+    delete this.#lifecycle.handlers[lifecycleHandler.handler.name];
+    delete this.#lifecycle.events[lifecycleHandler.handler.name];
+  }
 }
 
 class Config extends Entity {
@@ -75,21 +103,6 @@ class LifecycleEvent extends Entity {
     super(event);
     this.event = event;
   }
-
-  async append(handler) {
-    if (!this.#eventsToNotify[this.event]) {
-      this.#eventsToNotify[this.event] = [];
-    }
-    this.#eventsToNotify[this.event].push(handler);
-  }
-
-  async notify(value) {
-    if (this.#eventsToNotify[this.event]) {
-      for (const handler of this.#eventsToNotify[this.event]) {
-        await handler(value);
-      }
-    }
-  }
 }
 
 class LifecycleHandler extends Entity {
@@ -99,21 +112,9 @@ class LifecycleHandler extends Entity {
     super('LifecycleHandler');
     this.handler = handler;
   }
-
-  async append(event, handler) {
-    if (!this.#handlersToNotify[event]) {
-      this.#handlersToNotify[event] = [];
-    }
-    this.#handlersToNotify[event].push(handler);
-  }
-
-  async invoke(event) {
-    const result = await this.handler(this);
-    return result;
-  }
 }
 
-class NexusCore {
+class NexusCore extends Entity {
   #config = null;
   #lifecycleStatus = 'INIT';
   #lifecycle = {
@@ -125,8 +126,7 @@ class NexusCore {
   };
 
   constructor() {
-    this.#lifecycle.events = {};
-    this.#lifecycle.handlers = {};
+    super('NexusCore');
     this.onCreate();
   }
 
@@ -147,17 +147,16 @@ class NexusCore {
   async configure(config) {
     try {
       const validatedConfig = await Config.validate(config);
-      await this.#lifecycle.handlers.CONFIGURED.append(new LifecycleHandler(async () => {
-        this.#lifecycle.configured = true;
-        this.#config = config;
-      }));
-      this.#lifecycle.events.CONFIGURED = new LifecycleEvent('CONFIGURED');
-      await this.#lifecycle.events.CONFIGURED.append(this.#lifecycle.handlers.CONFIGURED.append.bind(this.#lifecycle.handlers.CONFIGURED));
-      await this.#lifecycle.events.CONFIGURED.append(() => {
+      const lifecycleHandler = new LifecycleHandler(async () => {
         this.#lifecycle.configured = true;
         this.#config = config;
       });
-      await this.#lifecycle.events.CONFIGURED.notify(true);
+      this.appendLifecycleHandler(lifecycleHandler);
+      await this.invokeLifecycleHandler(lifecycleHandler, "CONFIGURED");
+      this.#lifecycle.events.CONFIGURED = new LifecycleEvent('CONFIGURED');
+      await this.appendLifecycleHandler(this.#lifecycle.events.CONFIGURED);
+      await this.invokeLifecycleHandler(this.#lifecycle.events.CONFIGURED, "CONFIGURED");
+      await this.#lifecycle.events.CONFIGURED.notify();
       this.#lifecycleStatus = "CONFIGURED";
     } catch (e) {
       console.error('Config validation error:', e);
@@ -184,7 +183,7 @@ class NexusCore {
         console.log("Shutdown initiated...");
         this.#lifecycle.shuttingDown = true;
         this.#lifecycleStatus = "SHUTTING_DOWN";
-        await this.executeLifecycleEvent("SHUTTING_DOWN");
+        await this.invokeLifecycleHandler(this.#lifecycle.events.SHUTTING_DOWN, "SHUTTING_DOWN");
         this.#lifecycleStatus = "SHUTDOWN";
       }
     } catch (e) {
@@ -193,30 +192,31 @@ class NexusCore {
   }
 
   on(event, handler) {
-    if (!this.#lifecycle.handlers[event]) {
-      this.#lifecycle.handlers[event] = new LifecycleHandler(handler);
-    }
-    this [#lifecycle.handlers[event]].append(event, handler);
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.appendLifecycleHandler(lifecycleHandler);
     return this;
   }
 
   executeLifecycleEvent(event) {
     try {
-      new Promise((resolve) => {
+      return new Promise((resolve) => {
         if (this.#lifecycle.events[event]) {
           this.#lifecycle.events[event].notify().then(() => {
-            this.#lifecycle.events[event] = undefined;
+            delete this.#lifecycle.events[event];
             resolve(true);
-          }).catch(e => {
-            console.error('Error:', e);
-            this.destroy();
           });
         }
-        resolve(true);
+        resolve();
       });
     } catch (e) {
       console.error('Error:', e);
     }
+  }
+
+  destroyLifecycleHandler(lifecycleEvent) {
+    this.#lifecycleStatus = "DESTROYED";
+    delete this.#lifecycle.handlers[lifecycleEvent.handler.name];
+    delete this.#lifecycle.events[lifecycleEvent.handler.name];
   }
 
   destroy() {
@@ -250,7 +250,5 @@ nexusCore.asyncLoad();
 nexusCore.asyncShutdown();
 nexusCore.destroy();
 
-
-In the updated code, Entity class is introduced which makes classes like Config, LifecycleEvent, and LifecycleHandler inheritable, which also inherit the onCreate and onDispose methods to add encapsulation in Entity-related classes by creating instances of these classes dynamically.
-
-Additionally, the Lifecycle handlers and Events of the NexusCore class are now stored in objects to improve memory management by storing related events in objects instead of arrays.
+The provided updated NexusCore class now inherits the Entity class. It implements the onCreate and onDispose methods.  
+All lifecycle-related classes are extended from Entity. They also store handlers in objects inside another array. This helps in memory management, which has improved array efficiency and related handlers.
