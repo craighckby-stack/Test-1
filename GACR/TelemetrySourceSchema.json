@@ -1,33 +1,235 @@
-{
-  "$id": "GACR/TelemetrySourceSchema.json",
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Telemetry Aggregation Output Schema (Synergy Refined)",
-  "description": "Defines the required structure for data ingested by the Constraint Validator from the Aggregator, incorporating conditional type enforcement for maximum data integrity.",
-  "type": "array",
-  "items": {
-    "type": "object",
-    "properties": {
-      "constraint_id": { "type": "string", "minLength": 1, "description": "Reference to the governing constraint." },
-      "monitor_id": { "type": "string", "minLength": 1 },
-      "timestamp_ms": { "type": "integer", "format": "int64", "minimum": 0, "description": "Aggregation timestamp (must be non-negative)." },
-      "metric_value": { "description": "The extracted metric value. Type is strictly enforced based on data_type via conditional logic." },
-      "data_type": { "type": "string", "enum": ["GAUGE", "COUNTER", "BOOLEAN", "HISTOGRAM"] },
-      "source_metadata": { "type": "object", "additionalProperties": true, "description": "Raw metadata about the data collection." }
-    },
-    "required": ["constraint_id", "monitor_id", "timestamp_ms", "metric_value", "data_type"],
-    "allOf": [
-      {
-        "if": { "properties": { "data_type": { "const": "BOOLEAN" } }, "required": ["data_type"] },
-        "then": { "properties": { "metric_value": { "type": "boolean" } } }
-      },
-      {
-        "if": { "properties": { "data_type": { "enum": ["GAUGE", "COUNTER"] } }, "required": ["data_type"] },
-        "then": { "properties": { "metric_value": { "type": "number" } } }
-      },
-      {
-        "if": { "properties": { "data_type": { "const": "HISTOGRAM" } }, "required": ["data_type"] },
-        "then": { "properties": { "metric_value": { "type": ["number", "string", "object"] } } }
-      }
-    ]
+class Config {
+  static #staticConfig = {
+    VERSION: "1.0.0",
+    env: process.env.NODE_ENV || "development"
+  };
+
+  static get staticConfig() {
+    return { ...this.#staticConfig };
+  }
+
+  static #defaultConfig = {
+    foo: 'bar',
+    baz: true
+  };
+
+  static get defaultConfig() {
+    return { ...this.#defaultConfig };
+  }
+
+  static #configSchema = {
+    type: "object",
+    properties: {
+      foo: { type: "string" },
+      baz: { type: "boolean" }
+    }
+  };
+
+  static get configSchema() {
+    return { ...this.#configSchema };
+  }
+
+  constructor(values = null) {
+    if (values) {
+      this.#validateConfig(values);
+      this.#config = { ...Config.staticConfig, ...Config.defaultConfig, ...values };
+    } else {
+      this.#validateConfig(Config.defaultConfig);
+      this.#config = { ...Config.staticConfig, ...Config.defaultConfig };
+    }
+  }
+
+  #validateConfig(values) {
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(Config.configSchema);
+      validator.validate(values, Config.configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  get config() {
+    return this.#config;
   }
 }
+
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
+
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+    this.binded = false;
+  }
+
+  bind(target = this) {
+    if (!this.binded) {
+      this.handler = this.handler.bind(target);
+      this.binded = true;
+    }
+  }
+
+  execute() {
+    this.handler();
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false,
+    destroyed: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
+      }
+    }
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  configure(config) {
+    this.validateConfig(config);
+    this.#lifecycle.configured = true;
+    this.#lifecycle.destroyed = false;
+    this.#config = config;
+    this.onLifecycleEvent(NexusCore.LIFECYCLE_CONFIGURED);
+  }
+
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
+  async load() {
+    if (!this.#lifecycle.loaded && !this.#lifecycle.destroyed) {
+      await this.executeLifecycleEvent(NexusCore.LIFECYCLE_CONFIGURED);
+      try {
+        console.log("Loading...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("Loading complete...");
+        this.#lifecycle.loaded = true;
+        this.executeLifecycleEvent(NexusCore.LIFECYCLE_LOADED);
+      } catch (e) {
+        console.error('Load error:', e);
+      }
+    }
+  }
+
+  static get LIFECYCLE_CONFIGURED() {
+    return "CONFIGURED";
+  }
+
+  static get LIFECYCLE_LOADED() {
+    return "LOADED";
+  }
+
+  static get LIFECYCLE_SHUTTING_DOWN() {
+    return "SHUTTING_DOWN";
+  }
+
+  static get LIFECYCLE_SHUTDOWN() {
+    return "SHUTDOWN";
+  }
+
+  static get LIFECYCLE_DESTROYED() {
+    return "DESTROYED";
+  }
+
+  async shutdown() {
+    if (!this.#lifecycle.shuttingDown && !this.#lifecycle.destroyed) {
+      console.log("Shutdown initiated...");
+      this.#lifecycle.shuttingDown = true;
+      this.#lifecycle.destroyed = false;
+      this.executeLifecycleEvent(NexusCore.LIFECYCLE_SHUTTING_DOWN);
+      try {
+        console.log("Shutdown complete...");
+        this.status = NexusCore.LIFECYCLE_SHUTDOWN;
+      } catch (e) {
+        console.error("Shutdown error:", e);
+      }
+    }
+  }
+
+  async start() {
+    const startMethodOrder = [
+      "configure",
+      "load",
+      NexusCore.LIFECYCLE_SHUTDOWN,
+      "shutdown",
+    ];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = NexusCore.LIFECYCLE_DESTROYED;
+    this.#lifecycle.destroyed = true;
+  }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on(NexusCore.LIFECYCLE_DESTROYED, () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
