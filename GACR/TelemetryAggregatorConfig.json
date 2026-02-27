@@ -1,74 +1,211 @@
-{
-  "General": {
-    "ServiceName": "GACR.TelemetryAggregator",
-    "Environment": "${ENV:PRODUCTION}",
-    "ConfigVersion": 2.1,
-    "ReloadPolicy": "HotReload",
-    "ShardingKey": "source_id",
-    "AGI_TelemetryPriority": 90
-  },
-  "Ingestion": {
-    "Sources": [
-      {
-        "Name": "InternalMetrics",
-        "Type": "HTTP",
-        "Endpoint": "/api/v2/metrics",
-        "RateLimitPerMinute": 100000,
-        "SchemaValidationLevel": "Strict"
-      },
-      {
-        "Name": "TracingEvents",
-        "Type": "Kafka",
-        "Topic": "gacr.telemetry.traces",
-        "BufferSizeMB": 512,
-        "BackpressureStrategy": "DiscardOldest"
-      },
-      {
-        "Name": "SynergyKernelData",
-        "Type": "InternalPipe",
-        "Endpoint": "synergy.kernel.v750",
-        "SchemaValidationLevel": "ManifestConstrainted",
-        "PriorityLevel": "Critical"
+class Config {
+  #config;
+
+  constructor(values = {}) {
+    this.#config = values;
+  }
+
+  setValues(values) {
+    Object.assign(this.#config, values);
+  }
+
+  get config() {
+    return this.#config;
+  }
+
+  get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
+
+  get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
       }
-    ],
-    "MaxQueueDepthGB": 10
-  },
-  "Processing": {
-    "Pipeline": [
-      "SchemaEnforcement",
-      "AGIConstraintNormalization",
-      "DynamicFilter",
-      "PiiAnonymization",
-      "MetricsAggregation"
-    ],
-    "AdaptiveSampling": {
-      "Enabled": true,
-      "PolicyType": "Composite",
-      "TargetCPUUtilization": 0.75,
-      "MinSamplingRate": 0.001,
-      "MaxSamplingRate": 1.0,
-      "AGI_MaturityAdjustmentFactor": 0.05
-    },
-    "BatchingPolicy": {
-      "MaxEvents": 5000,
-      "MaxLatencyMS": 1000,
-      "CompressionAlgorithm": "Zstd"
+    };
+  }
+
+  validate() {
+    try {
+      const schema = this.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this.config, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
     }
-  },
-  "Export": {
-    "Destinations": [
-      {
-        "Name": "DataLakeArchive",
-        "Type": "S3",
-        "Bucket": "gacr-telemetry-archive-v2",
-        "Format": "Parquet",
-        "DeliveryGuarantee": "AtLeastOnce"
-      },
-      {
-        "Name": "RealtimeMonitoring",
-        "Type": "PrometheusPushGateway",
-        "URL": "http://monitor.gacr.internal:9091"
-      }
-    ]
   }
 }
+
+class LifecycleEvent {
+  constructor(event, context = {}) {
+    this.event = event;
+    this.context = context;
+  }
+}
+
+class LifecycleHandler {
+  constructor(handler, context = {}) {
+    this.handler = handler;
+    this.context = context;
+  }
+
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
+  }
+
+  execute() {
+    this.handler(this.context);
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false,
+    shuttingDownContext: {},
+    lifecycleEventHandlers: new Map(),
+  };
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
+      }
+    }
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
+
+  constructor() {
+    this.#status = "INIT";
+  }
+
+  onLifecycleEvent(event, handler, context = {}) {
+    const lifecycleHandler = new LifecycleHandler(handler, context);
+    this.#lifecycle.lifecycleEventHandlers.set(event, lifecycleHandler);
+  }
+
+  get on() {
+    return (event, handler, context = {}) => {
+      const lifecycleEvent = new LifecycleEvent(event, context);
+      this.onLifecycleEvent(event, handler, context);
+    };
+  }
+
+  bindLifecycleEventHandler(event, handler) {
+    const lifecycleHandler = this.#lifecycle.lifecycleEventHandlers.get(event);
+    if (lifecycleHandler) {
+      lifecycleHandler.bind(handler);
+    }
+  }
+
+  executeLifecycleEvent(event, context = {}) {
+    const lifecycleHandler = this.#lifecycle.lifecycleEventHandlers.get(event);
+    if (lifecycleHandler) {
+      lifecycleHandler.bind(context).execute(context);
+    }
+  }
+
+  async configure(config, callback) {
+    await this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED", callback);
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
+
+  async validateConfig(config, callback) {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(config, schema);
+      if (callback) {
+        callback(null);
+      }
+    } catch (e) {
+      console.error('Config validation error:', e);
+      if (callback) {
+        callback(e);
+      }
+    }
+  }
+
+  async load() {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.#lifecycle.shuttingDownContext = {};
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.#lifecycle.shuttingDownContext = {};
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      const method = this[methodName];
+      if (method instanceof Function) {
+        await method();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle.configured = false;
+    this.#lifecycle.loaded = false;
+    this.#lifecycle.shuttingDown = false;
+    this.#lifecycle.lifecycleEventHandlers.clear();
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig, () => {
+  nexusCore.start();
+  nexusCore.load();
+  nexusCore.shutdown();
+  nexusCore.destroy();
+});
