@@ -1,19 +1,34 @@
+/**
+ * @class Config
+ * @description Configuration for the application.
+ * @extends {Object}
+ */
 class Config {
+  /**
+   * @description The static configuration for the application.
+   * @return {Object} The static configuration.
+   */
   static get staticConfig() {
+    // Using async/await to load environment variables asynchronously
     return {
       VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
+      env: await this.getEnv()
     };
   }
 
-  constructor(values = {}) {
-    this.setValues(values);
-  }
-
+  /**
+   * @description Sets the values of the configuration.
+   * @param {Object} values The values to set.
+   * @private
+   */
   setValues(values) {
     Object.assign(this, values);
   }
 
+  /**
+   * @description The default configuration for the application.
+   * @return {Object} The default configuration.
+   */
   static get defaultConfig() {
     return {
       foo: 'bar',
@@ -21,6 +36,10 @@ class Config {
     };
   }
 
+  /**
+   * @description The configuration schema.
+   * @return {Object} The configuration schema.
+   */
   static get configSchema() {
     return {
       type: 'object',
@@ -31,6 +50,10 @@ class Config {
     };
   }
 
+  /**
+   * @description Validates the configuration.
+   * @throws {Error} If the configuration is invalid.
+   */
   validate() {
     try {
       const schema = Config.configSchema;
@@ -38,32 +61,71 @@ class Config {
       validator.checkSchema(schema);
       validator.validate(this, schema);
     } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
+      throw new Error(`Config validation error: ${e}`);
     }
+  }
+
+  /**
+   * @description Gets the environment variable.
+   * @async
+   * @return {Promise<string>} The environment variable.
+   */
+  async getEnv() {
+    return process.env.NODE_ENV || "development";
   }
 }
 
+/**
+ * @class LifecycleEvent
+ * @description Represents a lifecycle event.
+ * @extends {Object}
+ */
 class LifecycleEvent {
+  /**
+   * @description Creates a new lifecycle event.
+   * @param {string} event The event name.
+   */
   constructor(event) {
     this.event = event;
   }
 }
 
+/**
+ * @class LifecycleHandler
+ * @description Handles lifecycle events.
+ * @extends {Object}
+ */
 class LifecycleHandler {
+  /**
+   * @description Creates a new lifecycle handler.
+   * @param {function} handler The event handler.
+   */
   constructor(handler) {
     this.handler = handler;
   }
 
-  bind(target = this) {
+  /**
+   * @description Binds the event handler to the target context.
+   * @param {Object} target The target context.
+   * @private
+   */
+  bind(target) {
     this.handler = this.handler.bind(target);
   }
 
+  /**
+   * @description Executes the event handler.
+   */
   execute() {
     this.handler();
   }
 }
 
+/**
+ * @class NexusCore
+ * @description The core of the application.
+ * @extends {Object}
+ */
 class NexusCore {
   #lifecycle = {
     configured: false,
@@ -73,10 +135,19 @@ class NexusCore {
 
   #status = "INIT";
 
+  /**
+   * @description Gets the status of the application.
+   * @return {string} The status.
+   */
   get status() {
     return this.#status;
   }
 
+  /**
+   * @description Sets the status of the application.
+   * @param {string} value The new status.
+   * @private
+   */
   set status(value) {
     this.#status = value;
     const currentValue = this.#status;
@@ -92,10 +163,19 @@ class NexusCore {
     }
   }
 
+  /**
+   * @description Gets the lifecycle of the application.
+   * @return {Object} The lifecycle.
+   */
   get lifecycle() {
     return this.#lifecycle;
   }
 
+  /**
+   * @description Configures the application.
+   * @param {Object} config The configuration.
+   * @private
+   */
   configure(config) {
     this.validateConfig(config);
     this.onLifecycleEvent("CONFIGURED");
@@ -103,36 +183,58 @@ class NexusCore {
     this.config = config;
   }
 
+  /**
+   * @description Validates the configuration.
+   * @param {Object} config The configuration.
+   * @private
+   */
   validateConfig(config) {
-    const configSchema = Config.configSchema;
     try {
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
+      validator.checkSchema(Config.configSchema);
+      validator.validate(config, Config.configSchema);
     } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
+      console.error(`Config validation error: ${e}`);
     }
   }
 
+  /**
+   * @description Handles a lifecycle event.
+   * @param {string} event The event name.
+   * @param {function} handler The event handler.
+   * @private
+   */
   onLifecycleEvent(event, handler) {
     const lifecycleHandler = new LifecycleHandler(handler);
     this.#lifecycle[event] = lifecycleHandler;
   }
 
+  /**
+   * @description Gets the event listener.
+   * @return {function} The event listener.
+   */
   get on() {
     return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
       this.onLifecycleEvent(event, handler);
     };
   }
 
+  /**
+   * @description Executes a lifecycle event.
+   * @param {string} event The event name.
+   * @private
+   */
   executeLifecycleEvent(event) {
     if (this.#lifecycle[event]) {
       this.#lifecycle[event].bind(this).execute();
     }
   }
 
+  /**
+   * @description Loads the application.
+   * @async
+   * @private
+   */
   async load() {
     await this.executeLifecycleEvent("CONFIGURED");
     try {
@@ -146,6 +248,11 @@ class NexusCore {
     }
   }
 
+  /**
+   * @description Shuts down the application.
+   * @async
+   * @private
+   */
   async shutdown() {
     try {
       if (!this.#lifecycle.shuttingDown) {
@@ -160,6 +267,11 @@ class NexusCore {
     }
   }
 
+  /**
+   * @description Starts the application.
+   * @async
+   * @private
+   */
   async start() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
@@ -169,6 +281,11 @@ class NexusCore {
     }
   }
 
+  /**
+   * @description Destroys the application.
+   * @async
+   * @private
+   */
   async destroy() {
     this.status = "DESTROYED";
     this.#lifecycle = {
@@ -176,10 +293,6 @@ class NexusCore {
       loaded: false,
       shuttingDown: false
     };
-  }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
   }
 }
 
