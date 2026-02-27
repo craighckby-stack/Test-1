@@ -44,12 +44,10 @@ class LifecycleEvent {
 }
 
 class LifecycleHandler {
-  constructor(handler) {
+  constructor({ handler, context }) {
     this.handler = handler;
-  }
-
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
+    this.context = context;
+    if (context) this.handler = this.handler.bind(context);
   }
 
   execute() {
@@ -98,24 +96,26 @@ class NexusCore {
     this.onLifecycleEvent("CONFIGURED");
   }
 
-  onLifecycleEvent(event, handler) {
+  onLifecycleEvent(event, handler, context) {
     if (!this.#lifecycle[event]) {
-      this.#lifecycle[event] = new LifecycleHandler(handler);
+      this.#lifecycle[event] = new LifecycleHandler({ handler, context });
     } else {
       this.#lifecycle[event].handler = handler;
+      this.#lifecycle[event].context = context;
+      this.#lifecycle[event].handler = this.#lifecycle[event].handler.bind(context);
     }
   }
 
   get on() {
-    return (event, handler) => {
+    return (event, handler, context) => {
       const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
+      this.onLifecycleEvent(event, handler, context);
     };
   }
 
   executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
+    if (this.#lifecycle[event] && this.#lifecycle[event].handler) {
+      this.#lifecycle[event].execute();
     }
   }
 
@@ -180,27 +180,53 @@ class Initializer {
   async initialize(nexusCore) {
     await nexusCore.initialize();
     await nexusCore.load();
-    await nexusCore.on("DESTROYED", () => {
-      console.log("NexusCore instance destroyed.");
-    });
   }
 }
 
-const nexusCore = new NexusCore();
+class Startup {
+  constructor(nexusCore) {
+    this.#nexusCore = nexusCore;
+  }
+
+  get nexusCore() {
+    return this.#nexusCore;
+  }
+}
+
+const startup = new Startup(new NexusCore());
 const initializer = new Initializer();
-initializer.initialize(nexusCore);
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-// nexusCore.loadAsync();
-// nexusCore.shutdown();
-// nexusCore.destroy();
+initializer.initialize(startup.nexusCore);
 
+startup.nexusCore.configure(Config.defaultConfig);
 
-The Enhanced NexusCore Design 
- This solution introduces several design improvements:
-*   **Life Cycle Initialization**: Introduced a separate class (`Initializer`) to handle the initialization of the NexusCore instance, which helps to separate the initialization process from the rest of the codebase.
-*   **Encapsulation**: Improved encapsulation in Config and NexusCore by using a private field for the schema and lifecycle, respectively.
-*   **Type Checking**: Added type checking for event handlers to ensure that they are bound to the correct context.
-*   **Shutdown and Load Reordering**: Reordered the shutdown and load methods to ensure that shutdown happens after load, as indicated by the `start` method.
-*   **Destroy Method**: Introduced a `destroy` method to stop the NexusCore instance, which sets the status and lifecycle state.
-*   **Lifecycle Event Handling**: Improved lifecycle event handling to prevent event handlers from being triggered when not set properly.
+startup.nexusCore.on("DESTROYED", () => {
+  console.log("NexusCore instance destroyed.");
+}, startup.nexusCore);
+
+startup.nexusCore.on("LOADED", () => {
+  console.log("NexusCore has been loaded successfully.");
+}, startup.nexusCore);
+
+try {
+  startup.nexusCore.load();
+} catch (e) {
+  console.error(e.message);
+}
+
+try {
+  startup.nexusCore.shutdown();
+} catch (e) {
+  console.error(e.message);
+}
+
+try {
+  startup.nexusCore.loadAsync();
+} catch (e) {
+  console.error(e.message);
+}
+
+try {
+  startup.nexusCore.destroy();
+} catch (e) {
+  console.error(e.message);
+}
