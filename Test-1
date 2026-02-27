@@ -1,30 +1,32 @@
 class Configurator {
-  constructor() {
-    this.#validateSchema = (schema) => {
-      const validator = new (require('jsonschema').Validator)();
+  #validateSchema = (schema) => {
+    const validator = new (require('jsonschema').Validator)();
+    try {
       validator.checkSchema(schema);
-    };
+    } catch (e) {
+      throw new Error('Invalid configuration schema:', e);
+    }
+  };
 
-    this.#validateDefaultConfig = (defaultConfig, schema) => {
-      try {
-        const validator = new (require('jsonschema').Validator)();
-        validator.validate(defaultConfig, schema);
-      } catch (e) {
-        console.error('Default config validation error:', e);
-        throw e;
-      }
-    };
+  #validateDefaultConfig(defaultConfig, schema) {
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.validate(defaultConfig, schema);
+    } catch (e) {
+      throw new Error('Invalid default configuration:', e);
+    }
+  }
 
-    this.#validateStaticConfig = (defaultConfig, schema) => {
-      try {
-        const validator = new (require('jsonschema').Validator)();
-        validator.validate(defaultConfig, schema);
-      } catch (e) {
-        console.error('Static config validation error:', e);
-        throw e;
-      }
-    };
+  #validateStaticConfig(staticConfig, schema) {
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.validate(staticConfig, schema);
+    } catch (e) {
+      throw new Error('Invalid static configuration:', e);
+    }
+  }
 
+  constructor() {
     this.#config = {
       staticConfig: {
         VERSION: "1.0.0",
@@ -44,33 +46,42 @@ class Configurator {
     };
   }
 
+  get configSchema() {
+    return this.#config.configSchema;
+  }
+
+  defaultConfig() {
+    return this.#config.defaultConfig;
+  }
+
+  staticConfig() {
+    return this.#config.staticConfig;
+  }
+
   #validate() {
+    const schema = this.configSchema;
     try {
-      this.#validateSchema(this.#config.configSchema);
-      this.#validateDefaultConfig(this.#config.defaultConfig, this.#config.configSchema);
-      this.#validateStaticConfig(this.#config.staticConfig, this.#config.configSchema);
+      this.#validateSchema(schema);
+      this.#validateDefaultConfig(this.defaultConfig(), schema);
+      this.#validateStaticConfig(this.staticConfig(), schema);
     } catch (e) {
       throw e;
     }
   }
 
-  #update(values = {}) {
-    if (values && typeof values.configSchema !== 'undefined') {
-      this.#config.configSchema = values.configSchema;
+  update(values = {}) {
+    if (values.configSchema) {
+      this.configSchema = values.configSchema;
     }
     this.#config.defaultConfig = {
-      ...this.#config.defaultConfig,
+      ...this.defaultConfig(),
       ...values.defaultConfig
     };
     this.#config.staticConfig = {
-      ...this.#config.staticConfig,
+      ...this.staticConfig(),
       ...values.staticConfig
     };
     this.#validate();
-  }
-
-  get config() {
-    return this.#config;
   }
 }
 
@@ -106,6 +117,7 @@ class NexusCore {
     shuttingDown: false
   };
   #configurator = new Configurator();
+  onLifecycleEvents = {};
 
   get status() {
     return this.#status;
@@ -121,7 +133,7 @@ class NexusCore {
 
   configure() {
     this.#configurator.#validate();
-    this.status = "CONFIGURED";
+    this.#status = "CONFIGURED";
   }
 
   async load() {
@@ -130,7 +142,7 @@ class NexusCore {
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
-      this.status = 'LOADED';
+      this.#status = 'LOADED';
     } catch (e) {
       console.error('Load error:', e);
     }
@@ -141,10 +153,10 @@ class NexusCore {
       if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
         this.#lifecycle.shuttingDown = true;
-        this.status = "SHUTTING_DOWN";
+        this.#status = "SHUTTING_DOWN";
         await new Promise(resolve => setTimeout(resolve, 1000));
         console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
+        this.#status = "SHUTDOWN";
       }
     } catch (e) {
       console.error("Shutdown error:", e);
@@ -161,7 +173,7 @@ class NexusCore {
   }
 
   async destroy() {
-    this.status = "DESTROYED";
+    this.#status = "DESTROYED";
     this.#lifecycle = {
       configured: false,
       loaded: false,
@@ -173,6 +185,9 @@ class NexusCore {
     if (typeof handler !== 'function') {
       throw new TypeError('Handler must be a function');
     }
+    if (!this.#lifecycle[event]) {
+      throw new Error(`Lifecycle event '${event}' is not available.`);
+    }
     const lifecycleHandler = new LifecycleHandler(async () => handler());
     this.#lifecycle[event] = lifecycleHandler;
   }
@@ -183,6 +198,9 @@ class NexusCore {
 
   async onLifecycleEvent(event) {
     try {
+      if (!this.#lifecycle[event]) {
+        throw new Error(`Lifecycle event '${event}' is not available.`);
+      }
       await this.#lifecycle[event].bind(this).execute();
     } catch (error) {
       console.error('Error occurred during lifecycle event handling:', error);
@@ -191,11 +209,11 @@ class NexusCore {
 
   updateConfig(values = {}) {
     const mergedValues = {
-      configSchema: values.configSchema ? values.configSchema : this.#configurator.config.configSchema,
-      defaultConfig: values.defaultConfig ? values.defaultConfig : this.#configurator.config.defaultConfig,
-      staticConfig: values.staticConfig ? values.staticConfig : this.#configurator.config.staticConfig
+      configSchema: values.configSchema ? values.configSchema : this.configurator.configSchema,
+      defaultConfig: values.defaultConfig ? values.defaultConfig : this.configurator.defaultConfig(),
+      staticConfig: values.staticConfig ? values.staticConfig : this.configurator.staticConfig()
     };
-    this.#configurator.#update(mergedValues);
+    this.configurator.update(mergedValues);
   }
 }
 
@@ -219,13 +237,3 @@ await nexusCore.start();
 await nexusCore.load();
 await nexusCore.shutdown();
 await nexusCore.destroy();
-
-
-In this code, the following enhancements have been made:
-
-1.  **Encapsulation**: The validation logic and default/config schemas have been encapsulated in a separate `Configurator` class to follow the single responsibility principle.
-2.  **Pattern adoption**: The `on` method now takes a handler function that is bound to the `this` context, and the event name is resolved via property access to improve readability and performance.
-3.  **Type safety**: The event name is checked against the available lifecycle event names to prevent typos and ensure a more robust API.
-4.  **Code quality**: This code follows a logical order of execution, proper use of async/await for concurrency, and includes clear comments for better comprehension of the code.
-5.  **Robustness**: Potential errors, such as invalid event handlers or unexpected lifecycle event names, are caught and handled appropriately to prevent application crashes.
-6.  **Configuration**: Introduced an update method for configuration properties which merges the merged config schema for more flexibility.
