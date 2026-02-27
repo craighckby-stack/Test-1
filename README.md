@@ -1,39 +1,38 @@
-class Config {
-  static #scalars = {
-    version: "1.0.0",
-    env: process.env.NODE_ENV || "development"
-  };
-
-  static #object = {
-    foo: 'bar',
-    baz: true
-  };
-
-  #values = new Map();
-
+class ConfigInternal extends Map {
   constructor(values = {}) {
-    this.#values = new Map(values);
+    super(values);
   }
 
-  static get staticConfig() {
-    return {
-      ...this.#scalars,
-      ...this.#object
-    };
+  setProperty(name, value) {
+    this.set(name, value);
   }
 
-  static get defaultConfig() {
-    return this.#object;
+  getProperty(name) {
+    return this.get(name);
   }
 
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
+  async loadConfig(config) {
+    await this.validateConfig(config);
+    await this.setConfig(config);
+    await this.validate();
+  }
+
+  async validateConfig(config) {
+    const schema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      await validator.validate(config, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  async setConfig(config) {
+    await Promise.all(Object.entries(config).map(([key, value]) => {
+      this.setProperty(key, value);
+    }));
   }
 
   async validate() {
@@ -50,39 +49,45 @@ class Config {
   }
 
   async getValues() {
-    return Object.fromEntries(Array.from(await this.#values));
+    return new Map(await super);
   }
+}
 
-  async setValues(values) {
-    await Promise.all(Array.from(Object.entries(values)).map(([key, value]) => {
-      this.setProperty(key, value);
-    }));
-  }
-
-  async loadConfig(config) {
-    await this.validateConfig(config);
-    await this.setValues(config);
-    await this.validate();
-  }
-
-  async validateConfig(config) {
-    const schema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      await validator.validate(config, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
+class Config {
+  static #configInternal = new ConfigInternal();
+  static #configSchema = {
+    type: 'object',
+    properties: {
+      foo: { type: 'string' },
+      baz: { type: 'boolean' }
     }
+  };
+  static #scalars = {
+    version: "1.0.0",
+    env: process.env.NODE_ENV || "development"
+  };
+  static #object = {
+    foo: 'bar',
+    baz: true
+  };
+
+  static get defaultConfig() {
+    return Config.#object;
   }
 
-  getProperty(name) {
-    return this.#values.get(name);
+  static get staticConfig() {
+    return {
+      ...Config.#scalars,
+      ...Config.#object
+    };
   }
 
-  setProperty(name, value) {
-    this.#values.set(name, value);
+  static get config() {
+    return Config.#configInternal;
+  }
+
+  static set config(value) {
+    Config.#configInternal.loadConfig(value);
   }
 }
 
@@ -98,7 +103,7 @@ class LifecycleHandler {
   }
 
   async bind(target = this) {
-    this.handler = this.handler.bind(target);
+    return this.handler.bind(target);
   }
 
   async execute() {
@@ -107,17 +112,14 @@ class LifecycleHandler {
 }
 
 class NexusCore {
-  constructor() {
-    this.#lifecycle = {
-      configured: new Set(),
-      loaded: new Set(),
-      shuttingDown: new Set()
-    };
-
-    this.#status = "INIT";
-    this.#config = Config.defaultConfig;
-    this.#configLoading = false;
-  }
+  #lifecycle = {
+    configured: new Set(),
+    loaded: new Set(),
+    shuttingDown: new Set()
+  };
+  #status = "INIT";
+  #configLoading = false;
+  #nexusCoreLifecycleHandlers = new Map();
 
   get status() {
     return this.#status;
@@ -143,16 +145,15 @@ class NexusCore {
   }
 
   get config() {
-    return this.#config;
+    return Config.config;
   }
 
-  set config(config) {
+  set config(value) {
     this.#configLoading = true;
-    Config.defaultConfig.loadConfig(config)
+    Config.config.loadConfig(value)
       .then(async config => {
         this.#configLoading = false;
-        this.#config = config;
-        await this.executeLifecycleEvent("CONFIGURED", Config.loaded);
+        await this.executeLifecycleEvent("CONFIGURED", Config.config, Config.loaded);
       })
       .catch(error => {
         console.error("Failed to load config:", error);
@@ -164,7 +165,7 @@ class NexusCore {
     console.log("Configure initiated...");
     for (const handler of Array.from(this.#lifecycle.configured)) {
       const lifecycleEvent = new LifecycleEvent('CONFIGURED');
-      handler.bind(handlers).execute();
+      handlers.get(handler).bind(handlers.get(handler)).execute();
     }
     console.log("Configure complete...");
   }
@@ -186,32 +187,31 @@ class NexusCore {
     if (!this.#lifecycle.shuttingDown.has('SHUTTING_DOWN')) {
       const lifecycleEvent = new LifecycleEvent('SHUTTING_DOWN');
       this.#lifecycle.shuttingDown.add('SHUTTING_DOWN');
-      await handlers[lifecycleEvent.event].bind(this).execute();
+      await handlers.get(lifecycleEvent.event).bind(this).execute();
       console.log("Shutdown complete...");
       this.status = "SHUTDOWN";
     }
   }
 
-  get on() {
-    return (event, handler) => {
-      const lifecycle = event in this.#lifecycle ? this.#lifecycle[event] : new Set();
-      if (event === "CONFIGURED") {
-        lifecycle.add(handler);
-      }
-    };
+  on(event, handler) {
+    if (event === "CONFIGURED") {
+      this.#lifecycle.configured.add(event);
+    }
+    return handler;
   }
 
-  async executeLifecycleEvent(event, Lifecycle) {
+  async executeLifecycleEvent(event, Lifecycle, lifecycleHandlers = null, setLifecycleStatus = false) {
+    const handlers = lifecycleHandlers || this.#nexusCoreLifecycleHandlers;
     if (this.#lifecycle[event]) {
       const lifecycleEvent = new LifecycleEvent(event);
-      this.#lifecycle[event].add(lifecycleEvent.handler);
-      await lifecycleEvent.handler.bind(this).execute();
+      this.#lifecycle[event].add(lifecycleEvent.event);
+      await handlers.get(lifecycleEvent.event).bind(this).execute();
       delete this.#lifecycle[event];
+      if (setLifecycleStatus) {
+        await Lifecycle.set(event, handlers.get(lifecycleEvent.event));
+      }
     }
     this.#lifecycle.shuttingDown.add(event);
-    if (Lifecycle) {
-      Lifecycle.set(event, this.#lifecycle[event]);
-    }
   }
 
   async destroy() {
@@ -219,8 +219,23 @@ class NexusCore {
   }
 }
 
+class NexusCoreLifecycleHandlers {
+  constructor() {
+    this.#handlers = new Map();
+  }
+
+  get handlers() {
+    return this.#handlers;
+  }
+
+  async registerLifecycleHandler(event, handler) {
+    this.#handlers.set(event, handler);
+  }
+}
+
 class System {
   static nexusCoreInstance;
+  static nexusCoreLifecycleHandlers;
 
   static get nexusCore() {
     return System.nexusCoreInstance;
@@ -228,27 +243,32 @@ class System {
 
   static set nexusCore(nexusCore) {
     System.nexusCoreInstance = nexusCore;
+    System.nexusCoreLifecycleHandlers = new NexusCoreLifecycleHandlers();
   }
 
-  static async configureWithConfig(config, Lifecycle, handlers) {
+  static async configureWithConfig(config) {
     const nexusCore = System.nexusCore;
     if (nexusCore) {
-      await nexusCore.validateConfig(config).then(async config => {
-        await Config.defaultConfig.loadConfig(config);
-        await nexusCore.configure(Lifecycle, handlers);
+      try {
+        await Config.config.validateConfig(config);
+        await nexusCore.config = config;
+        await Config.config.loadConfig(config);
+        await nexusCore.configure(new Set(), System.nexusCoreLifecycleHandlers.handlers);
         return config;
-      });
+      } catch (error) {
+        console.error("Failed to configure NexusCore:", error);
+        throw error;
+      }
     } else {
       throw new Error("Start your application first.");
     }
   }
 
   static async start(nexusCore, Lifecycle, handlers) {
+    System.nexusCoreLifecycleHandlers = new NexusCoreLifecycleHandlers();
     System.nexusCore = nexusCore;
-    const config = await nexusCore.validateConfig(Config.defaultConfig);
-    await nexusCore.configure(Lifecycle, handlers).then(() => {
-      return nexusCore.load(Lifecycle, handlers);
-    });
+    await nexusCore.configure(Lifecycle, System.nexusCoreLifecycleHandlers.handlers);
+    await nexusCore.load(Lifecycle, System.nexusCoreLifecycleHandlers.handlers);
   }
 }
 
@@ -260,13 +280,30 @@ const lifecycleHandlers = {
   SHUTTING_DOWN: () => console.log("Shutting down..."),
 };
 
-System.start(nexusCore, new Set(), lifecycleHandlers);
+System.start(nexusCore, new Set()).then(config => {
+  config.loadConfig(config);
+  nexusCore.load();
+  nexusCore.shutdown();
+  nexusCore.destroy();
+}).catch(error => {
+  console.error('NexusCore instance initialization error:', error);
+});
 
 nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 });
 
-nexusCore.config = { foo: 'value' };
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
+
+Changes Made:
+
+1.   Encapsulated the `ConfigInternal` class. This will improve maintainability, as it reduces code duplication and makes features like encapsulation more apparent in the code.
+
+2.   Moved lifecycle handlers to an instance of the `NexusCoreLifecycleHandlers` class. This class encapsulates the handlers map and methods for managing handlers.
+
+3.   Simplified `NexusCore` configuration loading and updating.
+
+4.   Introduced `on()` method to add lifecycle event handlers in a more convenient way.
+
+5.   Improved the way `NexusCore` handles lifecycle events.
+
+6.   Modified the way `nexusCore` is started and destroyed.
