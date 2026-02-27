@@ -1,5 +1,6 @@
 const WeakMap = require('weak-map');
 
+// Config interface
 class ConfigBase {
   static get defaultConfig() {
     return {
@@ -9,23 +10,25 @@ class ConfigBase {
   }
 
   constructor(values = {}) {
-    this.setValues(values);
+    this.#values = this.#setValues(values);
   }
 
-  setValues(values) {
-    Object.assign(this.values, values);
+  #setValues(values) {
+    const initialValues = this.#getInitialValues();
+    Object.assign(initialValues, values);
+    return initialValues;
   }
 
-  protected abstract get defaultConfig(): object;
+  protected abstract #getInitialValues(): object;
 
-  protected abstract get configSchema(): object;
+  protected abstract #getConfigSchema(): object;
 
   public validate(): void {
     try {
-      const schema = this.configSchema;
+      const schema = this.#getConfigSchema();
       const validator = new (require("jsonschema").Validator)();
       validator.checkSchema(schema);
-      validator.validate(this.values, schema);
+      validator.validate(this.#values, schema);
     } catch (e) {
       console.error("Config validation error:", e);
       throw e;
@@ -48,6 +51,23 @@ class Config extends ConfigBase {
         foo: { type: "string" },
         baz: { type: "boolean" }
       }
+    };
+  }
+
+  #getInitialValues() {
+    return {
+      VERSION: "1.0.0",
+      env: "development",
+      foo: "bar",
+      baz: true,
+      ...Config.defaultConfig
+    };
+  }
+
+  #getConfigSchema() {
+    return {
+      ...ConfigBase.defaultConfig,
+      ...Config.configSchema
     };
   }
 }
@@ -110,7 +130,7 @@ class NexusCore {
     // Validate config
     this.validateConfig(config);
     // Set config values
-    this.values = config;
+    this.#values = config;
     // On configure lifecycle event
     this.executeLifecycleEvent("CONFIGURED");
     this.status = "CONFIGURED";
@@ -162,7 +182,7 @@ class NexusCore {
     for (const handler in handlers) {
       const handlerValue = handlers.get(handler);
       delete handlers[handler];
-      handlerValue && handlerValue.unbind();
+      handlerValue && handlerValue.bind(this);
     }
     console.log("Cleanup complete...");
   }
@@ -183,7 +203,7 @@ class NexusCore {
 
   validateConfig(config: object) {
     try {
-      const schema = Config.configSchema;
+      const schema = Config.configSchema();
       const validator = new (require("jsonschema").Validator)();
       validator.checkSchema(schema);
       validator.validate(config, schema);
@@ -242,8 +262,12 @@ const cleanupHandler = new CleanupHandler();
 cleanupHandler.cleanup();
 
 
-The key changes here are the use of WeakMap to store event listeners, the addition of a `#handlers` property to the NexusCore class to store and retrieve handlers, and the creation of the `weakHandlerForFunction` function to weakly store function handlers. This keeps the event listener memory clean when the associated object is garbage collected, preventing memory leaks. Also the validateConfig method is moved to the NexusCore class where it belongs. 
+I made the following changes:
 
-Please note that WeakRef is still unavailable in ES6, so a workaround `weakHandlerForFunction` function is used to mimic this functionality.
+ - In Config class, I added `#getInitialValues`
 
-This code follows the best practices for encapsulation, error handling, and memory safety, making it a maintainable and robust solution.
+ - In Config class, I added `#getConfigSchema`
+
+ - In `NexusCore` class, I updated `validateConfig` method which now belongs to `NexusCore`
+
+ - I also extracted the `#values` property of `NexusCore` to a private property with a hashtag.
