@@ -7,6 +7,10 @@ class Config {
     }
   };
 
+  static get configSchema() {
+    return this.#schema;
+  };
+
   #defaultConfig = {
     VERSION: "1.0.0",
     env: "development"
@@ -18,7 +22,7 @@ class Config {
 
   constructor(values = {}) {
     this.#validate(values);
-    this.setValues(values);
+    this.#assignValues(values);
   }
 
   #validate(values) {
@@ -33,79 +37,98 @@ class Config {
     }
   }
 
-  setValues(values) {
+  #assignValues(values) {
     Object.assign(this, values);
   }
 }
 
 class LifecycleEvent {
-  #event;
+  #_event;
 
   constructor(event) {
-    this.#event = event;
+    this.#_event = event;
   }
 
   get event() {
-    return this.#event;
+    return this.#_event;
   }
 
   set event(value) {
-    this.#event = value;
+    this.#_event = value;
   }
 }
 
 class LifecycleHandler {
-  #handler;
+  #_handler;
+  #_target;
 
-  constructor(handler) {
-    this.#handler = handler;
+  constructor(handler, target = this) {
+    this.#_handler = handler;
+    this.#_target = target;
   }
 
-  bind(target = this) {
-    this.#handler = this.#handler.bind(target);
+  bind(target) {
+    this.#_target = target;
+  }
+
+  get handler() {
+    return this.#_handler;
+  }
+
+  set handler(value) {
+    this.#_handler = value;
+  }
+
+  get target() {
+    return this.#_target;
+  }
+
+  set target(value) {
+    this.#_target = value;
   }
 
   execute() {
-    this.#handler();
+    this.handler.call(this.#_target);
   }
 }
 
 class NexusCore {
-  #lifecycle = {
+  #_lifecycle = {
     configured: false,
     loaded: false,
-    shuttingDown: false
+    shuttingDown: false,
+    _event: new Map()
   };
 
-  #status = "INIT";
+  #_status = "INIT";
 
   get status() {
-    return this.#status;
+    return this._status;
   }
 
   set status(value) {
-    this.#status = value;
+    this.#_status = value;
     this.#updateStatus(value);
   }
 
   get lifecycle() {
-    return this.#lifecycle;
+    return this._lifecycle;
   }
 
   #updateStatus(value) {
     console.log(`NexusCore instance is ${value}.`);
     if (value === 'SHUTDOWN') {
-      this.#lifecycle.shuttingDown = false;
+      this.#_lifecycle.shuttingDown = false;
     }
-    if (this.#status === 'INIT' && value !== 'INIT') {
-      this.#lifecycle.configured = true;
+    if (this.#_status === 'INIT' && value !== 'INIT') {
+      this.#_lifecycle.configured = true;
     }
   }
 
   configure(config) {
     this.#validateConfig(config);
     this.#onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
+    this.#_lifecycle.configured = true;
     this.config = config;
   }
 
@@ -122,20 +145,23 @@ class NexusCore {
   }
 
   #onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
+    if (!this._lifecycle._event.has(event)) {
+      this._lifecycle._event.set(event, new LifecycleEvent(event));
+    }
+    this._lifecycle._event.get(event).event = handler;
   }
 
   get on() {
     return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
       this.#onLifecycleEvent(event, handler);
     };
   }
 
   executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
+    if (this._lifecycle._event.has(event)) {
+      const lifecycleEvent = this._lifecycle._event.get(event);
+      lifecycleEvent.handler = lifecycleEvent.handler.bind(lifecycleEvent.target);
+      lifecycleEvent.execute();
     }
   }
 
@@ -145,7 +171,7 @@ class NexusCore {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
+      this.#_lifecycle.loaded = true;
       this.executeLifecycleEvent("LOADED");
     } catch (e) {
       console.error('Load error:', e);
@@ -154,9 +180,9 @@ class NexusCore {
 
   async shutdown() {
     try {
-      if (!this.#lifecycle.shuttingDown) {
+      if (!this.#_lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
+        this.#_lifecycle.shuttingDown = true;
         this.executeLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
         this.status = "SHUTDOWN";
@@ -177,10 +203,11 @@ class NexusCore {
 
   async destroy() {
     this.status = "DESTROYED";
-    this.#lifecycle = {
+    this._lifecycle = {
       configured: false,
       loaded: false,
-      shuttingDown: false
+      shuttingDown: false,
+      _event: new Map()
     };
   }
 
@@ -188,14 +215,6 @@ class NexusCore {
     await this.onLifecycleEvent(event, handler);
   }
 }
-
-Config.configSchema = {
-  type: 'object',
-  properties: {
-    VERSION: { type: 'string' },
-    env: { type: 'string' }
-  }
-};
 
 const nexusCore = new NexusCore();
 nexusCore.on('DESTROYED', () => {
@@ -212,14 +231,3 @@ nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-Here are the improvements and changes implemented in the code:
-1. **Private Fields and Methods**: We have marked the private fields and methods with the `#` symbol.
-2. **Config Class Improvements**: We added the static config schema for the `Config` class.
-3. **Lifecycle Class Improvements**: We added the private lifecycle event to avoid direct access and modification of lifecycle properties.
-4. **Lifecycle Handling Improvements**: We have moved the lifecycle update logic to a separate method `#updateStatus(value)` to encapsulate the lifecycle state updates.
-5. **Handler Binding Improvements**: We bound the event handler to the target using the `#handler` property.
-6. **Config Validation Improvements**: We have moved the config validation logic to a private method `#validateConfig(config)` and validated the config using the existing schema before assigning it to the object.
-7. **Code Redundancies Removed**: We removed the redundant code and optimized the existing code for clarity and performance.
-8. **Private Fields**: We made some fields private to encapsulate their data and ensure the code adheres to the principle of encapsulation.
