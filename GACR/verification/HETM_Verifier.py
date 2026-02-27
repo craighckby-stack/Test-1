@@ -1,3 +1,6 @@
+Here's an enhanced version of the code using advanced NexusCore patterns, lifecycle management, and robust encapsulation:
+
+
 class Config {
   static #configSchema = {
     type: 'object',
@@ -28,11 +31,7 @@ class Config {
     });
   }
 
-  static get staticConfig() {
-    return Config.#configSchema;
-  }
-
-  static validate(values) {
+  static #validate(values) {
     const validator = new (require('jsonschema').Validator)();
     try {
       validator.checkSchema(Config.#configSchema);
@@ -46,29 +45,140 @@ class Config {
   static merge(defaultConfig, values) {
     return { ...defaultConfig, ...values };
   }
+
+  static configure(config = Config.#defaultConfig) {
+    return Config.#configureProxy(Config.merge(Config.#defaultConfig, config));
+  }
 }
 
-class LifecycleEvent {
-  constructor(event) {
+class LifecycleEvent<T = unknown> {
+  protected #event;
+  protected #data;
+
+  constructor(event: string, data?: T) {
     this.#event = event;
+    this.#data = data;
   }
 
   get event() {
     return this.#event;
   }
+
+  get data() {
+    return this.#data;
+  }
 }
 
 class LifecycleHandler {
-  constructor(handler) {
+  protected #handler;
+  protected #target;
+
+  constructor(handler, target = this) {
     this.#handler = handler;
+    this.#target = target;
   }
 
-  bind(target = this) {
+  bind(target = this.#target) {
     this.#handler = this.#handler.bind(target);
   }
 
-  execute() {
-    this.#handler();
+  execute(...args: unknown[]) {
+    return this.#handler(...args);
+  }
+}
+
+abstract class Component {
+  protected #nexusCore;
+  protected #config;
+  protected #lifecycle;
+
+  constructor(nexusCore: NexusCore) {
+    this.#nexusCore = nexusCore;
+    this.#config = Config.configure({ foo: 'Component', baz: true });
+    this.#lifecycle = {
+      INIT: null,
+      CONFIGURED: null,
+      LOADED: null,
+      SHUTTING_DOWN: null,
+      SHUTDOWN: null,
+      DESTROYED: null,
+    };
+
+    nexusCore.onLifecycleEvent('CONFIGURED', () => {
+      this.configured();
+    });
+  }
+
+  abstract connected(): void;
+
+  abstract disconnected(): void;
+
+  abstract beforeLoad(): void;
+
+  abstract afterLoad(): void;
+
+  protected configured() {
+    this.#lifecycle.CONFIGURED = new LifecycleHandler(() => {
+      this.#lifecycle.CONFIGURED.bind(this).execute();
+    });
+  }
+
+  connectedHandler() {
+    if (this.#lifecycle.CONFIGURED) {
+      this.#lifecycle.CONFIGURED.execute();
+    }
+
+    this.#nexusCore.onLifecycleEvent('LOADED', () => {
+      this.load();
+    });
+
+    this.#nexusCore.onLifecycleEvent('SHUTTING_DOWN', () => {
+      this.shutdown();
+    });
+  }
+
+  async load() {
+    this.#lifecycle.LOADED = new LifecycleHandler(() => {
+      this.#nexusCore.status = 'LOADED';
+    });
+  }
+
+  disconnectedHandler() {
+    this.#nexusCore.destroy();
+  }
+
+  abstract shutdown(): void;
+
+  start() {
+    this.#nexusCore.start();
+  }
+
+  applyConfig(config) {
+    this.#config = Config.configure(config);
+  }
+
+  configuredStatus() {
+    return this.#nexusCore.lifecycle.CONFIGURED ? 'CONFIGURED' : 'NOT CONFIGURED';
+  }
+}
+
+abstract class LifecycleAware<T extends Component> extends Component {
+  constructor(nexusCore: NexusCore) {
+    super(nexusCore);
+
+    this.connectedHandler();
+
+    this.#nexusCore.onLifecycleEvent('DESTROYED', () => {
+      this.#nexusCore.lifecycle = {
+        CONFIGURED: null,
+        LOADED: null,
+        SHUTTING_DOWN: null,
+        SHUTDOWN: null,
+        DESTROYED: null
+      };
+      this.disconnectedHandler();
+      this.#nexusCore.config = undefined;
+    });
   }
 }
 
@@ -81,7 +191,9 @@ class NexusCore {
     SHUTDOWN: null,
     DESTROYED: null
   };
-  #status = "INIT";
+
+  #configuring = false;
+  #status = 'INIT';
 
   get status() {
     return this.#status;
@@ -96,25 +208,34 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  async configure(config = Config.#defaultConfig) {
-    this.#config = Config.#configureProxy({ ...Config.#defaultConfig, ...config });
+  get config() {
+    return this.#config;
+  }
+
+  set config(value) {
+    this.#config = value;
+  }
+
+  async configure() {
+    this.#configuring = true;
+    this.#config = Config.configure();
     try {
-      Config.validate(this.#config);
-      this.#lifecycle.CONFIGURED = new LifecycleHandler(() => {
-        this.#lifecycle.CONFIGURED.bind(this).execute();
-      });
-      this.#lifecycle.CONFIGURED.execute();
-      this.#updateLifecycleStatus("CONFIGURED");
+      this.validate(this.#config);
+      await this.#updateLifecycleStatus('CONFIGURING');
+      await this.#updateLifecycleStatus('CONFIGURED');
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
+    } finally {
+      this.#configuring = false;
     }
   }
 
   async load() {
     try {
+      await this.#updateLifecycleStatus('LOADING');
       this.#lifecycle.LOADED = new LifecycleHandler(() => {
-        this.#updateLifecycleStatus("LOADED");
+        this.#updateLifecycleStatus('LOADED');
       });
       this.#lifecycle.LOADED.execute();
     } catch (e) {
@@ -126,24 +247,15 @@ class NexusCore {
     try {
       if (!this.#lifecycle.SHUTTING_DOWN) {
         this.#lifecycle.SHUTTING_DOWN = new LifecycleHandler(() => {
-          this.#updateLifecycleStatus("SHUTTING_DOWN");
+          this.#updateLifecycleStatus('SHUTTING_DOWN');
         });
         this.#lifecycle.SHUTTING_DOWN.execute();
       }
+      await this.#updateLifecycleStatus('SHUTDOWN');
     } catch (e) {
       console.error("Shutdown error:", e);
     } finally {
       this.#lifecycle.SHUTTING_DOWN = null;
-      this.#updateLifecycleStatus("SHUTDOWN");
-    }
-  }
-
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (methodName in this) {
-        await this[methodName].call(this);
-      }
     }
   }
 
@@ -161,25 +273,11 @@ class NexusCore {
     this.#lifecycle.DESTROYED.execute();
   }
 
-  get config() {
-    return this.#config;
-  }
+  abstract validate(config: typeof Config.#defaultConfig): void;
 
-  set config(value) {
-    this.#config = Config.merge(value);
-  }
+  abstract start(): void;
 
-  async applyConfig(config) {
-    try {
-      this.#config = Config.#configureProxy(Config.merge(Config.#defaultConfig, config));
-      Config.validate(this.#config);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  #updateLifecycleStatus(status) {
+  private #updateLifecycleStatus(status) {
     const lifecycle = this.#lifecycle;
     if (lifecycle.CONFIGURED && status === "CONFIGURED") {
       lifecycle.CONFIGURED = null;
@@ -196,25 +294,26 @@ class NexusCore {
     if (lifecycle.DESTROYED && status === "DESTROYED") {
       lifecycle.DESTROYED = null;
     }
-  }
-
-  onLifecycleEvent(event, handler) {
-    this.#lifecycle[event] = new LifecycleHandler(handler);
+    if (this.#configuring && status === 'CONFIGURED') {
+      this.#configuring = false;
+    }
   }
 
   on(event, handler) {
-    this.onLifecycleEvent(event, handler);
+    this.on(event, handler);
   }
 
   get on() {
     return (event, handler) => {
-      this.onLifecycleEvent(event, handler);
+      if (event in this.#lifecycle) {
+        this.#lifecycle[event] = new LifecycleHandler(handler.bind(this));
+      }
     };
   }
 
   executeLifecycleEvent(event) {
     if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
+      this.#lifecycle[event].execute();
     }
   }
 
@@ -231,15 +330,41 @@ class NexusCore {
   }
 }
 
+class LifecycleAwareComponent extends LifecycleAware<NexusCore> {
+  private #initialized = false;
+  public connectedCallback() {
+    this.#initialized = true;
+  }
+
+  public beforeLoad() {
+    console.log("Before load called");
+  }
+
+  public load() {
+    console.log("Component loaded");
+  }
+
+  public shutdown() {
+    console.log("Component shutting down");
+  }
+
+  configured() {
+    console.log("Component configured");
+  }
+}
+
 const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
+nexusCore.on(*'DESTROYED'*'()', () => {
   console.log("NexusCore instance destroyed.");
 });
-nexusCore.configure({foo:'changed', baz:false});
-nexusCore.applyConfig({ foo: "bar" });
+const component = new LifecycleAwareComponent(nexusCore);
+nexusCore.onLifecycleEvent('SHUTTING_DOWN', () => {
+  console.log("Shutting down lifecycle event");
+});
 nexusCore.start();
 nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
 console.log(nexusCore.toString());
 console.log(nexusCore.toJSON());
+
+
+This refactored code now uses encapsulation by making use of abstract classes and methods. All the configuration handling has been centralized within the `Config` class and the `NexusCore` class is now in charge of handling lifecycle events and configuration validation.
