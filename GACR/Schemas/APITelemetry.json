@@ -14,21 +14,23 @@ class Config {
     };
   }
 
-  constructor() {
-    this.#staticConfig = Config.#createStaticConfig();
-    this.#defaultConfig = Config.defaultConfig;
-    this.#schema = Config.configSchema;
-  }
+  constructor() {}
 
   get defaultConfig() {
+    if (this.#defaultConfig) return this.#defaultConfig;
+    this.#defaultConfig = this.constructor.defaultConfig;
     return this.#defaultConfig;
   }
 
   get staticConfig() {
+    if (this.#staticConfig) return this.#staticConfig;
+    this.#staticConfig = this.constructor.#createStaticConfig();
     return this.#staticConfig;
   }
 
   get configSchema() {
+    if (this.#schema) return this.#schema;
+    this.#schema = this.constructor.configSchema;
     return this.#schema;
   }
 
@@ -39,27 +41,27 @@ class Config {
   validate() {
     try {
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(this.#schema);
-      validator.validate(this, this.#schema);
+      validator.checkSchema(this.constructor.configSchema());
+      validator.validate(this, validator.compile(this.constructor.configSchema()));
     } catch (e) {
       throw e;
     }
   }
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
-
-  static get configSchema() {
+  static configSchema() {
     return {
       type: 'object',
       properties: {
         foo: { type: 'string' },
         baz: { type: 'boolean' }
       }
+    };
+  }
+
+  static defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
     };
   }
 }
@@ -116,6 +118,11 @@ class NexusCore {
 
   on(event, handler) {
     this.#lifecycleEvents.set(event, new LifecycleHandler(handler, this));
+    return {
+      destroy: async () => {
+        this.#lifecycleEvents.delete(event);
+      }
+    };
   }
 
   get on() {
@@ -127,17 +134,7 @@ class NexusCore {
     this.#lifecycle.configured = true;
     this.config = config;
     this.#status = "CONFIGURED";
-  }
-
-  validateConfig(config) {
-    try {
-      const schema = Config.instance.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(config, schema);
-    } catch (e) {
-      throw e;
-    }
+    this.emit("CONFIGURED");
   }
 
   async load() {
@@ -147,6 +144,7 @@ class NexusCore {
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
       this.#status = "LOADED";
+      this.emit("LOADED");
     } catch (e) {
       console.error('Load error:', e);
       throw e;
@@ -162,6 +160,7 @@ class NexusCore {
         await this.executeLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
         this.#status = "SHUTDOWN";
+        this.emit("SHUTDOWN");
       }
     } catch (e) {
       console.error("Shutdown error:", e);
@@ -170,25 +169,28 @@ class NexusCore {
   }
 
   async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
+    const startMethodOrder = [
+      "configure",
+      "load"
+    ];
+    if (typeof this.shutdown === "function") {
+      startMethodOrder.unshift('shutdown');
+    }
     for (const methodName of startMethodOrder) {
       if (typeof this[methodName] === "function") {
-        await this[methodName]();
+        await this[methodName](this.config);
       }
     }
   }
 
-  async destroy() {
-    try {
-      this.#status = "DESTROYED";
-      this.#lifecycle = {
-        configured: false,
-        loaded: false,
-        shuttingDown: false
-      };
-    } catch (e) {
-      console.error(e);
-    }
+  destroy() {
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+    this.#status = "DESTROYED";
+    this.emit("DESTROYED");
   }
 
   async executeLifecycleEvent(event) {
@@ -198,26 +200,46 @@ class NexusCore {
     }
   }
 
-  async shutdownComplete() {
-    if (!this.#lifecycle.shuttingDown) {
-      throw new Error("Shutdown already completed.");
+  emit(event) {
+    const handlers = this.#lifecycleEvents.get(event);
+    if (handlers) {
+      handlers.forEach(handler => handler.target.destroy());
     }
-    this.#lifecycle.shuttingDown = false;
-    this.#status = "SHUTDOWN";
-    await this.executeLifecycleEvent("SHUTDOWN");
+  }
+
+  static get lifecycleEvents() {
+    return [
+      "CONFIGURED",
+      "LOADED",
+      "SHUTDOWN",
+      "DESTROYED",
+      "SHUTTING_DOWN"
+    ];
   }
 }
 
+NexusCore.prototype.addEventListener = async (event, handler) => {
+  this.on(event, handler);
+};
+
+NexusCore.prototype.removeEventListener = async (event, handler) => {
+  const handlerList = this.on(event);
+  const currentIndex = handlerList.index?.indexOf(handler);
+  if (currentIndex !== -1) {
+    handlerList.index.splice(currentIndex, 1);
+  } else {
+    handlerList.remove?.();
+  }
+};
+
 const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', async () => {
+nexusCore.addEventListener('DESTROYED', async () => {
   console.log("NexusCore instance destroyed.");
 });
 try {
   nexusCore.configure(Config.instance.defaultConfig);
   await nexusCore.start();
   await nexusCore.load();
-  await nexusCore.shutdown();
-  await nexusCore.shutdownComplete(); // Additional lifecycle event for shutdown completion
   await nexusCore.destroy();
 } catch (e) {
   console.error(e);
