@@ -5,19 +5,19 @@ class Config {
   };
 
   static configSchema = {
-    type: 'object',
+    additionalProperties: false,
     properties: {
       foo: { type: 'string' },
       baz: { type: 'boolean' }
-    }
+    },
+    required: ['foo', 'baz'],
+    type: 'object'
   };
 
   static validate(config) {
     try {
-      const schema = this.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(config, schema);
+      const validator = new (require('jsonschema')).Validator();
+      validator.checkConfig(config, this.configSchema);
     } catch (e) {
       throw e;
     }
@@ -33,19 +33,20 @@ class LifecycleEvent extends Error {
 }
 
 class LifecycleHandler {
-  constructor(handler) {
-    this._handler = handler;
+  constructor(config, _handler) {
+    this._config = config;
+    this._handler = _handler.bind(this);
   }
 
-  async execute() {
+  execute() {
     try {
-      return await this._handler();
+      return this._handler();
     } catch (e) {
       throw new LifecycleEvent('EXECUTION_ERROR', e.message);
     }
   }
 
-  async bind(target = this) {
+  bind(target = this) {
     const boundHandler = async () => {
       const resolve = target.resolveAsync.bind(target);
       this._handler = this._handler.bind(target);
@@ -78,10 +79,8 @@ class SafeAssign {
 
   validate() {
     try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this.copy().config, schema);
+      const validator = new (require('jsonschema')).Validator();
+      validator.checkConfig(this.copy().config, Config.configSchema);
     } catch (e) {
       throw e;
     }
@@ -120,7 +119,7 @@ class EventEmitter {
   emit(event, ...args) {
     if (this._events[event]) {
       const copy = [...this._events[event]];
-      this._events[event].forEach(handler => handler.bind(this)(...args));
+      this._events[event].forEach(handler => handler.apply(this, args));
       return copy;
     }
   }
@@ -128,173 +127,229 @@ class EventEmitter {
   emitAsync(event, ...args) {
     return new Promise(resolve => {
       const copy = [...this._events[event]];
-      this._events[event].forEach(handler => {
-        handler.bind(this)(...args).then(resolve);
-      });
+      this._events[event].forEach(handler => handler.apply(this, args).then(resolve));
     });
   }
 }
 
-class NexusCore {
+class EventManager {
   constructor() {
+    this.hooks = {};
+  }
+
+  use(event) {
+    if (!this.hooks[event]) {
+      this.hooks[event] = [];
+    }
+    this.hooks[event].push(...arguments);
+  }
+
+  call(event, ...args) {
+    if (this.hooks[event]) {
+      const handlers = this.hooks[event].map(handler => handler.bind(this));
+      handlers.forEach(handler => handler(...args));
+    }
+  }
+}
+
+class LifecycleEventManager {
+  constructor() {
+    this._hooks = {
+      start: [],
+      stop: [],
+      destroy: []
+    };
+    this.emitter = new EventEmitter();
+  }
+
+  call() {
+    if (this._hooks && this._hooks[this.current]) {
+      if (typeof this._hooks[this.current] === 'function') {
+        this._hooks[this.current].apply(this, arguments);
+      } else {
+        this._hooks[this.current].forEach(handler => handler.apply(this, arguments));
+      }
+    }
+  }
+
+  registerBefore(event, hook) {
+    if (!this._hooks[event]) return;
+    if (this._hooks[event].indexOf(hook) === -1) {
+      this._hooks[event].unshift(hook.bind(this));
+    }
+  }
+
+  registerAfter(event, hook) {
+    if (!this._hooks[event]) return;
+    if (this._hooks[event].indexOf(hook) === -1) {
+      this._hooks[event].push(hook.bind(this));
+    }
+  }
+
+  get current() {
+    switch (this.constructor.name) {
+      case 'LifecycleEventManager':
+        if (this._lifecycle === 'start') return 'start';
+        if (this._lifecycle === 'stop') return 'stop';
+        if (this._lifecycle === 'destroy') return 'destroy';
+        break;
+    }
+  }
+}
+
+class NexusCore {
+  constructor(_eventManager, _lifecycleEventManager, _config, _configs) {
+    this._eventManager = _eventManager;
+    this._lifecycleEventManager = _lifecycleEventManager;
+    this._config = _config;
+    this._configs = _configs;
     this._status = 'INIT';
-    this._configs = new SafeAssign(Config.defaultConfig);
     this._lifecycle = {
       configured: false,
       loading: false,
       shuttingDown: false,
       destroyed: false,
-      started: false
+      started: false,
+      _lifecycleManager: _lifecycleEventManager
     };
-    this.eventEmitter = new EventEmitter();
   }
 
   get status() {
     return this._status;
   }
 
-  set status(value) {
-    this._status = value;
-    if (value !== 'INIT') {
-      this._lifecycle.configured = true;
-    }
-  }
-
   get config() {
-    return this._configs;
+    return this._config;
   }
 
   get configCopy() {
-    return this._configs.copy().config;
+    return this._configs.configCopy;
   }
 
   set config(values) {
     this._configs.setValues(values);
-    this._configs.validate();
   }
 
   async configure(config = Config.defaultConfig) {
     if (this._status !== 'INIT') {
-      throw new LifecycleEvent('CONFIGURE_ERROR', 'Cannot configure after instance has been started.');
+      await (this._lifecycleEventManager.registerBefore('start', async () => {
+        throw new LifecycleEvent('CONFIGURE_ERROR', 'Cannot configure after instance has been started.');
+      }));
     }
+    this._eventManager.use('configuring', () => this._configs = new SafeAssign(config));
+    await this._eventManager.call('configuring', () => this._configs.setValues(config));
+    Config.validate(config);
     this.status = 'CONFIGURED';
-    await this.eventEmitter.emitAsync('configuring', () => this.config = config);
+    this._lifecycle.configured = true;
+  }
+
+  async start() {
+    if (this._status === 'STARTED' || this._lifecycle.loading) {
+      await (this._lifecycleEventManager.registerBefore('startup', async () => {
+        throw new LifecycleEvent('STATE_ERROR', 'Can start NexusCore only one time.');
+      }));
+    }
+    try {
+      this._lifecycleEventManager.registerBefore('startup', async () => Config.validate(this._configs.config));
+      this._eventManager.use('startup', async () => await this._configs.validate());
+      await this._eventManager.call('startup', () => this.status = 'STARTING');
+      await this._eventManager.call('startup', () => await this._lifecycleEventManager.call('start', () => this.status = 'STARTED'));
+    } catch (error) {
+      if ((error instanceof LifecycleEvent)) {
+        console.error("Exception happened while trying to start.")
+      } else {
+        throw (error);
+      }
+    }
   }
 
   async load() {
-    if (this._status !== 'CONFIGURED') {
-      throw new LifecycleEvent('LOAD_ERROR', 'Cannot load instance that has not been configured.');
+    if (!this._lifecycle.loading) {
+      this.status = 'LOADING';
+      await this._eventManager.call('loading', () => this._lifecycle.loading = true);
+      await this._lifecycleEventManager.call('loading');
     }
-    this.status = 'LOADING';
-    await this.eventEmitter.emitAsync('loading');
   }
 
   async shutdown() {
-    if (this._status === 'SHUTDOWN' || this._lifecycle.shuttingDown) {
+    if (this._lifecycle.destroyed) {
+      await (this._lifecycleEventManager.registerAfter('shutdown', async () => {
+        throw new LifecycleEvent('DESTROY_ERROR', 'Cannot shut-down instance that has been destroyed.');
+      }));
+    }
+    if (this._lifecycle.shuttingDown) {
       return;
     }
     this.status = 'SHUTTING_DOWN';
     this._lifecycle.shuttingDown = true;
-    await this.eventEmitter.emitAsync('shutting_down');
+    await this._lifecycleEventManager.registerBefore('shutdown', async () => this.status = 'SHUTDOWN');
+    await this._eventManager.call('shutting_down', () => this.status = 'SHUTDOWN');
+    this._lifecycleEventManager.registerAfter('shutdown', async () => {
+      await this._eventManager.call('shutdown');
+      this.status = 'SHUTDOWN';
+      this._lifecycle.shuttingDown = false;
+    });
   }
 
   async destroy() {
-    this.status = 'DESTROYED';
+    this.status = 'DESTROYING';
     this._lifecycle.destroyed = true;
-  }
-
-  get lifecycle() {
-    return this._lifecycle;
-  }
-
-  handleEvent(event) {
-    switch (event) {
-      case 'LOADING':
-        this._lifecycle.loading = true;
-        break;
-      case 'LOADED':
-        this._lifecycle.loading = false;
-        this._lifecycle.started = true;
-        this.status = 'STARTED';
-        break;
-      case 'SHUTTING_DOWN':
-        this._lifecycle.shuttingDown = true;
-        this.status = 'SHUTTING_DOWN';
-        break;
-      case 'SHUTDOWN':
-        this._lifecycle.shuttingDown = false;
-        this.status = 'SHUTDOWN';
-        break;
-      case 'DESTROYED':
-        this._lifecycle.destroyed = true;
-        this.status = 'DESTROYED';
-        break;
-    }
-  }
-
-  eventOnce(event, handler) {
-    const boundHandler = handler.bind(this);
-    this.eventEmitter.on(event, boundHandler);
-    const unbind = () => this.eventEmitter.off(event, boundHandler);
-    unbind.onCleanup = unbind;
-    return unbind;
-  }
-
-  eventEmit(event, ...args) {
-    this.eventEmitter.emit(event, ...args);
-    this.handleEvent(event);
-  }
-
-  async eventEmitAsync(event, ...args) {
-    try {
-      await this.eventEmitter.emitAsync(event, ...args);
-      this.handleEvent(event);
-    } catch (e) {
-      console.error(e.message);
-    }
-  }
-
-  async start() {
-    const startEventsOrder = ['configuring', 'loading'];
-    try {
-      await this.eventEmitAsync('startup');
-      for (const event of startEventsOrder) {
-        await this.eventEmitAsync(event);
-      }
-      this.status = 'STARTED';
-      await this.eventEmitAsync('started');
-    } catch (e) {
-      console.error(e.message);
-    }
+    await this._lifecycleEventManager.call('destroy');
+    await this._eventManager.call('destroy');
+    this.status = 'DESTROYED';
   }
 }
 
-const instance = () => {
-  return new NexusCore();
+class EventManagerBuilder {
+  constructor(config, _eventManager = new EventEmitter(), _configs) {
+    this._config = config;
+    this._eventManager = _eventManager;
+    this._configs = _configs;
+  }
+
+  use(event, handler) {
+    this._eventManager.use(event, handler.bind(this));
+    return this;
+  }
+
+  async configure(config) {
+    if (!this._config) this._config = {};;
+    Object.assign(this._config, config);
+    Config.validate(this._config);
+    return this;
+  }
+
+  async build() {
+    const eventManager = this._eventManager;
+    this._eventManager = null;
+    const instance = new NexusCore(eventManager, new LifecycleEventManager(), this._config, this._configs);
+    await instance.configure(this._config);
+    return instance;
+  }
+}
+
+const instance = async () => {
+  const manager = new EventManagerBuilder(Config.defaultConfig);
+  return await manager.build();
 };
 
-const nexusCore = instance();
+const eventBinder = async (core, event, handler) => {
+  await core.use(event, handler);
+  const eventCleanup = async () => {
+    await core._eventManager.off(event, handler);
+  };
+  return eventCleanup;
+};
 
-nexusCore.eventOnce('DESTRUCTED', () => {
-  console.log('NexusCore instance destroyed.');
-});
+const nexusCore = await instance();
+nexusCore.use('configured', () => console.log('NexusCore is fully configured.'));
+await nexusCore.configure(Config.defaultConfig);
+await eventBinder(nexusCore, 'configured', () => console.log('NexusCore is fully configured.'));
+await nexusCore.start();
+await nexusCore.load();
+await nexusCore.shutdown();
+await nexusCore.destroy();
 
-try {
-  await nexusCore.configure(Config.defaultConfig);
-  await nexusCore.start();
-  await nexusCore.load();
-  await nexusCore.shutdown();
-} finally {
-  await nexusCore.destroy();
-}
 
-// Example usage:
 
-const eventBinder = nexusCore.eventOnce('CONFIGURED', () => {
-  console.log('NexusCore is fully configured.');
-});
-
-nexusCore.configure(Config.defaultConfig);
-
-// Make sure to call unbind() to prevent memory leaks
-eventBinder.unbind();
+This code should address more of the concerns you mentioned. It takes advantage of the lifecycle management patterns to maintain consistency and robust encapsulation. One aspect to improve this code further could be to extend the validation in the Config class by integrating more validation logic and even possibly integrating it with external libraries like Joi or even TypeScript’s built-in validation engine.  As an optimization change for better performance by utilizing early returns and await keywords to reduce the amount of code inside an async call, we should also enhance it with checks to prevent duplicate event handlers. Another optimization would be adding proper logging and/or error handling to make the code more robust and easier to maintain. Finally, if there was a way to refactor the duplicate error handling in both start and configure to make it reusable this could also improve overall code efficiency.
