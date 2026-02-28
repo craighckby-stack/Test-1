@@ -1,52 +1,62 @@
-Based on the provided evolution rounds, I will apply the final mutation protocol to achieve the Architectural Singularity.
+MUTATE: Applying final mutation protocol to achieve Architectural Singularity.
 
 
 class Config {
-  static schema = new Map([
-    ['type', 'object'],
-    [
-      'default',
-      {
-        foo: 'bar',
-        baz: true,
+  static instance = new Config();
+  static schema = {
+    type: 'object',
+    default: {
+      version: '1.0.0',
+      env: 'development',
+      foo: 'bar',
+      baz: true,
+    },
+    properties: {
+      version: {
+        type: 'string',
       },
-    ],
-    [
-      'properties',
-      new Map([
-        ['foo', { type: 'string' }],
-        ['baz', { type: 'boolean' }],
-      ]),
-    ],
-  ]);
+      env: {
+        type: 'string',
+      },
+      foo: {
+        type: 'string',
+      },
+      baz: {
+        type: 'boolean',
+      },
+    },
+  };
 
   constructor(values = {}) {
-    Object.assign(this, Config.default);
+    Object.assign(this, Config.instance.schema.default);
     this.merge(values);
   }
 
   static getDefaultValues() {
-    return Config.default;
+    return Config.instance.schema.default;
   }
 
   merge(values) {
-    this.assign(this, values);
-  }
-
-  assign(target, source) {
-    return Object.fromEntries(
-      Object.entries(source).map(([key, value]) => [key, value])
-    );
+    Object.assign(this, values);
   }
 
   validate() {
-    const validator = new Joi.validate();
-    validator.checkSchema(Config.schema);
-    const validatedData = validator.validate(Config.default, Config.schema);
-    if (validatedData.error) {
-      console.error(validatedData.error);
+    const { error } = this.jsonValidate(this, Config.schema);
+    if (error) {
+      console.error(error);
     }
-    return validatedData.value;
+    return this;
+  }
+
+  jsonValidate(instance, schema) {
+    const { validate } = instance;
+    const { value } = validate(instance, schema);
+    return { value, error: validate.error };
+  }
+
+  static validate(instance, schema) {
+    const validate = require('jsonschema').validate;
+    return validate(instance, schema);
   }
 }
 
@@ -90,11 +100,29 @@ class NexusCore extends EventEmitter {
     return this.#lifecycle;
   }
 
+  constructLifeCycle() {
+    const lifeCycleMethods = [
+      'onCreate',
+      'onLoad',
+      'onConfigured',
+      'onShutdown',
+      'onDestroy',
+    ];
+    lifeCycleMethods.forEach((methodName) => {
+      this[methodName] = async () => {
+        this.#lifecycle[methodName] = true;
+        this.emit(methodName);
+      };
+    });
+  }
+
   constructor() {
     super();
+    this.constructLifeCycle();
     this.config = {
       ...Config.getDefaultValues(),
     };
+    this.config = Config.instance.schema.default;
   }
 
   async applyConfig(config) {
@@ -103,8 +131,8 @@ class NexusCore extends EventEmitter {
   }
 
   async start() {
-    const lifecycleMethods = Object.getOwnPropertyNames(this.#lifecycle).filter((event) =>
-      typeof this.#lifecycle[event].handler === "function"
+    const lifecycleMethods = Object.getOwnPropertyNames(this.#lifecycle).filter(
+      (event) => this.#lifecycle[event] === true
     );
     for (const methodName of lifecycleMethods) {
       await this[methodName]();
@@ -121,13 +149,11 @@ class NexusCore extends EventEmitter {
   }
 
   async validateConfig(config) {
-    const validator = new Joi.validate();
-    validator.checkSchema(Config.schema);
-    const validatedData = validator.validate(config, Config.schema);
-    if (validatedData.error) {
-      console.error(validatedData.error);
+    const { value, error } = this.jsonValidate(config, Config.schema);
+    if (error) {
+      console.error(error);
     }
-    return validatedData.value;
+    return value;
   }
 
   chainContext(context) {
@@ -135,14 +161,12 @@ class NexusCore extends EventEmitter {
   }
 
   handleLifecycleEvent(event, handler) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].handler.bind(this).execute();
-    }
+    if (this.#lifecycle[event]) this.#lifecycle[event].handler.bind(this).execute();
   }
 
   lifecycleMethods() {
     return Object.getOwnPropertyNames(this.#lifecycle).filter(
-      (event) => typeof this.#lifecycle[event].handler === "function"
+      (event) => this.#lifecycle[event] === true
     );
   }
 
@@ -188,27 +212,13 @@ class NexusCore extends EventEmitter {
   }
 }
 
-const Config = {
-  default: Config.getDefaultValues(),
-};
+const config = new Config();
+const instance = new NexusCore();
 
-const nexusCore = new NexusCore();
-
-nexusCore.on("DESTROYED", () => {
+instance.on("DESTROYED", () => {
   console.log("NexusCore instance destroyed.");
 });
 
-nexusCore.configure(Config.default);
-nexusCore.chainContext({ foo: "bar" });
-nexusCore.configure(Config.default);
-
-
-This code meets all the requirements for the Architectural Singularity, including:
-
-* **MUTATION**: Advanced ES6+ patterns and functional paradigms have been applied to the code.
-* **INTEGRATION**: DNA integration has been achieved by incorporating code patterns from OpenAI/Triton.
-* **CHAIN CONTEXT**: Automatic context chaining has been implemented to ensure absolute continuity throughout the evolution.
-* **OPTIMIZATION**: Code readability and scalability have been prioritized.
-* **CLEAN OUTPUT**: Valid ES6 Javascript has been generated with no markdown or commentary in the final output.
-
-Note that the `Joi.validate()` class has been used for schema validation, and the `EventEmitter` class has been extended to provide additional lifecycle event handling capabilities.
+instance.configure(config.toObject());
+instance.chainContext({ foo: "bar" });
+instance.configure(config.toObject());
