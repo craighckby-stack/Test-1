@@ -1,193 +1,23 @@
-### Mutation: 1/5 - Mutation of Config class
+### MUTATION PROTOCOL EXECUTION
+
+**CHAIN CONTEXT PROTOCOL**:
+
+The chained context protocol indicates the current state of the system. 
 
 
-class Config {
-  static #validateConfig(values) {
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(Config.#configSchema);
-      validator.validate(values, Config.#configSchema);
-    } catch (e) {
-      throw e;
-    }
-  }
-
-  static defaultConfig = () => {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  };
-
-  constructor(values = {}) {
-    this.#validateConfig(values);
-    Object.assign(this, values);
-  }
+{
+  "mutated": [
+    "Config",
+    "LifecycleEvent",
+    "LifecycleHandler",
+    "Lifecycle",
+    "NexusCore"
+  ],
+  "context": "// Mutated class definitions"
 }
 
 
-### Mutation: 2/5 - Mutation of LifecycleEvent class
-
-
-class LifecycleEvent {
-  #handler = () => {};
-
-  constructor(event, handler) {
-    this.#handler = handler;
-    this.event = event;
-  }
-
-  #bind(target) {
-    this.#handler = this.#handler.bind(target);
-  }
-
-  execute() {
-    this.#handler();
-  }
-
-  bind(target = this) {
-    this.#bind(target);
-  }
-}
-
-
-### Mutation: 3/5 - Mutation of LifecycleHandler class
-
-
-class LifecycleHandler {
-  #handler = () => {};
-
-  async execute(args) {
-    if (this.#handler) {
-      return await this.#handler(...args);
-    } else {
-      throw new Error('Handler not defined');
-    }
-  }
-
-  #bind(target) {
-    this.#handler = this.#handler.bind(target);
-  }
-
-  bind(target = this) {
-    this.#bind(target);
-  }
-}
-
-
-### Mutation: 4/5 - Mutation of Lifecycle class
-
-
-class Lifecycle {
-  #events = new Map();
-  #status = "INIT";
-
-  get status() {
-    return this.#status;
-  }
-
-  get events() {
-    return this.#events;
-  }
-
-  async configure(event, handler) {
-    await this.#registerEvent(event, handler);
-  }
-
-  async #registerEvent(event, handler) {
-    if (!this.#events.has(event)) {
-      const lifecycleHandler = new LifecycleHandler(handler);
-      this.#events.set(event, lifecycleHandler.bind(this));
-    }
-  }
-
-  async on(event, handler) {
-    await this.#registerEvent(event, handler);
-  }
-
-  async executeEvent(event) {
-    const lifecycleHandler = this.#events.get(event);
-    if (lifecycleHandler) {
-      return await lifecycleHandler.execute();
-    } else {
-      throw new Error('Event not found');
-    }
-  }
-
-  async start() {
-    try {
-      await this.executeEvent("CONFIGURED");
-      this.#status = "STARTED";
-    } catch (e) {
-      console.error("Error during startup:", e);
-    }
-  }
-
-  async load() {
-    try {
-      await this.executeEvent("LOADED");
-    } catch (e) {
-      console.error("Error during load:", e);
-    }
-  }
-
-  async shutdown() {
-    try {
-      await this.executeEvent("SHUTTING_DOWN");
-      this.#status = "SHUTDOWN";
-    } catch (e) {
-      console.error("Error during shutdown:", e);
-    }
-  }
-}
-
-
-### Mutation: 5/5 - Mutation of NexusCore class
-
-
-class NexusCore {
-  #lifecycle = new Lifecycle();
-  #config = new Config();
-
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  get config() {
-    return this.#config;
-  }
-
-  async configure(config) {
-    this.#config = config;
-    await this.#lifecycle.configure("CONFIGURED", () => {});
-  }
-
-  async start() {
-    await this.#lifecycle.start();
-  }
-
-  async load() {
-    await this.#lifecycle.load();
-  }
-
-  async shutdown() {
-    await this.#lifecycle.shutdown();
-  }
-
-  async destroy() {
-    this.#lifecycle = new Lifecycle();
-    this.#config = new Config();
-  }
-}
-
-
-**EXECUTION OUTPUT:**
-
-The mutated code has been executed successfully. However, the output may vary based on the environment and dependencies used.
-
-### Context Integration
-
-Here's the updated code with context integration:
+**MUTATE TARGET CODE**
 
 
 // Mutated class definitions
@@ -203,6 +33,17 @@ class Event {
     this.payload = payload;
     this.target = target;
     this.context = context;
+    this.#initialized = true;
+  }
+
+  static create(event, payload = {},
+    target = new Target(),
+    context = {
+      lifecycle: lifecycle,
+      listeners: listeners
+    }) {
+    const eventInstance = new Event(event, payload, target, context);
+    return eventInstance;
   }
 }
 
@@ -213,9 +54,11 @@ class LifecycleHandler {
   }) {
     this.target = target;
     this.context = context;
+    this.#handler = () => {};
   }
 
   async execute(args, lifecycle) {
+    this.#handler = this.#handler.bind(this.target);
     if (this.#handler) {
       return await this.#handler(...args);
     } else {
@@ -253,12 +96,22 @@ class Config {
   constructor(values = {}, lifecycle, listeners) {
     Config.#validateConfig(values, lifecycle);
     Object.assign(this, values);
+    this.#initialized = true;
   }
 }
 
 class Lifecycle {
   #events = new Map();
   #status = "INIT";
+  #initialized = false;
+
+  get initialized() {
+    return this.#initialized;
+  }
+
+  set initialized(value) {
+    this.#initialized = value;
+  }
 
   get status() {
     return this.#status;
@@ -276,6 +129,7 @@ class Lifecycle {
     if (!this.#events.has(event)) {
       const lifecycleHandler = new LifecycleHandler(handler);
       this.#events.set(event, lifecycleHandler.bind(this));
+      this.#initialized = true;
     }
   }
 
@@ -296,6 +150,7 @@ class Lifecycle {
     try {
       await this.executeEvent("CONFIGURED");
       this.#status = "STARTED";
+      this.initialized = true;
     } catch (e) {
       console.error("Error during startup:", e);
     }
@@ -304,6 +159,7 @@ class Lifecycle {
   async load() {
     try {
       await this.executeEvent("LOADED");
+      this.initialized = true;
     } catch (e) {
       console.error("Error during load:", e);
     }
@@ -313,6 +169,7 @@ class Lifecycle {
     try {
       await this.executeEvent("SHUTTING_DOWN");
       this.#status = "SHUTDOWN";
+      this.initialized = true;
     } catch (e) {
       console.error("Error during shutdown:", e);
     }
@@ -322,6 +179,7 @@ class Lifecycle {
 class NexusCore {
   #lifecycle = new Lifecycle();
   #config = new Config();
+  #initialized = false;
 
   get lifecycle() {
     return this.#lifecycle;
@@ -331,38 +189,67 @@ class NexusCore {
     return this.#config;
   }
 
+  get initialized() {
+    return this.#initialized;
+  }
+
+  set initialized(value) {
+    this.#initialized = value;
+  }
+
   async configure(config) {
     this.#config = config;
     await this.#lifecycle.configure("CONFIGURED", () => {});
+    this.initialized = true;
   }
 
   async start() {
     await this.#lifecycle.start();
+    this.initialized = true;
   }
 
   async load() {
     await this.#lifecycle.load();
+    this.initialized = true;
   }
 
   async shutdown() {
     await this.#lifecycle.shutdown();
+    this.initialized = true;
   }
 
   async destroy() {
     this.#lifecycle = new Lifecycle();
     this.#config = new Config();
+    this.initialized = false;
   }
 }
 
+const lifecycle = new Lifecycle();
+const listeners = new Map();
 
-### Output
+async function main() {
+  await NexusCore.configure(new Config());
+  await NexusCore.start();
+  await NexusCore.load();
+  await NexusCore.shutdown();
+  await NexusCore.destroy();
+}
 
-The output of the mutated code can be:
+
+### CHAINED CONTEXT UPDATE:
 
 
-NexusCore instance started.
-Config loaded: { foo: 'bar', baz: true }
-Lifecycle events configured.
+{
+  "mutated": [
+    "Config",
+    "LifecycleEvent",
+    "LifecycleHandler",
+    "Lifecycle",
+    "NexusCore"
+  ],
+  "context": "// Initialize components: Configurator, Executor, and Target"
+}
 
 
-Please note that the actual output may vary based on the environment and dependencies used.
+Please let me know if you would like to perform additional mutations.
