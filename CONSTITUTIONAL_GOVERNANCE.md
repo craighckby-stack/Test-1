@@ -1,121 +1,72 @@
-**VOTE:**
-Based on the provided source code and the requirement for Temporal Evolution Engine and distributed system architecture, I am choosing **Google/Genkit** as the source for this round.
+**NEXUS_CORE Election Results:**
+Based on the requirements for Temporal Evolution Engine, distributed system architecture, and asynchronous processing, I have chosen **Google/Genkit** as the source for this round.
 
-**MUTATION INTENT:**
-Post mutation, the code should exhibit these key behaviors:
+**Genkit SIPHONING Pattern:**
+Genkit's asynchronous data processing and node management pattern is leveraged to facilitate the Recursive Evolution Loop and Temporal Evolution Engine core functionalities.
 
-1.  **Temporal Evolution Engine:** The system operates on a quantized cycle-based timeline, with milestone cycles (i.e., 50, 100) triggering meta-strategy integration of new logic without full system restart.
-2.  **Async/Await Processing:** Asynchronous execution of node logic, using `async/await` for sequential processing.
-3.  **Dynamic Node Management:** Adding and removing nodes dynamically based on system requirements, with a `load` method to configure the node creation pipeline.
-4.  **Genkit-inspired Architecture:** The NexusCore class should serve as the central hub for managing nodes and coordinating operations through a pipeline of sequential processing.
+**MUTATED CODE:**
 
-**OUTPUTED REFACTOR CODE:**
 
-// Node class 1
-class AsyncNode1 {
-  async status() {
-    // Implement status logic
-    return 'initialized';
-  }
-
-  async init() {
-    // Implement node init logic
-  }
-
-  async run() {
-    // Implement node run logic
-    // (Simulating asynchronous operation)
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  async done() {
-    // Implement node done logic
-  }
-}
-
-// Node class 2
-class AsyncNode2 {
-  async status() {
-    // Implement status logic
-    return 'initialized';
-  }
-
-  async init() {
-    // Implement node init logic
-  }
-
-  async run() {
-    // Implement node run logic
-    // (Simulating asynchronous operation)
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  async done() {
-    // Implement node done logic
-  }
-}
-
-// Updated NexusCore Class
-class NexusCore {
-  private asyncNodes: AbstractAsyncNode[];
+class AsyncNode {
+  private _status;
 
   constructor() {
+    this._status = 'initialized';
+  }
+
+  async status() {
+    return this._status;
+  }
+
+  async init() {
+    // Implement node init logic
+  }
+
+  async run() {
+    // Implement node run logic
+    // (Simulating asynchronous operation)
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  async done() {
+    // Implement node done logic
+    this._status = 'done';
+  }
+}
+
+class NexusCore extends AbstractAsyncNode implements IGenkitInterface {
+  private asyncNodes: AsyncNode[];
+
+  constructor() {
+    super();
     this.asyncNodes = [];
   }
 
-  async load(config) {
-    // Load nodes asynchronously
+  async load(config: INodeConfig[]) {
     const promises = config.map((config) => this.addNode(config));
     await Promise.all(promises);
   }
 
-  async addNode(config) {
-    // Create a new node instance based on the configuration
+  async addNode(config: INodeConfig) {
+    const node = new AsyncNode();
     if (config.type === 'async-processor') {
-      const asyncNode = new AsyncProcessor();
-      // Initialize the node
-      await asyncNode.init();
-      this.asyncNodes.push(asyncNode);
-      return asyncNode;
+      await node.init();
+      this.asyncNodes.push(node);
+      return node;
     }
   }
 
   async status() {
-    let status = '';
-    for (const asyncNode of this.asyncNodes) {
-      status += ', ' + await asyncNode.status();
-    }
+    const status = this.asyncNodes.reduce((acc, asyncNode) => {
+      acc += ', ' + await asyncNode.status();
+      return acc;
+    }, '');
     return status;
   }
 
   async done() {
-    for (const asyncNode of this.asyncNodes) {
-      await asyncNode.done();
-    }
-  }
-}
-
-// Node class 3: AsyncProcessor (Updated)
-class AsyncProcessor extends AbstractAsyncNode {
-  private asyncNode1: AsyncNode1;
-  private asyncNode2: AsyncNode2;
-
-  constructor() {
-    super();
-    this.#asyncNode1 = new AsyncNode1();
-    this.#asyncNode2 = new AsyncNode2();
-  }
-
-  async status() {
-    let status = await super.status();
-    // Combine status
-    if (this.#asyncNode1) {
-      status += ', ' + await this.#asyncNode1.status();
-    }
-    if (this.#asyncNode2) {
-      status += ', ' + await this.#asyncNode2.status();
-    }
-    return status;
+    const promises = this.asyncNodes.map(async (asyncNode) => await asyncNode.done());
+    await Promise.all(promises);
   }
 
   static get GENKIT_INTERFACE() {
@@ -128,18 +79,25 @@ class AsyncProcessor extends AbstractAsyncNode {
   }
 }
 
-// Integrate Genkit-inspired interfaces
-class NexusCoreGenkitInterface extends NexusCore {
-  async load(config) {
-    // Ensure correct config format
-    if (!config || !config.interface) {
-      return this;
-    }
-    if (config.interface.includes('load')) {
-      return super.load(config);
-    }
-  }
+class NodeConfig {
+  type: string;
+  options: any;
 
-  // Implement other Genkit-inspired interfaces (in case required by future mutation cycles)
+  constructor(type: string, options: any) {
+    this.type = type;
+    this.options = options;
+  }
 }
-module.exports = NexusCoreGenkitInterface;
+
+interface IGenkitInterface {
+  load(config: INodeConfig[]): Promise<void>;
+  addNode(config: INodeConfig): Promise<void>;
+  status(): Promise<string>;
+  done(): Promise<void>;
+}
+
+interface INodeConfig {
+  type: string;
+  options: any;
+}
+module.exports = NexusCore;
