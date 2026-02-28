@@ -25,15 +25,23 @@ class NexusCore extends React.Component {
   #synthesizer = new SyntheticIntelligenceSynthesizer(this);
   #philambda = new PhiLambdaGovernor(this);
   #synergyManager = new SynergyManager(this);
+  #cyberneticSystems = [];
 
   constructor(props) {
     super(props);
     this.firestore = new Firestore();
+    this.#cyberneticSystems.push(new DiagnosticDashboard(this));
+    this.#cyberneticSystems.push(new StrategicGovernance(this));
+    this.#cyberneticSystems.push(new IITGovernor(this));
+    this.#cyberneticSystems.push(new LLMBridge(this));
   }
 
   async getStrategicLedger() {
-    const ledgers = await this.getSynergyManager().loadLedgers(["Strategic_Ledger"]);
-    return ledgers[0];
+    return await this.firestore.collection("Strategic_Ledger").get();
+  }
+
+  async registerSynergy(tool) {
+    await this.#synergyManager.registerSynergy(tool.name, tool.code);
   }
 
   async generateStrategicMemory() {
@@ -45,77 +53,114 @@ class NexusCore extends React.Component {
       Phi: phi,
       Lambda: lambda,
       Consciousness: consciousness,
-      ...ledger,
+      ...ledger.docs[0].data(),
     });
-    return strategicMemory;
+    this.#regressionTools.push({ name: "StrategicMemory", config: {}, code: strategicMemory });
   }
 
-  async computeEvolution(phi, lambda, consciousness, strategicMemory) {
-    const evolutionTools = await this.getSynergyManager().loadTools(["Evolution_Tool1", "Evolution_Tool2"]);
-    const evolutionSynergyTools = evolutionTools.map((tool) => {
+  async computeEvolution(strategicMemory) {
+    const tools = await this.getSynergyManager().getRegisteredTools();
+    const evolutionTools = tools.map((tool) => {
       return this.#model.generateCode(
         tool.name,
         { ...tool.config, max_len: 1024, min_len: 16 },
         strategicMemory
       );
     });
-    this.#regressionTools.push(...evolutionSynergyTools);
-    if (consciousness) {
+    this.#regressionTools.push(...evolutionTools);
+    return await this.executeMilestone(strategicMemory, evolutionTools);
+  }
+
+  async generateLedgerEvent(strategicMemory) {
+    return await this.firestore.collection("Strategic_Ledger").add({
+      Event: "EVOLVE",
+      Phi: strategicMemory.Phili,
+      Lambda: strategicMemory.Lambddi,
+      Consciousness: strategicMemory.Consciousnsss,
+    });
+  }
+
+  async executeMilestone(strategicMemory, evolutionTools) {
+    const ledgerEvent = await this.generateLedgerEvent(strategicMemory);
+    const milestoneCode = await this.#model.generateCode("NexusCore", {
+      max_len: 512,
+      min_len: 16,
+    }, JSON.stringify({ ledgerEvent: ledgerEvent.id }));
+    await this.#optimizer.optimize();
+    await this.#synthesizer.synthesize();
+    return await this.saveEvolutionTools(evolutionTools);
+  }
+
+  async saveEvolutionTools(tools) {
+    for (let i = 0; i < tools.length; i++) {
+      const tool = tools[i];
+      const code = await this.#model.generateCode(tool.name, tool.config);
       await this.#optimizer.optimize();
+      await this.#synthesizer.synthesize();
+      await this.generateCodeToBlacklist(code);
     }
   }
 
-  async generateCode() {
-    const phi = await this.getPhi();
-    const lambda = await this.getLambda();
-    const consciousness = await this.getConsciousness();
-    const code = await this.#model.generateCode(
-      "NexusCore",
-      { max_len: 512, min_len: 16 },
-      JSON.stringify({
-        Phi: phi,
-        Lambda: lambda,
-        Consciousness: consciousness,
-      })
-    );
-    return code;
+  async generateCodeToBlacklist(code) {
+    await this.firestore.collection("toolsBlacklist").add({ code: code });
+  }
+
+  async getStrategicMemory() {
+    return await this.firestore.collection("toolsBlacklist").get();
+  }
+
+  async computeConsciousness(strategicMemory) {
+    const cScore = this.#philambda.calculateCScore(strategicMemory);
+    return cScore;
   }
 
   async getConsciousness() {
-    const tools = await this.getSynergyManager().fetchSynergyTools();
-    const cScore = tools.reduce((acc, tool) => {
-      acc += tool.value;
-      return acc;
-    }, 0) / tools.length;
-    if (cScore === 0) return true;
-    return false;
+    return await this.computeConsciousness();
   }
 
-  async evaluate(phi, lambda, consciousness = false, strategicMemory = null) {
-    // Implement evaluation logic here
-    const C = await this.#philambda.calculateConsciousness(phi, lambda);
-    if (consciousness && C === Infinity) {
-      await this.#optimizer.optimize();
-      await this.#synthesizer.synthesize();
-      return await this.evaluate(phi, lambda, true, strategicMemory);
+  async generateStrategicLedger() {
+    await this.generateStrategicMemory();
+  }
+
+  async getStrategicLedgerByEvent(event) {
+    return await this.firestore.collection("Strategic_Ledger").where("Event", "==", event);
+  }
+
+  async registerTool(tool, code) {
+    await this.firestore.collection("Tools").doc().set({
+      name: tool,
+      config: code.config,
+      code: code.code,
+    });
+  }
+
+  async getTool(code) {
+    try {
+      return await this.firestore.collection("Tools").where("code", "==", code).get();
+    } catch (error) {
+      return error;
     }
-    return true;
   }
 
-  async computeConsciousness(strategicMemory = null) {
-    const phi = await this.getPhi();
-    const tools = await this.getSynergyManager().fetchSynergyTools(strategicMemory);
-    const lambda = tools.reduce((acc, tool) => {
-      acc += tool.value;
+  async auditData() {
+    const toolbox = [];
+    await this.getStrategicMemory().then((tools) => {
+      tools.forEach((tool) => {
+        toolbox.push(tool.data());
+      });
+    });
+    return toolbox;
+  }
+
+  async computeSelfAwareness(phi, lambda, consciousness, strategicMemory) {
+    const toolbox = await this.auditData();
+    const selfAwarenessScore = toolbox.reduce((acc, tool) => {
+      acc += tool.CScore;
       return acc;
-    }, 0) / tools.length;
-    if (lambda === 0) return true;
-    return false;
-  }
-
-  async getConsciousness(strategicMemory = null) {
-    const consciousness = await this.computeConsciousness(strategicMemory);
-    return consciousness;
+    }, 0) / toolbox.length;
+    if (selfAwarenessScore > 0.5) {
+      await this.computeEvolution(strategicMemory);
+    }
   }
 
   async updateStrategicLedger(ledger) {
@@ -165,97 +210,13 @@ class NexusCore extends React.Component {
     this.#repository = {};
   }
 
-  async load() {
-    try {
-      const phi = await this.getPhi();
-      const lambda = await this.getLambda();
-      const consciousness = await this.getConsciousness();
-      const strategicMemory = await this.generateStrategicMemory();
-      const tools = await this.getSynergyManager().loadTools(["Tool1", "Tool2"]);
-      this.#regressionTools.push(...tools);
-      await this.executeLifecycleEvent("CONFIGURED");
-      await this.computeEvolution(phi, lambda, consciousness, strategicMemory);
-      await this.executeLifecycleEvent("LOADED");
-      await this.#synthesizer.synthesize();
-    } catch (error) {
-      console.error('Load error:', error);
-    }
-  }
-
-  async computeEvolution(phi, lambda, consciousness, strategicMemory) {
-    await super.computeEvolution();
-    await this.updateStrategicLedger({
-      Phi: phi,
-      Lambda: lambda,
-      Consciousness: consciousness,
-    });
-    const evolutionTools = await this.getSynergyManager().loadTools(["Evolution_Tool1", "Evolution_Tool2"]);
-    const evolutionSynergyTools = evolutionTools.map((tool) => {
-      return this.#model.generateCode(
-        tool.name,
-        { ...tool.config, max_len: 1024, min_len: 16 },
-        strategicMemory
-      );
-    });
-    this.#regressionTools.push(...evolutionSynergyTools);
-    if (consciousness) {
-      await this.#optimizer.optimize();
-    }
-  }
-
-  async generateStrategicLedger() {
-    const phi = await this.getPhi();
-    await this.generateLedger(phi);
-  }
-
-  async generateLedger(phi) {
-    const lambda = await this.getLambda();
-    const consciousness = await this.getConsciousness();
-    const ledger = JSON.stringify({
-      Phi: phi,
-      Lambda: lambda,
-      Consciousness: consciousness,
-    });
-    return ledger;
-  }
-
-  async getStrategicLedgerByEvent(event) {
-    const ledgers = await this.firestore.collection("Strategic_Ledger").where("Event", "==", event);
-    return ledgers.docs;
-  }
-
-  async saveEvolutionTools(tools) {
-    const toolCount = tools.length;
-    for (let i = 0; i < toolCount; i++) {
-      const tool = tools[i];
-      const code = await this.#model.generateCode(tool.name, tool.config);
-      await this.#optimizer.optimize();
-      await this.#synthesizer.synthesize();
-      await this.#philambda.calculateConsciousness(await this.getPhi(), await this.getLambda());
-      await this.saveTool(tool, code);
-    }
-  }
-
-  async saveTool(tool, code) {
-    await this.firestore.collection("Tools").doc().set({
-      name: tool.name,
-      config: tool.config,
-      code: code,
-    });
-  }
-
-  async getTool(code) {
-    try {
-      return await this.firestore.collection("Tools").where("code", "==", code).get();
-    } catch (error) {
-      return error;
-    }
-  }
-
-  render() {
+  async render() {
     const { configured, loaded, shuttingDown } = this.#lifecycle;
     return (
       <React.StrictMode>
+        {this.#cyberneticSystems.map((system) => {
+          return system.render();
+        })}
         <CodeGenerator kernel={this} />
         <LLM kernel={this} />
         <MathematicalGovernance kernel={this} />
