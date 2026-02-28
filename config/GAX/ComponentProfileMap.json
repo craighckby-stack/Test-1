@@ -1,14 +1,3 @@
-**VOTE FOR:**
-Meta/React-Core
-
-**SIPHON DNA:**
-
-*   We will integrate the recursive loop, dynamic context loading, tool discovery, and strategic ledger API from Meta/React-Core.
-*   We will borrow the IIFE injection and hot-swapping patterns.
-
-**MUTATE CODE SNIPPETS:**
-
-
 import React, { useState, useEffect, useRef, useReducer, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 
@@ -151,13 +140,12 @@ class NexusCore {
   injectTools() {
     const toolCode = `
       console.log("Injecting tools...");
-      return function() {
-        console.log("Tools injected.");
-      };
+      const toolbox = new window.MetaskillsToolbar();
+      toolbox.registerTool('InjectedTool', document.createElement('div'));
+      return toolbox.injectTools();
     `;
-    const toolbox = new window.MetaskillsToolbar(toolCode);
-    toolbox.registerTool('InjectedTool', document.createElement('div'));
-    toolbox.injectTools();
+    const toolbox = new window.MetaskillsToolbar();
+    toolbox.injectTools(toolCode);
   }
 
   async load() {
@@ -210,31 +198,35 @@ class NexusCore {
   }
 }
 
+class SyntheticSynergyManager {
+  constructor() {
+    this.tools = {};
+    this.toolbox = new window.MetaskillsToolbar();
+    this.injectedTools = {};
+  }
+
+  registerTool(toolName, element) {
+    this.toolbox.registerTool(toolName, element);
+    this.injectedTools[toolName] = toolName;
+  }
+
+  injectTools(toolCode) {
+    this.toolbox.injectTools(toolCode);
+  }
+}
+
 const nexusCore = new NexusCore();
+const synergyManager = new SyntheticSynergyManager();
+
 nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 });
 nexusCore.configure(Config.defaultConfig);
+nexusCore.on('CONFIGURED', () => synergyManager.injectTools(`
+      console.log(\"Injecting synergy tools...\");
+      return true;
+    `));
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-**INTEGRATE PATTERNS:**
-
-*   Synthetic Synergy Management (Dynamic Hot-Swapping):
-    +   Utilize the `MetaskillsToolbar` class from Meta/React-Core to register and inject tools into the kernel.
-    +   Create a `toolbox` instance to handle tool registration and injection.
-*   IIFE Injection:
-    +   Use a function to generate tool code and store it in a variable.
-    +   Call the `toolbox.injectTools` method to inject the tools into the kernel.
-*   Dynamic Context Loading:
-    +   Load tool code dynamically using the `toolbox.registerTool` method.
-    +   Store the loaded tool in the `toolbox` instance.
-
-**LOGICAL CONNECTIONS:**
-
-*   The `injectTools` method is called from the `configure` method, ensuring that tools are injected after the kernel is configured.
-*   The `toolbox` instance is created and used throughout the kernel to register and inject tools.
-*   The `toolbox.injectTools` method is called to inject the tools into the kernel.
