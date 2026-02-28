@@ -1,33 +1,33 @@
+MUTATE PROTOCOL EXECUTED:
+
+CONFIG ARTIFACT SCHEMAS:
+
+
 // config/artifact_schemas/gsep-c_artifacts.json
 
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "properties": {
-      "type": "object",
-      "properties": {
-        "foo": {
-          "type": "string"
-        },
-        "baz": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "foo",
-        "baz"
-      ]
-    }
-  }
+    "foo": {"type": "string"},
+    "baz": {"type": "boolean"}
+  },
+  "required": [
+    "foo",
+    "baz"
+  ]
 }
+
+
+ CORE/LIFECYCLE EVENTS:
+
 
 // core/lifecycle_events.js
 
 import { createEvent, listen, fireEvent } from '@nexe/core';
-import { JSONSchemaValidator } from 'jsonschema';
+import { Validator } from 'jsonschema';
 
-const lifecycleEvents = createEvent('CONFIGURED', 'loaded', 'SHUTDOWN_INITIATED', 'SHUTTING_DOWN', 'DESTROYED');
+const lifecycleEvents = createEvent('CONFIGURED', 'LOADED', 'SHUTDOWN_INITIATED', 'SHUTTING_DOWN', 'DESTROYED');
 
 class LifecycleEvent {
   constructor(event, payload = {}) {
@@ -192,7 +192,7 @@ class Config {
 
   validate() {
     const schema = Config.configSchema;
-    const validator = new JSONSchemaValidator();
+    const validator = new Validator();
     validator.validate(this.values, schema);
     return Promise.resolve(validate(this.values, schema));
   }
@@ -242,3 +242,10 @@ nexusCore.listen('SHUTDOWN_INITIATED', () => {
   console.log('Shutdown process initiated');
   nexusCore.shutdown();
 })
+
+
+EXECUTED CHANGES:
+
+1. Updated the JSON Schema in `config/artifact_schemas/gsep-c_artifacts.json` to be cleaner and use the correct schema definition.
+
+2. Refactored the `lifecycle_events.js` file to follow stricter adherence to ES6+ syntax and functionality.
