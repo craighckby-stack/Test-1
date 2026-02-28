@@ -1,10 +1,11 @@
-**Mutated Class Config**
+### Mutated Class Config
+
 
 
 class Config {
   constructor(values = {}) {
-    this.merge(this.defaults);
-    this.attributes = { ...this.attributes, ...values };
+    this.attributes = { ...this.defaults, ...values };
+    this.validate();
   }
 
   get defaults() {
@@ -14,11 +15,6 @@ class Config {
       foo: 'bar',
       baz: true,
     };
-  }
-
-  merge(values) {
-    Object.assign(this.attributes, values);
-    this.validate();
   }
 
   validate() {
@@ -71,7 +67,8 @@ class Config {
 }
 
 
-**Enhanced AsyncHandlerWrapper**
+### Enhanced AsyncHandlerWrapper
+
 
 
 class AsyncHandlerWrapper {
@@ -85,7 +82,8 @@ class AsyncHandlerWrapper {
 }
 
 
-**Optimized Context Class**
+### Optimized Context Class (merged with Mutated Lifecycle Class)
+
 
 
 class Context {
@@ -102,12 +100,25 @@ class Context {
   }
 
   validate() {
-    // implement validation logic here
+    const schema = {
+      $id: 'context.schema',
+      type: 'object',
+      default: {},
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    };
+    const validator = jsonschema.validate(this.attributes, schema);
+    if (validator.errors.length > 0) {
+      throw validator;
+    }
   }
 }
 
 
-**Mutated Lifecycle Class**
+### Mutated Lifecycle Class
+Since this class has a similar implementation with the Context class, and NexusCore extends this class, I will focus on improving the implementation of lifecycle events.
+
 
 
 class Lifecycle {
@@ -135,7 +146,7 @@ class Lifecycle {
   }
 
   async applyLifecycle(event, ...args) {
-    const handlers = this.listeners.getLifecycleHandlers(event);
+    const handlers = this.listeners.get(event);
     if (handlers) {
       return Promise.all(
         handlers.map(async (handler) => await handler.execute(...args))
@@ -150,97 +161,53 @@ class Lifecycle {
   }
 
   async configure(event, config) {
-    this.validateConfig(config);
-    this.lifecycle[event] = true;
-    this.status = 'CONFIGURED';
-    this.config = config;
+    this.listeners.emit(event, config);
   }
 
-  validateConfig(config) {
-    const schema = {
-      $id: 'config.schema',
-      type: 'object',
-      default: {},
-      properties: {
-        version: {
-          type: 'string',
-        },
-        env: {
-          type: 'string',
-        },
-        foo: {
-          type: 'string',
-        },
-        baz: {
-          type: 'boolean',
-        },
-      },
-      required: ['version', 'env'],
-      additionalProperties: false,
-    };
-    const validator = jsonschema.validate(config, schema);
-    if (validator.errors.length > 0) {
-      throw validator;
-    }
+  async start() {
+    return this.applyLifecycle('CONFIGURED', Promise.resolve('Lifecycle configured successfully'));
   }
 
-  async applyConfig(event, config) {
-    await this.configure(event, config);
+  async shutdown() {
+    return this.applyLifecycle('SHUTDOWN', Promise.resolve('Lifecycle shutdown successfully'));
   }
 
-  async start(event) {
-    switch (event) {
-      case 'CONFIGURED':
-        return 'Lifecycle configured successfully';
-      case 'LOADED':
-        return 'Lifecycle loaded successfully';
-      default:
-        return 'Lifecycle started successfully';
-    }
-  }
-
-  async shutdown(event) {
-    this.lifecycle[event] = true;
-    this.status = 'SHUTDOWN';
-  }
-
-  async dispose(event) {
-    this.status = 'DESTROYED';
-    this.lifecycle[event] = false;
+  async dispose() {
+    return this.applyLifecycle('DESTROYED', Promise.resolve('Lifecycle disposed successfully'));
   }
 }
 
 
-**Mutated NexusCore Class**
+### Mutated NexusCore Class
+
 
 
 class NexusCore extends Lifecycle {
   constructor() {
     super();
     this.constructorLifeCycle();
-    this.listeners = new LifecycleEventManager();
   }
 
   constructorLifeCycle() {
-    this.addLifecycleListener('CONFIGURED', async () => {
+    this.listeners.on('CONFIGURED', async () => {
       console.log('Lifecycle configured...');
     });
 
-    this.addLifecycleListener('LOADED', async () => {
+    this.listeners.on('LOADED', async () => {
       console.log('Lifecycle loaded...');
     });
 
-    this.addLifecycleListener('SHUTDOWN', async () => {
+    this.listeners.on('SHUTDOWN', async () => {
       console.log('Lifecycle shutdown...');
     });
 
-    this.addLifecycleListener('DESTROYED', async () => {
-      console.log('Lifecycle destroyed...');
+    this.listeners.on('DESTROYED', async () => {
+      console.log('Lifecycle disposed...');
     });
   }
 
   async applyConfig(config) {
-    await super.configure('CONFIGURED', config);
+    return this.configure('CONFIGURED', config);
   }
 
   async chainContext(context) {
@@ -248,24 +215,25 @@ class NexusCore extends Lifecycle {
   }
 
   async start() {
-    await super.start('CONFIGURED');
+    return super.start();
   }
 
   async shutdown() {
-    await super.shutdown('SHUTDOWN');
+    return super.shutdown();
   }
 
   async load() {
-    await super.start('LOADED');
+    return super.start();
   }
 
   async dispose() {
-    await super.dispose('DESTROYED');
+    return super.dispose();
   }
 }
 
 
-**Unified Lifecycle Listener Interface**
+### Unified Lifecycle Listener Interface
+
 
 
 interface LifecycleListener {
@@ -284,10 +252,14 @@ class LifecycleEventManager {
     return this.listeners.find(listener => listener.event === event);
   }
 
-  async execute(event: string) {
-    const lifecycleListener = this.get(event);
-    if (lifecycleListener) {
-      await lifecycleListener.handler();
+  on(event: string, listener: Function) {
+    this.add(event, listener);
+  }
+
+  emit(event: string, ...args) {
+    const lifecycleHandler = this.get(event);
+    if (lifecycleHandler) {
+      lifecycleHandler.handler(...args);
     }
   }
 }
@@ -301,3 +273,19 @@ class LifecycleListenerHandler {
     this.listener.handler();
   }
 }
+
+
+### Optimized instance Creation
+
+
+
+const instance = new NexusCore();
+instance.on('DESTROYED', async () => {
+  console.log('NexusCore instance disposed...');
+});
+
+instance.on('SHUTDOWN', async () => {
+  console.log('NexusCore instance is shutting down...');
+});
+
+await instance.start();
