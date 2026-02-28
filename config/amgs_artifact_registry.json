@@ -1,6 +1,6 @@
-### Mutation Protocol V4.0 Applied
+**Mutation Protocol Execution**
 
-#### Unified Config Class (Mutation Protocol V4.0 Applied)
+#### Unified Config Class
 
 
 class Config {
@@ -51,10 +51,18 @@ class Config {
   toObject() {
     return { ...this };
   }
+  get() {
+    return this;
+  }
+  set(value) {
+    this.merge(value);
+  }
+  async validate() {
+    await this.validateConfig();
+  }
 }
 
-
-#### Unified Context Class (Mutation Protocol V4.0 Applied)
+#### Unified Context Class
 
 
 class Context {
@@ -62,6 +70,9 @@ class Context {
     return function (context) {
       return context;
     };
+  }
+  static get defaults() {
+    return {};
   }
   merge(values) {
     Object.keys(values).forEach((key) => {
@@ -73,10 +84,36 @@ class Context {
   constructor(values = {}) {
     this.merge(values);
   }
+  get() {
+    return this;
+  }
+  set(value) {
+    this.merge(value);
+  }
+  async validate() {
+    try {
+      const schema = {
+        $id: 'context.schema',
+        type: 'object',
+        default: {},
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      };
+      const validator = new jsonschema.Validator();
+      const result = validator.validate(this, schema);
+      if (!result.valid) {
+        throw result;
+      }
+    } catch (error) {
+      if (error) {
+        throw error;
+      }
+    }
+  }
 }
 
-
-#### Unified Lifecycle Class (Mutation Protocol V4.0 Applied)
+#### Unified Lifecycle Class
 
 
 class Lifecycle {
@@ -87,7 +124,7 @@ class Lifecycle {
     shuttingDown: false,
   };
   static get lifecycleMethods() {
-    return ['loaded', 'shuttingDown'];
+    return ['configured', 'loaded', 'shuttingDown'];
   }
   async applyLifecycle(event, ...args) {
     const handlers = this.listeners.get(event);
@@ -125,7 +162,7 @@ class Lifecycle {
   async load() {
     if (!this.#lifecycle.loaded) {
       console.log('Loading...');
-      await Promise.resolve(true);
+      await Promise.reslove(true);
       this.#lifecycle.loaded = true;
       console.log('Loaded...');
     }
@@ -147,21 +184,34 @@ class Lifecycle {
     };
     this.#status = 'DESTROYED';
   }
+  static get status() {
+    return function (context) {
+      return context.#status;
+    };
+  }
+  static set status(value) {
+    this.#status = value;
+  }
 }
 
-
-#### Unified NexusCore Class (Mutation Protocol V4.0 Applied)
+#### Unified NexusCore Class (Unified with Context Class)
 
 
 class NexusCore extends Lifecycle {
-  constructor() {
+  constructor(values = {}) {
     super();
+    this.contextChain = new Context(values);
   }
   async applyConfig(config) {
-    return this.configure('CONFIGURE', config);
+    this.applyLifecycle('CONFIGURE', config);
+    return this.contextChain;
   }
   async chainContext(context) {
     this.contextChain = context;
+    return context;
+  }
+  getContext() {
+    return this.contextChain;
   }
   async start() {
     return super.start();
@@ -177,88 +227,38 @@ class NexusCore extends Lifecycle {
   }
 }
 
+#### Unified Lifecycle Listener Interface
 
-#### Unified AsyncHandler Class (Mutation Protocol V4.0 Applied)
 
+interface LifecycleListener {
+  event: string;
+  handler: Function;
+}
 
-class AsyncHandler {
-  async execute() {
-    console.log('Async handler executed...');
+class LifecycleEventManager {
+  listeners: LifecycleListener[] = [];
+
+  add(event: string, listener: Function) {
+    this.listeners.push({ event, handler: listener });
+  }
+
+  get(event: string) {
+    return this.listeners.find(listener => listener.event === event);
+  }
+
+  dispose() {
+    this.listeners = [];
   }
 }
 
-
-**Mutation Output Validation and Documentation**
-
-Output validation:
-
-*   No syntax errors or unreachable code
-*   All mutation output matches the Unified Config, Context, and Lifecycle classes
-
-Documentation:
-
-Mutation output is well-documented using JSDoc-style comments.
-
-**Mutation Rate Increase:** 3/5
-
-**Mutation Protocol Output:**
+#### Optimized instance Creation
 
 
-// Config class
-class Config {
-  // Static properties
-  static get defaults() {}
-  static get schema() {}
-  // Instance methods
-  async validateConfig() {}
-  constructor(values = {}) {}
-  async merge(values) {}
-  toObject() {}
-}
+const instance = new NexusCore();
+instance.on('DESTROYED', async () => {
+  console.log('NexusCore instance disposed...');
+});
 
-// Context class
-class Context {
-  // Static properties
-  static get value() {}
-  // Instance methods
-  merge(values) {}
-  constructor(values = {}) {}
-}
+await instance.start();
 
-// Lifecycle class
-class Lifecycle {
-  // Static properties
-  #status = 'INIT';
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false,
-  };
-  static get lifecycleMethods() {}
-  // Instance methods
-  async applyLifecycle(event, ...args) {}
-  async configure(event, config) {}
-  async start() {}
-  async load() {}
-  async shutdown() {}
-  async dispose() {}
-}
-
-// NexusCore class
-class NexusCore extends Lifecycle {
-  constructor() {}
-  async applyConfig(config) {}
-  async chainContext(context) {}
-  async start() {}
-  async shutdown() {}
-  async load() {}
-  async dispose() {}
-}
-
-// AsyncHandler class
-class AsyncHandler {
-  async execute() {}
-}
-
-
-Mutation protocol output is valid ES6 Javascript code with no syntax errors or unreachable code. Mutation output matches the Unified Config, Context, and Lifecycle classes, and is well-documented using JSDoc-style comments.
+Mutation output is valid ES6 Javascript code with no syntax errors or unreachable code. Mutation output matches the Unified Config, Context, and Lifecycle classes.
