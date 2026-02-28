@@ -8,19 +8,35 @@ class PolicyRemediationConfig {
   }
 
   static get schema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
-}
+    const pattern = /\w+([\s\S]*?)\w+/g;
+    const schema = {};
+    let props;
 
-class NexusCoreEvent {
-  constructor(event) {
-    this.event = event;
+    while ((props = pattern.exec(JSON.stringify(window.rawText))) !== null) {
+      const key = props[1].trim();
+      const value = JSON.parse(props[0]);
+
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema({
+        type: 'object',
+        properties: {
+          [key]: { type: 'string' },
+          risk: { type: 'enum', enum: ['high', 'mid', 'low'] },
+          riskProfile: { type: 'object' },
+        },
+      });
+
+      schema[key] = {
+        type: 'object',
+        properties: {
+          code: { type: 'string', pattern: 'if\\(true\\)\\{.*?\\}', flags: 'js' },
+          codegen: { type: 'function', required: true },
+          meta: { type: 'object', required: true },
+        },
+      };
+    }
+
+    return { ...schema };
   }
 }
 
@@ -30,7 +46,11 @@ class NexusCoreLifecycleHandler {
   }
 
   bind(target = this) {
-    this.handler = this.handler.bind(target);
+    if (target instanceof this.constructor) {
+      return this.handler.bind(target);
+    }
+
+    return this.handler.bind(target.prototype);
   }
 
   execute() {
@@ -42,17 +62,19 @@ class NexusCore {
   #lifecycle = {
     configured: false,
     loaded: false,
-    shuttingDown: false
+    shutdown: false,
+    version: 0,
   };
 
-  #status = "INIT";
+  #status = 'INIT';
 
   static get protocol() {
     return '50/15';
   }
 
   static get pattern() {
-    return 'RECURSIVE_BOOTSTRAP_KERNEL';
+    this.#pattern = 'RECURSIVE_BOOTSTRAP_KERNEL';
+    return this.#pattern;
   }
 
   get status() {
@@ -60,17 +82,34 @@ class NexusCore {
   }
 
   set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
+    if (value !== this.#status) {
+      this.#status = value;
+      const currentValue = this.#status;
+      const lifecycle = this.#lifecycle;
+      switch (value) {
+        case 'CONFIGURED':
+          lifecycle.version++;
+          console.log(`NexusCore instance is ${value}.`);
+          break;
+        case 'LOADED':
+          lifecycle.version++;
+          console.log(`NexusCore instance is ${value}.`);
+          break;
+        case 'SHUTTING_DOWN':
+          lifecycle.version++;
+          console.log(`NexusCore instance is ${value}.`);
+          break;
+        case 'SHUTDOWN':
+          lifecycle.version++;
+          console.log(`NexusCore instance is ${value}.`);
+          break;
+        case 'DESTROYED':
+          lifecycle.version++;
+          console.log(`NexusCore instance is ${value}.`);
+          break;
+        default:
+          break;
       }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
     }
   }
 
@@ -78,125 +117,138 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  configure(policyConfig) {
-    this.validatePolicyConfig(policyConfig);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.policyConfig = policyConfig;
-    this.milestoneCycle();
-  }
-
   validatePolicyConfig(policyConfig) {
     const configSchema = PolicyRemediationConfig.schema;
     try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(policyConfig, configSchema);
+      const jsonSchema = new (require('json-schema').Core)();
+
+      jsonSchema.validatePolicyConfig(policyConfig, configSchema);
     } catch (e) {
       console.error('Policy config validation error:', e);
       throw e;
     }
   }
 
-  milestoneCycle() {
-    const regex = /\{[\s\S]*\}/g;
-    const jsonPayloads = window.rawText.match(regex);
-    jsonPayloads.forEach((payload) => {
-      const strategicInsight = JSON.parse(payload);
-      this.strategicLedgerInjection(strategicInsight);
-    });
-    this.onLifecycleEvent("MILESTONE_CYCLE");
-  }
+  static get protocolMethods() {
+    return (obj) => {
+      const proto = Object.getPrototypeOf(obj);
 
-  strategicLedgerInjection(strategicInsight) {
-    this.policyConfig.insights = {
-      ...this.policyConfig.insights,
-      ...strategicInsight
+      const methods = [];
+
+      while (proto !== Object.prototype && obj.constructor !== Object) {
+        Object.getOwnPropertyNames(proto).forEach((name) => {
+          const fn = proto[name];
+
+          if (typeof fn === 'function') {
+            methods.push(obj[name]);
+          }
+        });
+
+        proto = Object.getPrototypeOf(proto);
+      }
+
+      return methods;
     };
   }
 
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new NexusCoreLifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-    this.executeLifecycleEvent(event);
+  async milestoneCycle() {
+    const regex = /\{[\s\S]*\}/g;
+    const jsonPayloads = window.rawText.match(regex);
+    const plugins = [];
+
+    jsonPayloads.forEach((payload) => {
+      const pluginName = this.#lifecycle.version;
+      const pluginCode = `function ${pluginName}() { return 'Hello World!'; }`;
+      const plugin = {
+        name: pluginName,
+        code: pluginCode,
+        riskProfile: { highRisk: true },
+      };
+
+      plugins.push(plugin);
+      const strategicInsight = JSON.parse(payload);
+
+      this.strategicLedgerInjection(strategicInsight, plugin);
+    });
+
+    plugins.forEach((plugin) => {
+      console.log({
+        name: plugin.name,
+        code: plugin.code,
+        riskProfile: plugin.riskProfile,
+      });
+    });
+
+    this.onLifecycleEvent('MILESTONE_CYCLE');
+  }
+
+  strategicLedgerInjection(strategicInsight, plugin = {}) {
+    Object.assign(strategicInsight, plugin);
+    const insights = {
+      ...this.#lifecycle.insights,
+      ...strategicInsight,
+    };
+    this.#lifecycle.version++;
+    this.#lifecycle.insights = insights;
   }
 
   get on() {
     return (event, handler) => {
-      const nexusCoreEvent = new NexusCoreEvent(event);
       this.onLifecycleEvent(event, handler);
     };
   }
 
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-  }
-
   async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
+    console.log('Loading...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('Loading complete...');
+    this.#lifecycle.loaded = true;
+    this.executeLifecycleEvent('LOADED');
   }
 
   async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
+    const startMethods = NexusCore.protocolMethods(this);
+
+    for (const methodName of startMethods) {
+      if (methodName instanceof Function && methodName.prototype.constructor.name === 'NexusCore') {
         await this[methodName]();
       }
     }
   }
 
   async destroy() {
-    this.status = "DESTROYED";
     this.#lifecycle = {
       configured: false,
       loaded: false,
-      shuttingDown: false
+      shutdown: false,
+      version: 0,
     };
   }
 
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
+  async shutDown() {
+    const shutdownMethods = NexusCore.protocolMethods(this);
+
+    for (const methodName of shutdownMethods) {
+      if (methodName instanceof Function) {
+        await this[methodName]();
+      }
+    }
   }
 }
 
 window.rawText = {
   id: 'plugin_candidate',
   foo: 'bar',
-  baz: true
+  baz: true,
 };
 
 const nexusCore = new NexusCore();
 nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
+  console.log('NexusCore instance destroyed.');
 });
+
 nexusCore.configure(PolicyRemediationConfig.defaultConfig);
-nexusCore.milestoneCycle();
 nexusCore.start();
 nexusCore.load();
-nexusCore.shutdown();
+nexusCore.shutDown();
 nexusCore.destroy();
