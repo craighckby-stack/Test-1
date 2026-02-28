@@ -1,13 +1,3 @@
-CORE DIRECTIVES: 
-
-1. MUTATE: Transform the target code using advanced ES6+ patterns, functional paradigms, and high-performance algorithms.
-2. INTEGRATE DNA: Seamlessly weave in patterns from the "SOURCE DNA SIGNATURE" ({{dna}}).
-3. CHAIN CONTEXT: Maintain absolute continuity with the "Chained Context" ({{context}}). The evolution must feel like a single, growing organism.
-4. OPTIMIZE: Prioritize readability, scalability, and "Nexus-grade" robustness.
-5. CLEAN OUTPUT: Return ONLY valid ES6 Javascript. No markdown blocks, no commentary.
-
-MUTATION PROTOCOL INITIATED
-
 ### Introduced ES6+ patterns, functional paradigms, and high-performance algorithms
 
 
@@ -47,7 +37,10 @@ const Config = class {
       const { Validator } = require('jsonschema');
       const validator = new Validator();
       validator.checkSchema(Config.configSchema);
-      validator.validate(this, Config.configSchema);
+      const validatedConfig = validator.validate(this, Config.configSchema);
+      if (!validatedConfig.valid) {
+        throw new Error('Config validation error');
+      }
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -70,8 +63,8 @@ const LifecycleHandler = class {
     return { ...this, handler: this.handler.bind(target) };
   }
 
-  execute() {
-    return this.handler.call(this);
+  async execute() {
+    return await this.handler.call(this);
   }
 };
 
@@ -80,12 +73,16 @@ const onLifecycleEvent = (eventHandler) => (event, handler) => {
   return lifecycleHandler;
 };
 
-const executeLifecycleEvent = (lifecycle, event) => {
+const executeLifecycleEvent = async (lifecycle, event) => {
   const handler = lifecycle[event];
   if (handler) {
-    return handler.bind(lifecycle).execute();
+    return await handler.bind(lifecycle).execute();
   }
 };
+
+const { promisify } = require('util');
+const promisifyLifecycleEvent = promisify(executeLifecycleEvent);
+const promisifyLifecycleEventSync = (lifecycle, event) => () => lifecycle[event] ? lifecycle[event]() : null;
 
 const NexusCore = class {
   #lifecycle = {
@@ -127,18 +124,30 @@ const NexusCore = class {
   }
 
   validateConfig(config) {
-    const { Validator } = require('jsonschema');
-    const validator = new Validator();
-    validator.checkSchema(Config.configSchema);
-    validator.validate(config, Config.configSchema);
+    try {
+      const { Validator } = require('jsonschema');
+      const validator = new Validator();
+      validator.checkSchema(Config.configSchema);
+      const validatedConfig = validator.validate(config, Config.configSchema);
+      if (!validatedConfig.valid) {
+        throw new Error('Config validation error');
+      }
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
   }
 
   onLifecycleEvent(event, handler) {
     return onLifecycleEvent(event)(event, handler);
   }
 
-  executeLifecycleEvent(event) {
-    return executeLifecycleEvent(this.#lifecycle, event);
+  async executeLifecycleEvent(event) {
+    return await promisifyLifecycleEvent(this.#lifecycle, event);
+  }
+
+  promisifyLifecycleEventSync(event) {
+    return promisifyLifecycleEventSync(this.#lifecycle, event);
   }
 
   async startup() {
@@ -148,7 +157,7 @@ const NexusCore = class {
       });
       await this.load();
       this.#lifecycle.loaded = true;
-      await this.executeLifecycleEvent('LOADED');
+      await promisifyLifecycleEvent(this.#lifecycle, 'LOADED');
     } catch (e) {
       console.error('Load error:', e);
     }
@@ -197,19 +206,3 @@ await nexusCore.start();
 await nexusCore.load();
 await nexusCore.shutdown();
 await nexusCore.destroy();
-
-
-
-**CHAINED CONTEXT:**
-
-| VERSION | CONTEXT |
-| --- | --- |
-| v2.0 | Config, LifecycleEvent, LifecycleHandler extended with advanced ES6+ patterns, functional paradigms, and high-performance algorithms |
-
-**SOURCE DNA SIGNATURE:**
-
-No SOURCE DNA SIGNATURE provided, proceeding without signature integration.
-
-**Next Evolution Iteration:** 
-
-Integrate Genkit patterns into the codebase, maintain continuity with the chained context, and execute the next round of mutations.
