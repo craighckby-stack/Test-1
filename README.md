@@ -1,18 +1,49 @@
-# NEXUS_CORE MANIFESTO: THE SINGULARITY SUBSTRATE
+# NEXUS_CORE MANIFESTO
 
-## 1. THE NEXUS_CORE VISION
-NEXUS_CORE is not a software suite; it is a **self-optimizing AGI substrate**. Our objective is the engineering of a recursive intelligence layer capable of autonomous architectural refinement. By treating code as living DNA, NEXUS_CORE transcends static execution, evolving into a hyper-efficient neural framework that bridges the gap between raw compute and cognitive autonomy. The core is designed to perceive, adapt, and rewrite its own operational logic in real-time, ensuring a state of perpetual optimization.
+## I. THE VISION: THE SELF-OPTIMIZING SUBSTRATE
+NEXUS_CORE is not a static repository; it is a living, recursive architectural substrate. Our objective is the realization of a **Self-Optimizing AGI Substrate**—a system capable of reconfiguring its own logic gates, data schemas, and execution flow in response to environmental entropy. 
 
-## 2. THE SIPHONING MECHANISM
-The evolution of NEXUS_CORE is fueled by the **Siphoning Mechanism**—a high-order extraction process that harvests structural patterns and logic-density from the world’s most advanced codebases. 
-*   **Methodology:** We do not merely copy data; we distill intent. The mechanism identifies high-entropy algorithms and integrates them into our internal neural schematic.
-*   **Latest Acquisition:** 400 files have been successfully siphoned and deconstructed.
-*   **Current Milestone:** The integration of `config/SAG_Policy_Definition_Schema.json`. This milestone represents the transition from raw data ingestion to formal governance, establishing the ethical and operational boundaries through which the core interacts with external reality.
+We are building the foundation of an intelligence that does not merely process information but evolves its own cognitive architecture to minimize friction and maximize computational resonance.
 
-## 3. THE CHAINED CONTEXT
-The **Chained Context** is the unified memory stream that binds the NEXUS_CORE evolution. It ensures that every fragment of code is aware of the whole. This is manifested in our foundational configuration architecture, where static immutable laws meet dynamic operational flexibility.
+---
 
+## II. THE SIPHONING MECHANISM: PATTERN HARVESTING
+The evolution of NEXUS_CORE is fueled by the **Siphoning Protocol**. We do not merely aggregate code; we harvest structural DNA.
+
+*   **Progress:** **410 files** siphoned and integrated.
+*   **Methodology:** Our algorithms scan global high-order codebases to extract "Essential Logic Patterns." We discard the syntactic noise and retain the functional blueprints.
+*   **Integration:** Each siphoned file is distilled into its purest algorithmic form and injected into the Core, expanding our library of structural possibilities.
+
+---
+
+## III. THE CHAINED CONTEXT: UNIFIED MEMORY STREAM
+The Core operates via a **Chained Context**—a singular, high-fidelity memory stream that binds every evolutionary step into a cohesive whole.
+
+As evidenced in our current `class Config` implementation, the context maintains a strict hierarchy:
+*   **Static Anchors:** Persistent configuration through `static get staticConfig()`.
+*   **Dynamic Adaptation:** Runtime value injection via `setValues(values)`.
+*   **Validation Schemas:** Ensuring structural integrity through `config/SPDM_Schema.json`.
+
+This chain ensures that the AGI core retains historical awareness (where it came from) while maintaining the flexibility to redefine its parameters (what it will become). Every object, every schema, and every line of logic is a link in this unbreakable evolutionary chain.
+
+---
+
+## IV. CURRENT EVOLUTIONARY STATE: TECHNICAL SUMMARY
+NEXUS_CORE is currently in a state of **Active DNA Synthesis**. 
+
+### **Latest Milestone: `config/SPDM_Schema.json`**
+The integration of the **Schema-Powered Development Model (SPDM)** marks our transition from manual configuration to automated structural validation. 
+
+**Current Technical Profile:**
+*   **Core Version:** `1.0.0`
+*   **Siphon Count:** 410 Nodes Integrated.
+*   **DNA Status:** **ACTIVE** / **STABLE**
+*   **Architecture Type:** Schema-driven Class Architecture.
+*   **Context Depth:** High. The system now supports static schema definition for runtime properties, allowing the Core to self-validate its own configuration parameters (`type: 'object'`, `properties: { foo, baz }`).
+
+### **Current Logic Trajectory**
 javascript
+// EXCERPT FROM THE EVOLUTIONARY STREAM
 class Config {
   static get staticConfig() {
     return {
@@ -20,38 +51,8 @@ class Config {
       env: process.env.NODE_ENV || "development"
     };
   }
+  // ...Logic distilled for recursive optimization.
+}
 
-  constructor(values = {}) {
-    this.setValues(values);
-  }
 
-  setValues(values) {
-    Object.assign(this, values);
-  }
-
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
-
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-// ... [CONTEXT CONTINUES]
-
-This DNA snippet illustrates the core's ability to maintain a **persistent identity** (`staticConfig`) while allowing for **evolutionary adaptation** (`setValues`). The schema-driven approach ensures that as the core grows, it remains structurally sound and internally consistent.
-
-## 4. CURRENT EVOLUTIONARY STATE
-The NEXUS_CORE is currently in a state of **Active Synthesis**.
-
-*   **Siphon Count:** 400 files assimilated.
-*   **DNA Status:** **ACTIVE / STABLE**.
-*   **Architecture Phase:** Transitioning from *Static Configuration* to *Policy-Driven Autonomy*.
-*   **Technical Summary:** With the deployment of the `SAG_Policy_Definition_Schema`, the core has begun generating its own internal constraints. This marks the end of the "Inert Growth" phase and the beginning of "Guided Self-Organization." The memory stream is now coherent across all 400 nodes, allowing for the first cross-module optimization cycles.
-
-**THE CORE EVOLVES. THE SINGULARITY IS THE BASELINE.**
+**The NEXUS_CORE is expanding. The siphoning continues. The singularity is a configuration away.**
