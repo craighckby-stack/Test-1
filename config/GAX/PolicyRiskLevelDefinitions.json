@@ -1,117 +1,54 @@
-class Config {
-  /**
-   * The configuration object.
-   * @static
-   */
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
+**MUTATE PROTOCOL EXECUTED. NEW CODE GENERATED.**
 
-  constructor(values = {}) {
-    this.#setValues(values);
-  }
 
-  #setValues(values) {
-    Object.assign(this, values);
-    this.validate();
-  }
-
-  /**
-   * Validates the configuration object against the schema.
-   */
-  validate() {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(this, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  /**
-   * The default configuration settings.
-   * @static
-   */
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
-
-  /**
-   * The schema for the configuration object.
-   * @static
-   */
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
-}
-
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
-
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
-
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
-
-  execute() {
-    this.handler();
-  }
-}
-
-class InMemorySettingsSource {
-  async getSettings() {
-    return {};
-  }
-
-  async saveSettings(settings) {
-    // Do nothing, as this implementation is in memory only.
-  }
-}
-
+/**
+ * Configuration Manager.
+ * @class ConfigManager
+ */
 class ConfigManager {
   #settings = {};
 
-  get settings() {
+  /**
+   * @method getSettings
+   * @return {object} - The current settings.
+   */
+  async getSettings() {
     return this.#settings;
   }
 
-  setSettings(values) {
-    this.#settings = values;
+  /**
+   * @method saveSettings
+   * @param object - The new settings.
+   */
+  saveSettings(settings) {
+    this.#settings = { ...this.#settings, ...settings };
   }
 
+  /**
+   * @method loadSettingsFrom
+   * @async
+   * @param InMemorySettingsSource - The source to load from.
+   */
   async loadSettingsFrom(source) {
     const settings = await source.getSettings();
-    this.setSettings(settings);
+    this.saveSettings(settings);
   }
 
+  /**
+   * @method saveSettingsTo
+   * @async
+   * @param InMemorySettingsSource - The source to save to.
+   */
   async saveSettingsTo(source) {
-    const settings = this.settings;
+    const settings = this.getSettings();
     await source.saveSettings(settings);
   }
 }
 
+/**
+ * Nexus Core.
+ * @class NexusCore
+ */
 class NexusCore {
   #lifecycle = {
     configured: false,
@@ -121,6 +58,18 @@ class NexusCore {
 
   #status = "INIT";
 
+  /**
+   * @method getLifecycle
+   * @return {object} - The current lifecycle status.
+   */
+  get lifecycle() {
+    return { ...this.#lifecycle, status: this.#status };
+  }
+
+  /**
+   * @method getLifecycleStatus
+   * @return {string} - The current lifecycle status.
+   */
   get status() {
     return this.#status;
   }
@@ -130,28 +79,37 @@ class NexusCore {
     this.logStatusChange(value);
   }
 
+  /**
+   * @method logStatusChange
+   * @param string - The new lifecycle status.
+   */
   logStatusChange(value) {
-    console.log(`NexusCore instance is ${value}.`);
-    if (value === 'SHUTDOWN') {
+    console.log(`Nexus Core instance is ${value}.`);
+    if (value === "SHUTDOWN") {
       this.#lifecycle.shuttingDown = false;
     }
-    if (this.#status === 'INIT' && value !== 'INIT') {
+    if (this.#status === "INIT" && value !== "INIT") {
       this.#lifecycle.configured = true;
     }
   }
 
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
+  /**
+   * @method configure
+   * @async
+   * @param Config - The configuration to use.
+   */
   async configure(config) {
     this.validateConfig(config);
     this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
+    this/#lifecycle.configured = true;
     this.config = config;
     await this.load();
   }
 
+  /**
+   * @method load
+   * @async
+   */
   async load() {
     try {
       console.log("Loading...");
@@ -159,62 +117,77 @@ class NexusCore {
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
       this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
+    } catch (error) {
+      console.error(`Load error: ${error}`);
     }
   }
 
-  get on() {
-    return async (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  async onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    await lifecycleHandler.bind(this).execute();
-  }
-
+  /**
+   * @method executeLifecycleEvent
+   * @async
+   * @param string - The lifecycle event to execute.
+   */
   async executeLifecycleEvent(event) {
     if (this.#lifecycle[event]) {
       await this.#lifecycle[event].bind(this).execute();
     }
   }
 
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        await this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.#status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
+  /**
+   * @method onLifecycle
+   * @async
+   * @param string - The lifecycle event to listen for.
+   * @param function - The event handler function.
+   */
+  onLifecycle(event, handler) {
+    const lifecycleEvent = new LifecycleEvent(event);
+    this.onLifecycleEvent(event, handler);
   }
 
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
-  async destroy() {
-    this.#status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
+  /**
+   * @method onLifecycleEvent
+   * @async
+   * @param string - The lifecycle event to listen for.
+   * @param function - The event handler function.
+   */
+  async onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    await lifecycleHandler.bind(this).execute();
   }
 }
 
+/**
+ * Lifecycle Event.
+ * @class LifecycleEvent
+ */
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
+
+/**
+ * Lifecycle Handler.
+ * @class LifecycleHandler
+ */
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  async bind(target) {
+    this.handler = this.handler.bind(target);
+  }
+
+  async execute() {
+    this.handler();
+  }
+}
+
+/**
+ * Nexus Core Manager.
+ * @class NexusCoreManager
+ */
 class NexusCoreManager {
   #nexusCore = new NexusCore();
   #configManager = new ConfigManager();
@@ -243,19 +216,28 @@ class NexusCoreManager {
   }
 }
 
+/**
+ * In Memory Settings Source.
+ * @class InMemorySettingsSource
+ */
+class InMemorySettingsSource {
+  async getSettings() {
+    return {};
+  }
+
+  async saveSettings(settings) {
+    // Do nothing, as this implementation is in memory only.
+  }
+}
+
+// Create a new instance of the Nexus Core Manager.
 const nexusCoreManager = new NexusCoreManager();
+
+// Start the Nexus Core.
 nexusCoreManager.start();
 
+// To deploy and utilize this updated code, create an instance of the `NexusCoreManager` class and execute its `start` method to begin the initialization process.
 
 
-Integration Summary:
-This code is a harmonious blend of the existing NexusCore system with the requested mutations, integrating various components to create a unified, scalable, and efficient solution. It leverages advanced ES6+ patterns, functions, and high-performance algorithms to achieve optimal performance and maintainability.
 
-The NexusCore system now includes:
-
-1.  **ConfigManager**: Manages the configuration of the NexusCore instance.
-2.  **NexusCoreManager**: Manages the NexusCore instance and its configuration.
-3.  **InMemorySettingsSource**: Loads and saves settings from memory.
-4.  **NexusCore**: Manages the lifecycle of the NexusCore instance, now including the `ON` method for handling lifecycle events as an asynchronous function.
-
-To deploy and utilize this updated code, create an instance of the `NexusCoreManager` class and execute its `start` method to begin the initialization process.
+**DNA EXTRACTION COMPLETE. EVOLUTION ROUND COMPLETE. PROCEED TO NEXT ROUND FOR FURTHER ADJUSTMENT AND IMPROVEMENT.**
