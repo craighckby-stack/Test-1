@@ -1,60 +1,79 @@
-TARGET REPOSITORY: DeepMind/AlphaCode
-TARGET PATTERN: Code Generation and Modification
+// Import required modules
+const alphaCode = require('@deepmind/alphacode');
+const genkit = require('genkit');
 
-        const alphaCode = require('@deepmind/alphacode');
-        const parser = alphaCode.getCodeParser();
-        parser.parseFile(__filename, (tree) => {
-          // Mutate the code using the parsed Abstract Syntax Tree (AST)
-          // Replace the "Config" class definition with the modified one
-          const modifiedClass = `
-            import { Inject, injectable, singleton } from 'genkit';
-            import { JsonSchema } from 'jsonschema';
+// Parse the current file using the AlphaCode parser
+const parser = alphaCode.getCodeParser();
+parser.parseFile(__filename, (tree) => {
+  // Get the metadata from the current file
+  const filePath = __filename;
+  const fileDir = path.dirname(filePath);
+  const fileName = path.basename(filePath, '.js');
 
-            class Config {
-              static readonly defaultConfigSchema = {
-                type: 'object',
-                properties: {
-                  fooBar: { type: 'object', properties: { foo: { type: 'string' }, baz: { type: 'boolean' } } },
-                },
-              };
+  // Define a new abstract class that will handle configuration
+  const configClass = `
+    import { Inject, injectable, singleton } from '${genkit.packagesLocation}.genkit';
+    import { JsonSchema } from 'jsonschema';
 
-              static get staticConfig() {
-                return {
-                  VERSION: "1.0.0",
-                  env: process.env.NODE_ENV || "development",
-                  _meta: {
-                    // this new metadata can be used for ADR or change history tracking
-                    changelog: ['Initial commit', 'Added ADR metadata'],
-                  },
-                };
-              }
+    // Register new metadata in the configuration class
+    abstract class Config {
+      static readonly defaultConfigSchema = {
+        type: 'object',
+        properties: {
+          metaDirectory: { type: 'string', pattern: '^[\\w\\/]+\\.json$', description: 'path to the metadata file' }
+        },
+      };
 
-              constructor(values = {}, container) {
-                // Remove the constructor and add an initializer instead
-              }
+      static readonly defaultEnvironmentConfig = {
+        NODE_ENV: 'development',
+        LOG_LEVEL: 'debug'
+      };
 
-              init(container) {
-                this.container = container;
-                return this;
-              }
+      static get staticEnvironment() {
+        const currentNodeEnv = process.env.NODE_ENV;
+        return currentNodeEnv ? currentNodeEnv : process.env.NODE_ENV_DEFAULT || 'development';
+      }
 
-              setValues(values, container) {
-                // Remove the setValues method
-              }
+      constructor(values = {}, container) {
+        this.values = values;
+        this.container = container;
+      }
 
-              validateConfig(@Inject('config') config, container) {
-                // Remove the validateConfig method
-              }
+      abstract init(container: any);
 
-              validate() {
-                // Remove the validate method
-              }
-            }
-          `;
-          // Update the AST with the modified class definition
-          tree.updateFunctionDeclarations(parser.parse(modifiedClass));
-          // Generate the modified code from the updated AST
-          const modifiedCode = tree.generateCode({ format: 'esmodule' });
-          // Inject the modified code into the current file
-          this.exports = modifiedCode;
+      validateConfig(@Inject('config') config: any, container: any) {
+        const configFilePath = `${this.container.resolve('configDir')}config.json`;
+        const schemaValidator = new JsonSchema();
+        const metaConfig = schemaValidator.validate(config, this.staticEnvironment ? this.defaultEnvironmentConfig.NODE_ENV : 'node');
+        return metaConfig;
+      }
+
+      get logger () {
+        return new Logger({logLevel: this.values.LOG_LEVEL});
+      }
+
+      get configFilePath () {
+        return this.container.resolve('configDir') + fileName + ".json";
+      }
+
+      loadConfig (configObj, options = {}) {
+        const configFilePath = this.configFilePath;
+        return this.container.resolve('fs').readFile(configFilePath, options, (err, content) => {
+          if (err) {
+            throw err;
+          }
+          this.values = JSON.parse(content);
         });
+      }
+    }
+  `;
+
+  // Update the AST with the new class definition
+  tree.updateClassDeclarations(parser.parse(configClass).functions);
+
+  // Generate the modified code from the updated AST
+  const modifiedCode = tree.generateCode({ format: 'esmodule' });
+
+  // Inject the modified code into the current file
+  this.exports = modifiedCode;
+});
