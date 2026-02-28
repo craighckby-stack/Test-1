@@ -1,194 +1,211 @@
 class Config {
-  static get staticConfig() {
-    return this.mergeSchemas([Config.defaultConfig, require("json-schema").loadSync(require.resolve('./schema.json'))]);
-  }
-
-  static mergeSchemas(...schemas) {
-    return schemas.reduce((accumulator, schema) => this.mergeSchemasRecursive(accumulator, schema), {});
-  }
-
-  static mergeSchemasRecursive(parent, schema) {
-    return Object.keys(schema).reduce((accumulator, key) => {
-      return {
-        ...accumulator,
-        [key]: (accumulator[key] || schema[key]).$merge ? this.mergeSchemasRecursive(accumulator[key], schema[key]) : schema[key]
-      };
-    }, parent);
-  }
-
-  static get defaultConfig() {
-    return {
-      ...Config.configSchema,
-      foo: '$schema="https://json-schema.org/draft-07/schema#" type="string"',
-      baz: '$ref="#/definitions/boolean"'
-    };
-  }
-
-  static get configSchema() {
-    return {
-      type: 'object',
-      definitions: {
-        boolean: { type: 'boolean' },
-        string: { type: 'string' }
-      },
-      properties: {
-        foo: { type: 'string' },
-        baz: { $ref: '#/definitions/boolean' }
-      }
-    };
-  }
-
-  constructor(values = {}) {
-    this.setValues(values);
-  }
-
-  async setValues(values) {
-    Object.assign(this, await this.validateConfig(values));
-  }
-
-  static async validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-      return Promise.resolve(config);
-    } catch (e) {
-      throw await Promise.reject('Config validation error:', e);
+    static get config() {
+        const staticConfig = Config.mergeSchemas([Config.defaultConfig, require("json-schema").loadSync(require.resolve('./schema.json'))]);
+        return staticConfig;
     }
-  }
+
+    static async mergeSchemas(...schemas) {
+        return await Promise.all(schemas.map(async (schema) => {
+            return await schema;
+        })).then((schemas) => schemas.reduce((accumulator, schema) => Config.mergeSchemasRecursive(accumulator, schema), {}))
+    }
+
+    static async mergeSchemasRecursive(parent, schema) {
+        const mergedSchema = {};
+        await Object.keys(schema).reduce(async (promise, key) => {
+            await promise;
+            const accumulator = await (await schema[key]).$merge ? Config.mergeSchemasRecursive(parent[key], schema[key]) : schema[key];
+            mergedSchema[key] = accumulator;
+            return mergedSchema;
+        }, Promise.resolve(parent));
+        return mergedSchema;
+    }
+
+    static get defaultConfig() {
+        const configSchema = {
+            ...Config.configSchema,
+            foo: '$schema="https://json-schema.org/draft-07/schema#" type="string"',
+            baz: '$ref="#/definitions/boolean"',
+            C_Score: { type: 'number', 'x-description': 'Derived consciousness metric' }
+        };
+        return configSchema;
+    }
+
+    static get configSchema() {
+        return {
+            type: 'object',
+            definitions: {
+                boolean: { type: 'boolean' },
+                string: { type: 'string' }
+            },
+            properties: {
+                foo: { type: 'string' },
+                baz: { $ref: '#/definitions/boolean' }
+            }
+        };
+    }
+
+    constructor(values = {}) {
+        Config.validator.validate(values).then((validatedValues) => {
+            Object.assign(this, validatedValues);
+        });
+    }
+
+    static async validateConfig(config) {
+        const configSchema = Config.configSchema;
+        return new Promise((resolve, reject) => {
+            const validator = new (require('jsonschema').Validator)();
+            validator.checkSchema(configSchema);
+            try {
+                validator.validate(config, configSchema);
+                resolve(config);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
 }
 
 class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
+    constructor(event) {
+        this.event = event;
+    }
 }
 
 class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
+    constructor(handler) {
+        this.handler = handler;
+    }
 
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
+    bind(target = this) {
+        this.handler = this.handler.bind(target);
+    }
 
-  execute() {
-    this.handler();
-  }
+    execute() {
+        this.handler();
+    }
 }
 
 class NexusCore {
-  static #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
+    static #configured = false;
+    static #loaded = false;
+    static #shuttingDown = false;
 
-  static status = "INIT";
+    static get #configured() {
+        return NexusCore.#configured;
+    }
 
-  static get #lifecycle() {
-    return NexusCore.#lifecycle;
-  }
+    static set #configured(value) {
+        NexusCore.#configured = value;
+    }
 
-  static set #lifecycle(value) {
-    NexusCore.#lifecycle = value;
-  }
+    static get #loaded() {
+        return NexusCore.#loaded;
+    }
 
-  get status() {
-    return NexusCore.status;
-  }
+    static set #loaded(value) {
+        NexusCore.#loaded = value;
+    }
 
-  set status(value) {
-    this.#updateStatus(value);
-  }
+    static get #shuttingDown() {
+        return NexusCore.#shuttingDown;
+    }
 
-  static #updateStatus(value) {
-    const currentValue = NexusCore.status;
-    const lifecycle = NexusCore.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
+    static set #shuttingDown(value) {
+        NexusCore.#shuttingDown = value;
+    }
+
+    get status() {
+        return NexusCore.status;
+    }
+
+    set status(value) {
+        this.#updateStatus(value);
+    }
+
+    static #updateStatus(value) {
+        const currentValue = NexusCore.status;
+        const lifecycle = NexusCore.#lifecycle;
+        if (value !== 'INIT') {
+            console.log(`NexusCore instance is ${value}.`);
+            if (value === 'SHUTDOWN') {
+                NexusCore.#lifecycle.shuttingDown = false;
+            }
+        }
+        if (currentValue === 'INIT' && value !== 'INIT') {
+            NexusCore.#lifecycle.configured = true;
+        }
+        NexusCore.status = value;
+    }
+
+    static configure = async(config) => {
+        await Config.validateConfig(config);
+        NexusCore.#configured = true;
+        NexusCore.#loaded = false;
+        NexusCore.#updateStatus('CONFIGURED');
+    }
+
+    static async onLifecycleEvent(event, handler) {
+        const lifecycleHandler = new LifecycleHandler(handler);
+        NexusCore.#lifecycle[event] = lifecycleHandler;
+    }
+
+    get on() {
+        return (event, handler) => {
+            const lifecycleEvent = new LifecycleEvent(event);
+            this.onLifecycleEvent(event, handler);
+        };
+    }
+
+    static async executeLifecycleEvent(event) {
+        const lifecycleHandler = NexusCore.#lifecycle[event];
+        if (lifecycleHandler) {
+            lifecycleHandler.bind(this).execute();
+        }
+    }
+
+    static async start() {
+        const methodsOrder = ["configure", "load", "shutdown"];
+        this.#forEachMethodName(methodsOrder, async (methodName) => {
+            if (this[methodName] instanceof Function) {
+                await this[methodName]();
+            }
+        });
+    }
+
+    static async shutDown() {
+        if (!this.#lifecycle.shuttingDown) {
+            console.log("Shutdown initiated...");
+            this.#lifecycle.shuttingDown = true;
+            this.executeLifecycleEvent("SHUTTING_DOWN");
+            console.log("Shutdown complete...");
+            this.#updateStatus("SHUTDOWN");
+        }
+    }
+
+    static async load() {
+        await this.executeLifecycleEvent("CONFIGURED");
+        try {
+            console.log("Loading...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log("Loading complete...");
+            NexusCore.#lifecycle.loaded = true;
+            this.executeLifecycleEvent("LOADED");
+        } catch (e) {
+            console.error('Load error:', e);
+        }
+    }
+
+    static async destroy() {
+        Nimbus.on('DESTROYED');
+        NexusCore.#lifecycle.configured = false;
+        NexusCore.#lifecycle.loaded = false;
         NexusCore.#lifecycle.shuttingDown = false;
-      }
     }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      NexusCore.#lifecycle.configured = true;
-    }
-    NexusCore.status = value;
-  }
-
-  static configure = async(config) => {
-    await Config.validateConfig(config);
-    NexusCore.#lifecycle.configured = true;
-    NexusCore.#lifecycle.loaded = false;
-    NexusCore.#updateStatus('CONFIGURED');
-  }
-
-  static async onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    NexusCore.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  static async executeLifecycleEvent(event) {
-    const lifecycleHandler = NexusCore.#lifecycle[event];
-    if (lifecycleHandler) {
-      lifecycleHandler.bind(this).execute();
-    }
-  }
-
-  static async start() {
-    const methodsOrder = ["configure", "load", "shutdown"];
-    this.#forEachMethodName(methodsOrder, async (methodName) => {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    });
-  }
-
-  static async shutDown() {
-    if (!this.#lifecycle.shuttingDown) {
-      console.log("Shutdown initiated...");
-      this.#lifecycle.shuttingDown = true;
-      this.executeLifecycleEvent("SHUTTING_DOWN");
-      console.log("Shutdown complete...");
-      this.#updateStatus("SHUTDOWN");
-    }
-  }
-
-  static async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      NexusCore.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-
-  static async destroy() {
-    Nimbus.on('DESTROYED');
-    NexusCore.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
-  }
 }
 
 NexusCore.on("SHUTDOWN", () => {
-  console.log("NexusCore instance shut down.");
+    console.log("NexusCore instance shut down.");
 });
 
 NexusCore.configure(Config.defaultConfig);
@@ -198,21 +215,22 @@ NexusCore.shutdown();
 NexusCore.destroy();
 
 async function Nimbus() {
-  try {
-    await NexusCore.start();
-  } catch (e) {
-    console.error(e);
-  }
+    try {
+        await NexusCore.start();
+        console.log("Nimbus initialized successfully.");
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 async function forEachMethodName(list, callback) {
-  for (const methodName of list) {
-    if (this[methodName] instanceof Function) {
-      try {
-        await callback.bind(this)(methodName);
-      } catch (e) {
-        console.error(e);
-      }
+    for (const methodName of list) {
+        if (this[methodName] instanceof Function) {
+            try {
+                await callback.bind(this)(methodName);
+            } catch (e) {
+                console.error(e);
+            }
+        }
     }
-  }
 }
