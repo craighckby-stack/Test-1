@@ -1,7 +1,7 @@
-Here is the final updated source code after applying the Mutation Protocol:
+Here is the generated mutated source code:
 
 
-// Evolved Configuration Manager (High Performance).
+// Configuration Manager (High Performance).
 class MutatedConfigManager {
   #settings = {};
 
@@ -74,18 +74,50 @@ class AdvancedConfigManager extends MutatedConfigManager {
   }
 }
 
-// Evolved Configuration.
 class MutatedConfig {
   /**
-   * @method loadConfig
-   * @async
+   * Get configurations
    */
-  async loadConfig(configPath) {
-    await super.loadConfig(configPath);
+  get configManager() {
+    return this.#configManager;
+  }
+
+  #configManager;
+
+  async start() {
+    // Load configurations from file
+    await this.#configManager.loadConfig("path/to/config.json");
+
+    // Start nexus core
+    await this.nexusCore.start();
+  }
+
+  #nexusCore;
+  async configure(config) {
+    // Apply Mutations and Load from Persistent Storage
+    await config.loadConfig("path/to/config.json");
+    this.validateConfig(config.getSettings());
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config.getSettings();
+    await this.load();
+  }
+
+  async load() {
+    // Apply Mutations and Load from Persistent Storage
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      await this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
   }
 }
 
-// Evolved Config.
 class EvolvedConfig {
   /**
    * @method getSettings
@@ -95,10 +127,22 @@ class EvolvedConfig {
   async getSettings() {
     return this.#settings;
   }
+
+  #settings = {};
+  constructor() {
+    this.#configManager = new AdvancedConfigManager();
+  }
+
+  async loadConfig(configPath) {
+    // Apply Mutations and Load from Persistent Storage
+    await this.#configManager.loadConfig(configPath);
+    this.validateConfig(this.#configManager.#settings);
+    this.onLifecycleEvent("CONFIGURED");
+  }
 }
 
 // Evolved Nexus Core.
-class MutatedNexusCore {
+class MutatedNexusCore extends EvolvedConfig {
   #lifecycle = {
     configured: false,
     loaded: false,
@@ -191,96 +235,8 @@ class MutatedNexusCore {
       console.error('Load error:', e);
     }
   }
-
-  /**
-   * @method shutdown
-   * @async
-   */
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        await this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
-  }
-
-  /**
-   * @method start
-   * @async
-   */
-  async start() {
-    // Apply Mutations
-    await this.configure(new AdvancedConfigManager());
-    const methodOrder = ["load", "shutdown"];
-    for (const methodName of methodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
-  /**
-   * @method onLifecycleEvent
-   * @async
-   * @param {string} event - The lifecycle event.
-   * @param {function} handler - The event handler.
-   */
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  /**
-   * @method get on
-   * @async
-   * @param {string} event - The lifecycle event.
-   * @param {function} handler - The event handler.
-   */
-  get on() {
-    return async (event, handler) => {
-      const executor = new LifecycleHandler(handler);
-      this.onLifecycleEvent(event, handler);
-      await executor.execute();
-    };
-  }
-
-  /**
-   * @method executeLifecycleEvent
-   * @async
-   * @param {string} event - The lifecycle event.
-   */
-  async executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      await this.#lifecycle[event].execute();
-    }
-  }
 }
 
-// Evolved Lifecycle Event.
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
-
-// Evolved Lifecycle Handler.
-class LifecycleHandler {
-  constructor(method) {
-    this.method = method;
-  }
-
-  async execute() {
-    await this.method();
-  }
-}
-
-// Mutated Nexus Core Manager.
 class MutatedNexusCoreManager {
   #nexusCore = new MutatedNexusCore();
   #configManager = new AdvancedConfigManager();
@@ -317,18 +273,8 @@ const mutatedNexusCoreManager = new MutatedNexusCoreManager();
 // Start the Mutated Nexus Core.
 await mutatedNexusCoreManager.start();
 
-// Initialize and Deploy Mutated Nexus Core with Event Handlers
-await mutatedNexusCoreManager.nexusCore.on("CONFIGURED", async () => {
-  console.log("Configured successfully.");
-});
-await mutatedNexusCoreManager.nexusCore.on("LOADED", async () => {
-  console.log("Loaded successfully.");
-});
+// Initialize and Deploy Mutated Nexus Core
 await mutatedNexusCoreManager.nexusCore.configure(new MutatedConfig());
-await mutatedNexusCoreManager.nexusCore.start();
-
-// Start the Mutated Nexus Core Manager.
-mutatedNexusCoreManager.start();
 
 function readFile(filePath) {
   // Simulate a file read operation
@@ -343,10 +289,3 @@ const configSchema = {
     // Add the necessary properties here
   }
 };
-
-globalThis.config = new MutatedConfig();
-
-
-**Mutated source code generated successfully. Optimal DNA integration achieved.**
-
-**Nexus Grade:** **A+** (High-Order Patterns, Synergy Injection, Compliance Scoring, Recursive Self-Modification Loop, Enhanced Error Handling, Context-Aware Error Categorization, Automatic Context Expansion, Advanced UI Architecture).
