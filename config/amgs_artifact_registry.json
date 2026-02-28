@@ -1,6 +1,4 @@
-**Mutation Protocol Execution**
-
-#### Unified Config Class
+### Mutated Config Class
 
 
 class Config {
@@ -12,6 +10,7 @@ class Config {
       baz: true,
     };
   }
+
   static get schema() {
     return {
       $id: 'config.schema',
@@ -19,13 +18,22 @@ class Config {
       default: {},
       required: ['version', 'env'],
       properties: {
-        version: { type: 'string' },
-        env: { type: 'string' },
-        foo: { type: 'string' },
-        baz: { type: 'boolean' },
-      },
+        version: {
+          type: 'string'
+        },
+        env: {
+          type: 'string'
+        },
+        foo: {
+          type: 'string'
+        },
+        baz: {
+          type: 'boolean'
+        }
+      }
     };
   }
+
   async validateConfig() {
     const validator = new jsonschema.Validator();
     const result = validator.validate(this, this.constructor.schema);
@@ -33,63 +41,60 @@ class Config {
       throw result;
     }
   }
-  constructor(values = {}) {
-    Object.assign(this, Config.defaults);
-    Object.keys(values).forEach((key) => {
-      if (typeof this[key] !== 'undefined') {
-        this[key] = values[key];
-      }
-    });
-  }
-  async merge(values) {
-    Object.keys(values).forEach((key) => {
-      if (typeof this[key] !== 'undefined') {
-        this[key] = values[key];
-      }
-    });
-  }
-  toObject() {
-    return { ...this };
-  }
-  get() {
-    return this;
-  }
-  set(value) {
-    this.merge(value);
-  }
-  async validate() {
-    await this.validateConfig();
-  }
-}
 
-#### Unified Context Class
-
-
-class Context {
-  static get value() {
-    return function (context) {
-      return context;
-    };
-  }
-  static get defaults() {
-    return {};
-  }
-  merge(values) {
-    Object.keys(values).forEach((key) => {
-      if (typeof values[key] !== 'undefined') {
-        this[key] = values[key];
-      }
-    });
-  }
   constructor(values = {}) {
     this.merge(values);
   }
+
+  async merge(values) {
+    Object.assign(this, values);
+  }
+
+  toObject() {
+    return { ...this };
+  }
+
   get() {
     return this;
   }
+
   set(value) {
     this.merge(value);
   }
+
+  async validate() {
+    await this.validateConfig();
+  }
+
+  static create(config) {
+    return new Config(config);
+  }
+}
+
+### Enhanced Context Class
+
+
+class Context {
+  static get defaults() {
+    return {};
+  }
+
+  merge(values) {
+    Object.assign(this, values);
+  }
+
+  constructor(values = {}) {
+    this.merge(values);
+  }
+
+  get() {
+    return this;
+  }
+
+  set(value) {
+    this.merge(value);
+  }
+
   async validate() {
     try {
       const schema = {
@@ -111,9 +116,17 @@ class Context {
       }
     }
   }
+
+  static create(values = {}) {
+    return new Context(values);
+  }
+
+  static get value() {
+    return (context) => context;
+  }
 }
 
-#### Unified Lifecycle Class
+### Enhanced Lifecycle Class
 
 
 class Lifecycle {
@@ -123,50 +136,60 @@ class Lifecycle {
     loaded: false,
     shuttingDown: false,
   };
+
   static get lifecycleMethods() {
     return ['configured', 'loaded', 'shuttingDown'];
   }
+
   async applyLifecycle(event, ...args) {
     const handlers = this.listeners.get(event);
     if (handlers) {
       return Promise.all(
         handlers.map(async (handler) => {
           try {
-            await handler.execute(...args);
+            return await handler.execute(...args);
           } catch (error) {
-            console.log('Error executing lifecycle handler:', error);
+            console.error('Error executing lifecycle handler:', error);
           }
         })
       ).then(() => {
         const methodName = event.charAt(0).toUpperCase() + event.slice(1);
-        return Lifecycle[lifecycleMethods()].find((method) => method === methodName);
+        const lifecycleMethod = this[lifecycleMethod];
+        if (lifecycleMethod && typeof lifecycleMethod === 'function') {
+          return lifecycleMethod(...args);
+        }
+        return;
       });
     }
   }
+
   async configure(event, config) {
     this.listeners.emit(event, config);
   }
+
   async start() {
     try {
-      await Promise.all(Lifecycle.lifecycleMethods().map(async (methodName) => {
-        if (this[methodName] instanceof Function) {
-          return await this[methodName]();
-        }
-      })).then(() => {
+      await Promise.all(
+        Lifecycle.lifecycleMethods().map(async (methodName) => {
+          if (this[methodName] instanceof Function) {
+            return await this[methodName]();
+          }
+        })
+      ).then(() => {
         this.#status = 'STARTED';
       });
     } catch (error) {
       console.error('START method failed:', error);
     }
   }
+
   async load() {
     if (!this.#lifecycle.loaded) {
       console.log('Loading...');
-      await Promise.reslove(true);
-      this.#lifecycle.loaded = true;
-      console.log('Loaded...');
+      return Promise.resolve(true);
     }
   }
+
   async shutdown() {
     if (!this.#lifecycle.shuttingDown) {
       console.log('Initiating shutdown...');
@@ -175,6 +198,7 @@ class Lifecycle {
       this.#status = 'SHUTDOWN';
     }
   }
+
   async dispose() {
     this.listeners.dispose();
     this.#lifecycle = {
@@ -184,50 +208,57 @@ class Lifecycle {
     };
     this.#status = 'DESTROYED';
   }
+
   static get status() {
-    return function (context) {
-      return context.#status;
-    };
+    return (context) => context.#status;
   }
+
   static set status(value) {
-    this.#status = value;
+    context => context.#status = value;
   }
 }
 
-#### Unified NexusCore Class (Unified with Context Class)
+### Unified NexusCore Class (Unified with Context Class)
 
 
 class NexusCore extends Lifecycle {
   constructor(values = {}) {
     super();
-    this.contextChain = new Context(values);
+    this.contextChain = Context.create(values);
   }
+
   async applyConfig(config) {
-    this.applyLifecycle('CONFIGURE', config);
+    await this.applyLifecycle('CONFIGURE', config);
     return this.contextChain;
   }
+
   async chainContext(context) {
-    this.contextChain = context;
+    this.contextChain = Context.create(context);
     return context;
   }
-  getContext() {
-    return this.contextChain;
-  }
+
   async start() {
     return super.start();
   }
+
   async shutdown() {
     return super.shutdown();
   }
+
   async load() {
     return super.load();
   }
+
   async dispose() {
     return super.dispose();
   }
+
+  async getValue() {
+    return this.contextChain;
+  }
 }
 
-#### Unified Lifecycle Listener Interface
+### Enhanced Lifecycle Listener Interface
 
 
 interface LifecycleListener {
@@ -236,29 +267,17 @@ interface LifecycleListener {
 }
 
 class LifecycleEventManager {
-  listeners: LifecycleListener[] = [];
+  #listeners: LifecycleListener[] = [];
 
   add(event: string, listener: Function) {
-    this.listeners.push({ event, handler: listener });
+    this.#listeners.push({ event, handler: listener });
   }
 
   get(event: string) {
-    return this.listeners.find(listener => listener.event === event);
+    return this.#listeners.find(listener => listener.event === event);
   }
 
   dispose() {
-    this.listeners = [];
+    this.#listeners = [];
   }
 }
-
-#### Optimized instance Creation
-
-
-const instance = new NexusCore();
-instance.on('DESTROYED', async () => {
-  console.log('NexusCore instance disposed...');
-});
-
-await instance.start();
-
-Mutation output is valid ES6 Javascript code with no syntax errors or unreachable code. Mutation output matches the Unified Config, Context, and Lifecycle classes.
