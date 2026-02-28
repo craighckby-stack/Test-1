@@ -1,6 +1,6 @@
 **VOTE RESULT:**
 
-The most voted source for architectural repository or pattern is Google/Genkit.
+The most voted source for architectural repository or pattern in this round is Google/Genkit.
 
 **SIPHON DNA:**
 
@@ -10,6 +10,10 @@ Genkit is a modern, fast, and efficient JavaScript library that aims to simplify
 
 **MUTATED CODE:**
 
+
+import { Google } from './google';
+import { Genkit } from './genkit';
+import { Firestore } from './firestore';
 
 class NexusCore {
   #genkit = new Genkit();
@@ -127,12 +131,29 @@ class NexusCore {
   }
 
   async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
+    const startMethodOrder = ["init", "discoverTools", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
       if (this[methodName] instanceof Function) {
         await this[methodName]();
       }
     }
+  }
+
+  async init() {
+    const db = new Firestore();
+    const toolsRef = db.collection('Tools');
+    const toolsCode = await toolsRef.get();
+    toolsCode.docs.forEach(doc => {
+      const tool = doc.data();
+      this.#genkit.registerTool(tool);
+    });
+  }
+
+  async discoverTools() {
+    const db = new Firestore();
+    const toolsRef = db.collection('Tools');
+    const toolsCode = await toolsRef.get();
+    return toolsCode.docs;
   }
 
   async destroy() {
@@ -147,6 +168,16 @@ class NexusCore {
 
   async configure(config) {
     await this.#configure(config);
+  }
+
+  async injectIIFE(toolCode) {
+    const iife = Google.IIFEInjection(toolCode);
+    return iife;
+  }
+
+  async loadContext(toolCode) {
+    const context = Google.DynamicContextLoading(toolCode);
+    return context;
   }
 }
 
@@ -168,6 +199,10 @@ class Genkit {
   LifecycleHandler(handler) {
     // Implement the lifecycle handler logic here
   }
+
+  registerTool(tool) {
+    // Implement the tool registration logic here
+  }
 }
 
 const Config = {
@@ -180,10 +215,14 @@ const nexusCore = new NexusCore();
 nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 });
+nexusCore.init();
+nexusCore.discoverTools();
 nexusCore.configure(Config.defaultConfig);
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
+nexusCore.injectIIFE();
+nexusCore.loadContext();
 nexusCore.destroy();
 
 
