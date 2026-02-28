@@ -1,175 +1,56 @@
-// config/artifact_schemas/gsep-c_artifacts.json
+Based on the provided code and directives, I will execute the mutation protocol to transform the code into a more advanced and modern form.
 
-{
-  "type": "object",
-  "properties": {
-    "foo": {"type": "string"},
-    "baz": {"type": "boolean"}
-  },
-  "additionalProperties": false
-}
+Here is the mutated code:
 
-// core/lifecycle_events.js
 
-import { createEvent, fireEvent } from '@nexe/core';
-import { Validator } from 'jsonschema';
-
-const events = createEvent('CONFIGURED', 'LOADED', 'SHUTDOWN_INITIATED', 'SHUTTING_DOWN', 'DESTROYED', 'EXECUTED');
+// Mutated class definitions
 
 class Event {
-  constructor(event, payload = {}) {
+  constructor(event, payload = {},
+    target = new Target(),
+    context = {
+      lifecycle: lifecycle,
+      listeners: listeners
+    }) {
     this.event = event;
     this.payload = payload;
+    this.target = target;
+    this.context = context;
   }
 }
 
 class LifecycleHandler {
-  #constructor = null;
-  #handler = null;
-  #target = null;
-
-  constructor(...args) {
-    this.#constructor = this.constructor.name;
-    this.#handler = (context, ...args) => {
-      return this.execute(args, context);
-    };
-    this.target = context;
-    return this;
+  constructor(target = new Target(), context = {
+    lifecycle: lifecycle,
+    listeners: listeners
+  }) {
+    this.target = target;
+    this.context = context;
   }
 
-  get constructor() {
-    return this.#constructor;
+  async execute(args, lifecycle) {
+    if (this.#method) {
+      return await this.#handler(...args);
+    } else {
+      return this.#target.execute(...args);
+    }
   }
 
   bind(target = this) {
-    this.target = target;
+    this.#target = target;
     return this;
   }
 
-  execute(...args) {
-    return Promise.all(args.filter((argument, index) => index <= this.#argsCount).map((value, index) => {
-      const argsCount = this.#argsCount;
-      this.#argsCount = index + 1;
-      return typeof this.#handler === 'function' ? this.#handler(value, this.target) : this.#execute(value, this.target);
-    }));
-  }
-
-  #execute(...args) {
-    try {
-      return this.#handler(...args);
-    } catch (e) {
-      console.error(e);
-      return Promise.reject(e);
-    }
-  }
-
-  #argsCount = 0;
-}
-
-class LifecycleEvent extends LifecycleHandler {
-  constructor(event, payload = {}) {
-    super();
-    this.event = event;
-    this.payload = payload;
-    events.on(event, this.#execute);
-  }
-
-  execute(context, ...args) {
-    return this.#argsCount <= 1
-      ? this.#execute(context, this.event, args)
-      : Promise.all(arguments.filter((argument, index) => index <= this.#argsCount).map((value, index) => {
-        const argsCount = this.#argsCount;
-        this.#argsCount = index + 1;
-        return typeof this.#handler === 'function' ? this.#handler(value, context, this.event, args) : this.#execute(value, context, this.event, args);
-      }));
-  }
-
-  destroy() {
-    events.off(this.event, this);
+  async #handler(...args) {
+    const result = await super.execute(...args);
+    return result !== undefined ? result : null;
   }
 }
-
-class Lifecycle {
-  #events = {};
-  #status = '';
-  #config = {};
-  #handlers = new Map();
-  #initialized = new Set();
-
-  get events() {
-    return this.#events;
-  }
-
-  get status() {
-    return this.#status;
-  }
-
-  set status(value) {
-    this.#status = value;
-    this.#updateLifecycle(value);
-  }
-
-  get config() {
-    return this.#config;
-  }
-
-  set config(value) {
-    this.config = value;
-  }
-
-  #updateLifecycle(value) {
-    Object.keys(this.#config).forEach((key) => {
-      this.#initialized.add(key);
-      delete this.#config[key];
-    });
-    if (value === 'LOADED' || value === 'SHUTDOWN_INITIATED' || value === 'DESTROYED') {
-      this.#initialized.delete('CONFIGURED');
-    }
-    this.#config = value !== 'DESTROYED' ? this.#config : {};
-    this.#initialized.add(value);
-    this.#events.forEach((eventKey, eventValue) => {
-      eventValue.execute(this.#lifecycle, this.#config);
-    });
-  }
-
-  on(event, handler) {
-    this.#handlers.set(handler, this.#listeners);
-    this.#handlers.get(handler).add(event);
-    return this;
-  };
-
-  off(event, handler) {
-    this.#updateEvent(handler, -1);
-    return this;
-  };
-
-  listen(event, handler) {
-    this.#listeners.set(event, handler);
-    this.#handlers.set(handler, this.#listeners);
-    return this;
-  }
-
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  #listeners = new Map();
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false,
-    initialized: new Set(),
-  };
-}
-
-const lifecycle = new Lifecycle();
-const events = createEvent();
-const validator = new Validator();
 
 class Config {
   static #staticConfig = {
-    VERSION: "1.0.0",
-    env: process.env.NODE_ENV || "development"
+    VERSION: '1.0.0',
+    env: process.env.NODE_ENV || 'development'
   };
 
   static get defaultConfig() {
@@ -179,180 +60,274 @@ class Config {
     };
   }
 
-  constructor(values = {}) {
-    this.values = { ...Config.defaultConfig, ...values };
+  constructor(values = {}, lifecycle = lifecycle, listeners = listeners) {
+    if (!this.#lifecycle.has('CONFIGURED')) {
+      this.#lifecycle.has('CONFIGURED') && lifecycle.configured && console.error('Configuration not initialized');
+      throw new Error('Configuration not initialized');
+    }
+    this.values = Object.assign({}, Config.defaultConfig, values);
+    this.#lifecycle = lifecycle;
+    this.listeners = listeners;
   }
 
   async validate() {
+    const schema = Config.configSchema;
     try {
-      if (!(await this.#validate(this.values, this.configSchema))) {
-        throw new Error(this.#messages);
-      }
-      return true;
-    } catch (e) {
-      console.error(e);
+      new Handler('validate', () => {
+        new Validator().validate(this.values, schema);
+      })();
+    } catch (error) {
+      this.#messages = error.message;
       return false;
     }
+    return true;
   }
 
   static get configSchema() {
     return {
-      "type": "object",
-      "properties": {
-        "foo": {
-          "type": "string"
-        },
-        "baz": {
-          "type": "boolean"
-        }
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
       },
-      "required": ["foo", "baz"],
-      "additionalProperties": false
+      required: ['foo', 'baz'],
+      additionalProperties: false
+    };
+  }
+}
+
+class Configurator {
+  #lifecycle = lifecycle;
+  #config = new Config({ foo: 'baz', baz: false });
+  #handlers = new Map();
+
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
     };
   }
 
-  async #validate(values, schema) {
-    const validator = new Validator();
-    try {
-      validator.validate(values, schema);
-      return true;
-    } catch (e) {
-      this.#messages = e.message;
-      return false;
-    }
-  }
-};
-
-class Configurator {
-  #lifecycle = {};
-  #config = {};
-  #handlers = new Map();
-
-  get lifecycle() {
-    return this.#lifecycle;
+  static get namespace() {
+    return process.env.NODE_ENV || 'development';
   }
 
-  constructor() {
-    events.on('CONFIGURED', async () => {
-      this.#lifecycle.configured = true;
-      this.config = this.#config;
+  get config() {
+    return this.#config;
+  }
+
+  constructor(target = new Target()) {
+    Object.values(lifecycle.#events).forEach((event, handler) => {
+      lifecycle.#listeners.set(event, handler.bind(this));
+      this.#listeners.set(event, handler);
     });
   }
 
-  configure(config) {
+  async configure(config) {
     if (!(config instanceof Config)) {
       throw new Error('Invalid config');
     }
-    this.listen('CONFIGURED', async () => {
-      this.#lifecycle.configured = true;
-      this.#config = config;
+    this.#config = config;
+    lifecycle.trigger('CONFIGURED');
+  }
+
+  async load() {
+    lifecycle.trigger('LOADED');
+    this.#config = new Config({
+      foo: 'baz',
+      baz: false
     });
   }
 
-  listen(event, handler) {
-    this.#listeners.set(event, handler.bind(this));
-    return this;
-  }
-
-  off(event, handler) {
-    this.#updateEvent(handler, -1);
-    return this;
-  }
-
-  #updateEvent(handler, value) {
-    const handlerList = this.#handlers.get(handler);
-    if (handlerList.has(event)) {
-      if (value !== -1) {
-        handlerList.delete(event);
-        if (handlerList.size === 0) {
-          handlerList.delete(handler);
-        }
-      } else {
-        handlerList.delete(handler);
-      }
-    }
-  }
-
-  get on() {
-    return (event, handler) => {
-      this.listen(event, handler.bind(this));
-    };
-  }
-
-  get listeners() {
-    return this.#listeners;
+  async shutdown() {
+    lifecycle.trigger('SHUTDOWN_INITIATED');
+    lifecycle.#configured = false;
+    lifecycle.#loaded = false;
+    lifecycle.#shuttingDown = true;
   }
 }
-
-const configurator = new Configurator();
-configurator.configure(new Config({ foo: 'baz', baz: false }));
 
 class Executor {
-  #lifecycle = {};
-  #config = {};
+  #lifecycle = lifecycle;
+  #config = new Config({ foo: 'baz', baz: false });
   #handlers = new Map();
 
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  get on() {
-    return (event, handler) => {
-      this.listen(event, handler.bind(this));
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
     };
   }
 
-  get listeners() {
-    return this.#listeners;
+  static get namespace() {
+    return process.env.NODE_ENV || 'development';
   }
 
-  listen(event, handler) {
-    this.#listeners.set(event, handler.bind(this));
-    return this;
+  constructor(target = new Target()) {}
+
+  async execute(event) {
+    return this.#handlers.get(event)().then(() => {
+      console.log(`\n${event}\n`);
+    });
   }
 
-  off(event, handler) {
-    this.#updateEvent(handler, -1);
-    return this;
+  async executeLifecycle(lifecycle) {
+    const event = eventConstructor('EXECUTED', {
+      foo: 'baz',
+      baz: false
+    });
+    await this.execute(event);
   }
-
-  #updateEvent(handler, value) {
-    const handlerList = this.#handlers.get(handler);
-    if (handlerList.has(event)) {
-      if (value !== -1) {
-        handlerList.delete(event);
-        if (handlerList.size === 0) {
-          handlerList.delete(handler);
-        }
-      } else {
-        handlerList.delete(handler);
-      }
-    }
-  }
-
-  execute(event) {
-    const handler = this.#listeners.get(event);
-    return handler && typeof handler === 'function' ? handler({}) : Promise.resolve();
-  }
-
-  #listeners = new Map();
 }
 
-const executor = new Executor();
-executor.listen('EXECUTED', async () => {
-  console.log("Executed.");
-});
+const lifecycle = new Lifecycle();
+const events = createEvent();
+const validator = new Validator();
+const listeners = new Map();
+
+class LifecycleEvent extends LifecycleHandler {
+  constructor(event, payload = {}, lifecycle = lifecycle, listeners = listeners) {
+    super(event, payload, lifecycle, listeners);
+  }
+
+  async execute(...args) {
+    return Promise.all(args.filter((argument, index) => index <= this.#argsCount).map((value, index) => {
+      const argsCount = this.#argsCount;
+      this.#argsCount = index + 1;
+      return await this.#handler(value, ...args);
+    }));
+  }
+}
 
 async function main() {
-  const nexusCore = new LifecycleEvent('CONFIGURED', { foo: 'baz', baz: false });
   lifecycle.events.on('DESTROYED', () => {
-    console.log("NexusCore instance destroyed.");
+    console.log("NexusCore instance destroyed.")
   });
-  configurator.listen('LOADED', async () => {
-    executor.execute('EXECUTED');
+  const events = createEvent('LOADED', 'CONFIGURED', 'SHUTDOWN_INITIATED', 'SHUTTING_DOWN', 'DESTROYED');
+  events.off();
+  await Configurator.create({
+    foo: 'baz',
+    baz: false
   });
-  await configurator.configure(new Config({ foo: 'baz', baz: false }));
-  await executor.execute('CONFIGURED');
-  nexusCore.destroy();
+  await Executor.run('EXECUTED');
+  console.log("Main function complete.")
 }
-main();
+
+class Target {
+  constructor(target = this) {
+    this.target = target;
+    this.#initialized = true;
+  }
+}
+
+const eventConstructor = (event, payload = {},
+  lifecycle = lifecycle,
+  listeners = listeners) => {
+
+  if (!lifecycle.hasOwnProperty(event)) {
+    console.log(lifecycle, event);
+    return Promise.reject(`Lifecycle event key not found: ${event}`);
+  }
+  const Event = new Event(event, payload, lifecycle, listeners).event;
+  lifecycle.events.set(Event, new Set())
+  return Event;
+};
+
+Target.run = (event) => {
+  return eventConstructor(event).then((event) => {
+    return listeners.get(event)();
+  });
+}
+Target.reset = (method = this.run) => {
+  return Promise.all(Object.keys(lifecycle.#events).map((event) => (
+    listeners.get(event)()
+  ));
+}
+
+module.exports = {
+  Configurator,
+  ConfigValidator,
+  LifecycleEvent,
+  LifecycleHandler,
+  Lifecycle,
+  Executor,
+  Target,
+  lifecycle
+}
+
+// Helper functions
+const createEvent = (eventKey1, eventKey2, eventKey3, eventKey4, eventKey5) => {
+  let event;
+  switch (true) {
+    case arguments[4] === undefined:
+      case (arguments[3] === undefined && arguments[2] === undefined && arguments[1] === undefined):
+        event = new Event(eventKey1);
+        break;
+    case arguments[4] === true:
+      event = new Event(eventKey1, eventKey2);
+      break;
+    default:
+      event = new Event(eventKey1, eventKey2, eventKey3);
+  }
+
+  const eventConstructor = (eventKey1, eventKey2, eventKey3, eventKey4, eventKey5, eventKey6) => {
+    switch (true) {
+      case arguments[3] === undefined && arguments[2] === undefined:
+        return event(eventKey1, eventKey2);
+      case arguments[4] === true:
+        return event(eventKey1, eventKey2, eventKey3);
+      case arguments[5] === true:
+        return event(eventKey1, eventKey2, eventKey3, eventKey4);
+      default:
+        return event(eventKey1, eventKey2, eventKey3, eventKey4, eventKey5);
+    }
+  };
+
+  return eventConstructor;
+};
+
+const fireEvent = (event, context) => event(context);
+
+const addListener = (event, context, method) => {
+  context.events.on(event, method);
+  context.listeners.set(event, method);
+  return context;
+};
+
+const removeListener = (event, method, context = lifecycle) => {
+  const eventList = context.events.get(event);
+  eventList.delete(method);
+  if (eventList.size === 0) {
+    context.listeners.delete(event);
+  }
+  return context;
+};
+
+const offListener = (event, method, context = lifecycle) => {
+  const eventList = context.listeners.get(event);
+  context.listeners.delete(event);
+  return eventList.delete(method);
+};
+
+const createValidator = (schema) => {
+  const validator = new Validator(schema);
+  return validator;
+};
+
+const validate = (values, schema) => {
+  const validator = createValidator(schema);
+  try {
+    validator.validate(values, schema);
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+  return true;
+}
+
+Note: You will need to install the necessary dependencies before running the code to support the features in the mutated code. 
+
+Please note that some parts might have been changed for clarity and best practices. You might need to adjust them based on the exact requirements of your project.
+
+Also note that you will need to modify the mutated code as per your project's specific requirements.
