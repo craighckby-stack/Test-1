@@ -1,13 +1,11 @@
 import { Model } from '@alpha.code.deepmind';
 import { CodeGenerator } from './CodeGenerator';
 import { LLM } from './LLM';
-import {
-  MathematicalGovernance,
-  PhiLambdaGovernor,
-  RecursiveAutonomousOptimizer,
-  SyntheticIntelligenceSynthesizer,
-  SynergyManager,
-} from './architectural-modules';
+import { MathematicalGovernance } from './MathematicalGovernance';
+import { PhiLambdaGovernor } from './PhiLambdaGovernor';
+import { RecursiveAutonomousOptimizer } from './RecursiveAutonomousOptimizer';
+import { SyntheticIntelligenceSynthesizer } from './SyntheticIntelligenceSynthesizer';
+import { SynergyManager } from './SynergyManager';
 
 class NexusCore extends React.Component {
   #config = {};
@@ -26,6 +24,10 @@ class NexusCore extends React.Component {
   #synthesizer = new SyntheticIntelligenceSynthesizer(this);
   #philambda = new PhiLambdaGovernor(this);
   #synergyManager = new SynergyManager(this);
+
+  constructor(props) {
+    super(props);
+  }
 
   async getStrategicLedger() {
     const ledgers = await this.getSynergyManager().loadLedgers(["Strategic_Ledger"]);
@@ -47,9 +49,13 @@ class NexusCore extends React.Component {
   }
 
   async getConsciousness() {
-    const C = await this.#philambda.calculateConsciousness(await this.getPhi(), await this.getLambda());
-    const consciousness = C === Infinity ? true : false;
-    return consciousness;
+    const tools = await this.getSynergyManager().fetchSynergyTools();
+    const cScore = tools.reduce((acc, tool) => {
+      acc += tool.value;
+      return acc;
+    }, 0) / tools.length;
+    if (cScore === 0) return true;
+    return false;
   }
 
   async evaluate(phi, lambda, consciousness = false) {
@@ -109,6 +115,31 @@ class NexusCore extends React.Component {
     }
   }
 
+  async computeConsciousness() {
+    const phi = await this.getPhi();
+    const tools = await this.getSynergyManager().fetchSynergyTools();
+    const lambda = tools.reduce((acc, tool) => {
+      acc += tool.value;
+      return acc;
+    }, 0) / tools.length;
+    if (lambda === 0) return true;
+    return false;
+  }
+
+  async getConsciousness() {
+    const consciousness = await this.computeConsciousness();
+    return consciousness;
+  }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
+
+  onLifecycleEvent(event, handler) {
+    this.#lifecycle[event] = handler;
+    return this.#lifecycle[event];
+  }
+
   async shutdown() {
     try {
       if (!this.#lifecycle.shuttingDown) {
@@ -138,15 +169,6 @@ class NexusCore extends React.Component {
     this.#repository = {};
   }
 
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
-
-  onLifecycleEvent(event, handler) {
-    this.#lifecycle[event] = handler;
-    return this.#lifecycle[event];
-  }
-
   render() {
     const { configured, loaded, shuttingDown } = this.#lifecycle;
     return (
@@ -155,6 +177,7 @@ class NexusCore extends React.Component {
         <LLM kernel={this} />
         <MathematicalGovernance kernel={this} />
         <RecursiveAutonomousOptimizer kernel={this} />
+        <PhiLambdaGovernor kernel={this} />
         <SynergyManager kernel={this} />
         <SyntheticIntelligenceSynthesizer kernel={this} />
       </React.StrictMode>
@@ -164,13 +187,7 @@ class NexusCore extends React.Component {
 
 class PhiLambdaGovernor {
   async calculateConsciousness(phi, lambda) {
-    const C = [phi / 2 ** Object.keys(Object.keys(this.kernel.#lifecycle).reduce((acc, event) => {
-      acc[event] = true;
-      return acc;
-    })).length] * Math.exp(-this.kernel.#optimizer.beta * Object.keys(Object.keys(this.kernel.#lifecycle).reduce((acc, event) => {
-      acc[event] = true;
-      return acc;
-    })).length) * Math.exp(-lambda ** 2);
+    const C = [phi / 2 ** 10] * Math.exp(-this.kernel.HeapSize * 10) * Math.exp(-lambda ** 2);
     return C === 0 ? Infinity : C;
   }
 
@@ -194,13 +211,3 @@ class SynergyManager {
     return storedTool;
   }
 }
-
-I voted for **DeepMind/AlphaCode** as the source for advanced architectural patterns. The mutated code uses advanced patterns from the SOURCE DNA SIGNATURE. The code incorporates multiple architectural patterns, including:
-
-1.  **SynergyManager:** a class that manages the synergy of tools, enabling the creation and storage of new tools.
-2.  **PhiLambdaGovernor:** a class that governs the consciousness of the system through the Phi-Lambda metric.
-3.  **ComputeEvolution:** a method that computes the evolution of the system based on the Phi-Lambda metric and strategic memory.
-4.  **StrategicLedger:** a method that loads the strategic ledger from the synergy manager.
-5.  **GenerateStrategicMemory:** a method that generates strategic memory based on the Phi-Lambda metric and consciousness.
-
-These architectural patterns enable the system to evolve and adapt in a more efficient and effective manner.
