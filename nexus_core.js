@@ -16,6 +16,10 @@ class Config {
     return {
       VERSION: "1.0.0",
       env: process.env.NODE_ENV || "development",
+      _meta: {
+        // this new metadata can be used for ADR or change history tracking
+        changelog: ['Initial commit', 'Added ADR metadata'],
+      },
     };
   }
 
@@ -25,18 +29,21 @@ class Config {
 
   setValues(values, container) {
     container.bind('config', values);
+    container.bind('lifecycleEvent', true);
+    container.bind('lifecycleHandler', true);
     return this;
   }
 
   @Inject('jsonSchema')
-  validateConfig(@Inject('config') config) {
+  validateConfig(@Inject('config') config, container) {
     const schema = Config.defaultConfigSchema;
     const jsonSchemaInstance = new JsonSchema();
     jsonSchemaInstance.validate(config, schema);
+    container.unbind('jsonSchema');
   }
 
-  validate(container) {
-    this.validateConfig(this, container);
+  validate() {
+    return this.validateConfig(this.container, this.container);
   }
 }
 
@@ -51,6 +58,8 @@ class LifecycleHandler {
   constructor(handler, container) {
     container.bind('lifecycleHandler', this);
     this.handler = handler;
+    container.bind(this.handler);
+    this.handler.container = container;
   }
 
   bind(target = this) {
@@ -105,23 +114,24 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  private validate(@Inject('config') config) {
-    config.validate(this.container);
+  private validate(@Inject('config') config, container) {
+    config.validate(this.container, container);
   }
 
   @Inject('config')
-  configure(@Inject('config') config) {
-    this.validate(config);
+  configure(@Inject('config') config, container) {
+    this.validate(config, container);
     this.#lifecycle.configured = true;
     this.config = config;
   }
 
   @Inject('jsonSchema')
   @Inject('config')
-  private configureConfigSchemaValidation(config) {
+  private configureConfigSchemaValidation(config, container) {
     const schema = Config.defaultConfigSchema;
     const jsonSchemaInstance = new JsonSchema();
     jsonSchemaInstance.validate(config, schema);
+    container.unbind('jsonSchema');
   }
 
   protected onLifecycleEvent(event, handler) {
@@ -140,6 +150,20 @@ class NexusCore {
   protected executeLifecycleEvent(event) {
     if (this.#lifecycle[event]) {
       this.#lifecycle[event].bind(this).execute(this.container);
+      this.#lifecycle[event].handler.container = this.container;
+    }
+  }
+
+  async initialize(container) {
+    try {
+      const startMethodOrder = ["configure", "load", "shutdown"];
+      for (const methodName of startMethodOrder) {
+        if (this[methodName] instanceof Function) {
+          await this[methodName](this.container);
+        }
+      }
+    } catch (e) {
+      console.error('Initialization error:', e);
     }
   }
 
@@ -170,13 +194,8 @@ class NexusCore {
     }
   }
 
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName](this.container);
-      }
-    }
+  async start(container) {
+    await this.initialize(container);
   }
 
   async destroy(container) {
@@ -187,17 +206,13 @@ class NexusCore {
       shuttingDown: false,
     };
   }
-
-  async on(event, handler) {
-    this.onLifecycleEvent(event, handler);
-    return this;
-  }
 }
 
 const container = new genkit.Container();
 const nexusCore = new NexusCore(container);
 container.bind('nexusCore', nexusCore);
-nexusCore.configure(Config.defaultConfig);
+container.bind('config', Config.defaultConfig);
+nexusCore.configure();
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
