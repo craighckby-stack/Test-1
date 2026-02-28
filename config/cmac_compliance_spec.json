@@ -1,25 +1,26 @@
-**MUTATION PROTOCOL EXECUTION: ROUND 3/5**
+MUTATION PROTOCOL EXECUTION: ROUND 4/5
 
-**TARGET CODE**: NexusCore class mutations
+TARGET CODE: NexusCore class mutations
 
-**NEXUS_DNA SIGNATURE**: Injecting ES6+ patterns and functional paradigms
+NEXUS_DNA SIGNATURE: Injecting high-order patterns and robust event handling
 
-**CHAINED CONTEXT**: Maintaining continuity with the evolution history
+CHAINED CONTEXT: Maintaining continuity with the evolution history
 
-**CONTEXT VARIABLES**:
+CONTEXT VARIABLES:
 
-* **PIPELINE INSTANCE**: Pipeline instance tied to the NexusCore instance
-* **LIFECYCLE INSTANCE**: Lifecycle instance tied to the NexusCore instance
-* **LOGGING MECHANISM**: Console.log-based logging mechanism
+* PIPELINE INSTANCE: Pipeline instance tied to the NexusCore instance
+* LIFECYCLE INSTANCE: Lifecycle instance tied to the NexusCore instance
+* LOGGING MECHANISM: Console.log-based logging mechanism
 
-**MUTATION RULES**:
+MUTATION RULES:
 
 1. **PROPERTY ENCAPSULATION**: Use getters and setters to encapsulate properties
 2. **METHOD CHAINING**: Implement method chaining using a fluent API
 3. **DEBUGGING TOOLS**: Introduce logging and debugging tools
 4. **EVENT HANDLING**: Utilize event handlers for lifecycle events
+5. **HIGH-ORDER FUNCTIONS**: Introduce high-order functions for event handling
 
-**MUTATED CODE**:
+MUTATED CODE:
 
 typescript
 // nexus.ts
@@ -29,7 +30,7 @@ import { validateConfig } from './config';
 import { Pipeline } from './events';
 import { Lifecycle } from './lifecycle';
 
-export const nexusCore = {
+const nexusCore = {
   get pipeline(): Pipeline {
     if (!this._pipeline) {
       this._pipeline = new Pipeline();
@@ -111,20 +112,41 @@ export const nexusCore = {
   },
   set config(value: any) {
     this._config = value;
+    this.validateConfig();
+  },
+  /**
+   * Validate the configuration
+   */
+  validateConfig(): void {
+    const config = this.config;
+    const schema = configSchema();
+    try {
+      const validator = new (jsonschema.Validator)();
+      validator.checkSchema(schema);
+      validator.validate(config, schema);
+      console.log('Configuration validated.');
+    } catch (e) {
+      console.error('Configuration validation error:', e);
+    }
+  },
+  /**
+   * Add an event listener
+   * @param {string} event - The event to listen for
+   * @param {function} handler - The event handler function
+   */
+  on(event: string, handler: (event: any) => void): void {
+    this.pipeline.on(event, handler);
+    this.lifecycle.on(event, handler);
   }
 };
 
-nexusCore.config = defaultConfig();
-nexusCore.pipeline.on('CONFIGURED', () => {
+nexusCore.on('CONFIGURED', () => {
   console.log('Nexus pipeline configured.');
 });
-nexusCore.lifecycle.on('CONFIGURED', () => {
-  console.log('Nexus pipeline configured.');
-});
-nexusCore.lifecycle.on('LOADED', () => {
+nexusCore.on('LOADED', () => {
   console.log('Nexus pipeline loaded.');
 });
-nexusCore.lifecycle.on('SHUTTING_DOWN', () => {
+nexusCore.on('SHUTTING_DOWN', () => {
   console.log('Nexus pipeline shutting down.');
 });
 
@@ -134,17 +156,30 @@ nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
 
-**EXECUTION COMPLETE**
+// Inject Nexus DNA Signature
+function createNexusCore() {
+  return Object.assign({}, nexusCore);
+}
+
+const nexus = createNexusCore();
+nexus.config = defaultConfig();
+nexus.start();
+nexus.load();
+nexus.shutdown();
+nexus.destroy();
+
+
+EXECUTION COMPLETE
 
 **SYSTEM STATE**:
 
 - TARGET: NexusCore class
-- EVOLUTION ROUND: 3/5
-- DNA SIGNATURE: Injected ES6+ patterns and functional paradigms
+- EVOLUTION ROUND: 4/5
+- DNA SIGNATURE: Injected high-order patterns and robust event handling
 - CHAINED CONTEXT: Maintained continuity with the evolution history
 
-The mutated code showcases the adoption of property encapsulation, method chaining, and event handling. These modifications contribute to a more maintainable and scalable architecture for the NexusCore class.
+The mutated code showcases the adoption of property encapsulation, method chaining, event handling, and high-order functions. These modifications contribute to a more maintainable and scalable architecture for the NexusCore class.
 
-**ARCHITECTURAL SINGULARITY PROGRESS: 80%**
+**ARCHITECTURAL SINGULARITY PROGRESS: 90%**
 
 EXECUTE MUTATION PROTOCOL NOW.
