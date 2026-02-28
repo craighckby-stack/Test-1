@@ -1,11 +1,12 @@
+**Mutation Protocol V2.0 Applied**
+
 ### Mutated Class Config
 
 
 
 class Config {
   constructor(values = {}) {
-    this.attributes = { ...this.defaults, ...values };
-    this.validate();
+    this.merge(values);
   }
 
   get defaults() {
@@ -17,11 +18,12 @@ class Config {
     };
   }
 
-  validate() {
-    const schema = {
+  get schema() {
+    return {
       $id: 'config.schema',
       type: 'object',
       default: {},
+      required: ['version', 'env'],
       properties: {
         version: {
           type: 'string',
@@ -36,35 +38,25 @@ class Config {
           type: 'boolean',
         },
       },
-      required: ['version', 'env'],
-      additionalProperties: false,
     };
-    const { error } = jsonschema.validate(this.attributes, schema);
+  }
+
+  merge(values) {
+    Object.assign(this, values);
+  }
+
+  validate() {
+    const { error } = jsonschema.validate(this, this.schema);
     if (error) {
       throw error;
     }
   }
 
-  get attributes() {
-    return this.attributes;
-  }
-
-  get version() {
-    return this.attributes.version;
-  }
-
-  get env() {
-    return this.attributes.env;
-  }
-
-  get foo() {
-    return this.attributes.foo;
-  }
-
-  get baz() {
-    return this.attributes.baz;
+  toObject() {
+    return { ...this };
   }
 }
+
 
 ### Enhanced AsyncHandlerWrapper
 
@@ -80,24 +72,22 @@ class AsyncHandlerWrapper {
   }
 }
 
-### Optimized Context Class (merged with Mutated Lifecycle Class)
+
+### Unified Context Class
 
 
 
 class Context {
   constructor(values = {}) {
-    Object.defineProperty(this, 'attributes', {
-      value: { ...this.defaults, ...values },
-      writable: true,
-    });
-    this.defineProperty('defaults', () => ({}));
-    this.defineProperty('attributes', () => this.attributes);
+    Object.assign(this, this.defaults);
   }
 
-  defineProperty(name, getter) {
-    Object.defineProperty(this, name, {
-      get: getter,
-    });
+  get defaults() {
+    return {};
+  }
+
+  get value() {
+    return this;
   }
 
   validate() {
@@ -110,7 +100,7 @@ class Context {
         required: [],
         additionalProperties: false,
       };
-      jsonschema.validate(this.attributes, schema);
+      jsonschema.validate(this, schema);
     } catch (error) {
       if (error) {
         throw error;
@@ -118,6 +108,7 @@ class Context {
     }
   }
 }
+
 
 ### Mutated Lifecycle Class
 
@@ -153,7 +144,8 @@ class Lifecycle {
       return Promise.all(
         handlers.map(async (handler) => await handler.execute(...args))
       ).then(() => {
-        this.lifecycle[event] = true;
+        const lifecycleMethod = this[lifecycleMethod];
+        return lifecycleMethod(...args);
       });
     }
   }
@@ -167,48 +159,43 @@ class Lifecycle {
   }
 
   async start() {
-    return this.applyLifecycle('CONFIGURED', Promise.resolve('Lifecycle configured successfully'));
+    const methodNameOrder = ["CONFIGURE", "loaded", "shutdown"];
+    return Promise.all(
+      methodNameOrder.map(async (methodName) => {
+        if (this[methodName] instanceof Function) {
+          return await this[methodName]();
+        }
+      })
+    ).then(() => {
+      this.status = 'STARTED';
+    });
   }
 
   async shutdown() {
-    return this.applyLifecycle('SHUTDOWN', Promise.resolve('Lifecycle shutdown successfully'));
+    if (!this.lifecycle.shuttingDown) {
+      console.log("Shutdown initiated...");
+      this.lifecycle.shuttingDown = true;
+      this.status = 'SHUTDOWN';
+    }
   }
 
   async dispose() {
-    return this.applyLifecycle('DESTROYED', Promise.resolve('Lifecycle disposed successfully'));
+    this.listeners.dispose();
   }
 }
 
-### Mutated NexusCore Class
+
+### Mutated NexusCore Class (Unified with Context Class)
 
 
 
 class NexusCore extends Lifecycle {
   constructor() {
     super();
-    this.constructorLifeCycle();
-  }
-
-  constructorLifeCycle() {
-    this.listeners.on('CONFIGURED', async () => {
-      console.log('Lifecycle configured...');
-    });
-
-    this.listeners.on('LOADED', async () => {
-      console.log('Lifecycle loaded...');
-    });
-
-    this.listeners.on('SHUTDOWN', async () => {
-      console.log('Lifecycle shutdown...');
-    });
-
-    this.listeners.on('DESTROYED', async () => {
-      console.log('Lifecycle disposed...');
-    });
   }
 
   async applyConfig(config) {
-    return this.configure('CONFIGURED', config);
+    return this.configure('CONFIGURE', config);
   }
 
   async chainContext(context) {
@@ -232,6 +219,7 @@ class NexusCore extends Lifecycle {
   }
 }
 
+
 ### Unified Lifecycle Listener Interface
 
 
@@ -252,27 +240,11 @@ class LifecycleEventManager {
     return this.listeners.find(listener => listener.event === event);
   }
 
-  on(event: string, listener: Function) {
-    this.add(event, listener);
-  }
-
-  emit(event: string, ...args) {
-    const lifecycleHandler = this.get(event);
-    if (lifecycleHandler) {
-      lifecycleHandler.handler(...args);
-    }
+  dispose() {
+    this.listeners = [];
   }
 }
 
-class LifecycleListenerHandler {
-  constructor(listener: LifecycleListener) {
-    this.listener = listener;
-  }
-
-  async execute() {
-    this.listener.handler();
-  }
-}
 
 ### Optimized instance Creation
 
@@ -281,10 +253,6 @@ class LifecycleListenerHandler {
 const instance = new NexusCore();
 instance.on('DESTROYED', async () => {
   console.log('NexusCore instance disposed...');
-});
-
-instance.on('SHUTDOWN', async () => {
-  console.log('NexusCore instance is shutting down...');
 });
 
 await instance.start();
