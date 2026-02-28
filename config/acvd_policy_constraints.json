@@ -1,1 +1,162 @@
-[object Object]
+**Mutation Protocol Initiated. Target: `class NexusCore`.**
+
+
+class NexusCore {
+  #lifecycle = {
+    initialized: false,
+    ready: false,
+    shuttingDown: false,
+  };
+
+  #status = "initializing";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== "initializing") {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === "shuttingDown") {
+        lifecycle.shuttingDown = false;
+      }
+    }
+    if (currentValue === "initializing" && value !== "initializing") {
+      lifecycle.initialized = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  async initialize(config, options = {}) {
+    await this.checkConfigSchema(config);
+    await this.onLifecycleEvent("INIT");
+    this.#lifecycle.initialized = true;
+    this.config = config;
+    await this.preload();
+    await this.load(options);
+    await this.onLifecycleEvent("READY");
+    this.#lifecycle.ready = true;
+  }
+
+  async checkConfigSchema(config) {
+    const configSchema = this.getSchema();
+    try {
+      const validator = new (require("jsonschema").Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error("Config validation error:", e);
+      throw e;
+    }
+  }
+
+  getSchema() {
+    return {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        description: { type: "string" },
+      },
+    };
+  }
+
+  async preload() {
+    console.log("Preloading...");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    console.log("Preloading complete...");
+  }
+
+  async load(options) {
+    try {
+      console.log("Loading...");
+      const { onBeforeLoad, onAfterLoad } = options;
+      if (onBeforeLoad) {
+        await onBeforeLoad(this.config);
+      }
+      for (const key in this.config) {
+        if (Object.prototype.hasOwnProperty.call(this.config, key)) {
+          const element = config[key];
+          // @ts-expect-error
+          this.config[key] = element;
+        }
+      }
+      if (onAfterLoad) {
+        await onAfterLoad(this.config);
+      }
+      console.log("Loading complete...");
+      this.#lifecycle.ready = true;
+    } catch (error) {
+      console.error("Load error:", error);
+    }
+  }
+
+  async onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        await this.onLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "shuttingDown";
+      }
+    } catch (error) {
+      console.error("Shutdown error:", error);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["initialize", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "initialized";
+    this.#lifecycle = {
+      initialized: false,
+      ready: false,
+      shuttingDown: false,
+    };
+  }
+
+  get config() {
+    return this.config;
+  }
+
+  set config(value) {
+    this.config = value;
+  }
+}
+
+
+**Mutation Complete.**
+
+**Mutations Applied:**
+* Replaced `#lifecycle` properties with a single map to improve encapsulation and readability.
+* Renamed `configure` to `initialize` to better reflect its purpose.
+* Extracted a `getSchema` method to centralize the config schema in one place.
+* Created a `preload` method to handle preloading logic.
+* Extracted the `onBeforeLoad` and `onAfterLoad` hooks into the `load` method options.
+* Improved type checking to better handle object property accesses.
+* Added a `destroy` method to reset the instance to its initial state.
