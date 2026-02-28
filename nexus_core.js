@@ -1,60 +1,50 @@
-class Configuration {
-  static #staticConfiguration = {
-    VERSION: "1.0.0",
-    env: process.env.NODE_ENV || "development"
-  };
+TARGET FILE: nexus_core.js
+        ROUND: 2/5
 
-  static #defaultConfig = {
-    foo: 'bar',
-    baz: true
-  };
+VOTED SOURCE: Google/Genkit
 
-  static #configurationSchema = {
+NexusCore class mutation using Genkit patterns:
+
+
+import { inject, injectable, singleton } from 'inyection';
+import { JsonSchema, validate } from 'jsonschema';
+
+class Config {
+  @inject('config')
+  static defaultConfig;
+
+  static readonly defaultConfigSchema = {
     type: 'object',
     properties: {
       foo: { type: 'string' },
-      baz: { type: 'boolean' }
+      baz: { type: 'boolean' },
     },
-    required: ['foo', 'baz']
   };
 
-  constructor(values = {}) {
-    this.#staticConfiguration = { ...this.#staticConfiguration };
-    this.#defaultConfiguration = { ...this.#defaultConfiguration };
-    this.#configurationSchema = { ...this.#configurationSchema };
-    this.configure(values);
-    this.validate();
-    this.#configuration = { ...this.#staticConfiguration, ...this.#defaultConfiguration, ...values };
+  static get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development",
+    };
   }
 
-  configure(values) {
-    Object.assign(this.#configuration, values);
+  constructor(values = {}) {
+    this.setValues(values);
+  }
+
+  setValues(values) {
+    Object.assign(this, values);
+    return this;
+  }
+
+  @inject('jsonSchema')
+  validateConfig(@inject('config') config) {
+    const schema = Config.defaultConfigSchema;
+    validate(config, schema);
   }
 
   validate() {
-    const validator = new (require('jsonschema').Validator)();
-    validator.addSchema(this.#configurationSchema);
-    try {
-      validator.validate(this.#configuration, this.#configurationSchema);
-      if (this.#configuration.VERSION !== Configuration.staticConfiguration.VERSION) {
-        throw new Error("Configuration version mismatch");
-      }
-    } catch (e) {
-      console.error('Configuration validation error:', e);
-      throw e;
-    }
-  }
-
-  get configuration() {
-    const properties = {
-      foo: this.#configuration.foo,
-      baz: this.#configuration.baz
-    };
-    return { ...this.#configurationSchema.properties, ...properties };
-  }
-
-  get #configuration() {
-    return this.#configuration;
+    this.validateConfig(this);
   }
 }
 
@@ -71,129 +61,95 @@ class LifecycleHandler {
 
   bind(target = this) {
     this.handler = this.handler.bind(target);
+    return this;
   }
 
-  execute(nexusCore) {
-    this.handler(nexusCore);
-  }
-}
-
-abstract class AbstractLifecycleHandler {
-  abstract execute(nexusCore);
-}
-
-class ShutdownHandler extends AbstractLifecycleHandler {
-  constructor(handler) {
-    super();
-    this.handler = handler;
-  }
-
-  execute(nexusCore) {
+  execute() {
     this.handler();
-    nexusCore.status = 'SHUTDOWN';
   }
 }
 
+const jsonSchema = new JsonSchema();
+
+@singleton
 class NexusCore {
-  #configuration;
+  #initialStatus = "INIT";
   #lifecycle = {
     configured: false,
     loaded: false,
     shuttingDown: false,
-    shuttingDownHandler: null
   };
 
-  #status = "INIT";
-
-  get status() {
-    return this.#status;
+  private get status() {
+    return this.#initialStatus;
   }
 
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
+  private set status(value) {
+    this.#initialStatus = value;
+    const currentValue = this.#initialStatus;
     const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
+    if (value !== "INIT") {
       console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
+      if (value === "SHUTDOWN") {
         lifecycle.shuttingDown = false;
-        lifecycle.shuttingDownHandler = null;
       }
     }
-    if (currentValue === 'INIT' && value !== 'INIT') {
+    if (currentValue === "INIT" && value !== "INIT") {
       lifecycle.configured = true;
     }
-    this.#lifecycle = { ...lifecycle };
   }
 
-  get lifecycle() {
+  private get lifecycle() {
     return this.#lifecycle;
   }
 
-  static defaultConfig = Configuration;
+  private validate(@inject('config') config) {
+    config.validate();
+  }
 
-  async configure(config = {}) {
-    const nexusConfig = new Configuration(config);
-    this.#configuration = nexusConfig.configuration;
-    this.#configuration = { ...Configuration.staticConfiguration, ...Configuration.defaultConfig, ...this.#configuration };
-    this.validate();
-    this.onLifecycleEvent("CONFIGURED");
+  @inject('config')
+  configure(@inject('config') config) {
+    this.validate(config);
     this.#lifecycle.configured = true;
+    this.config = config;
   }
 
-  validate() {
-    const validator = new (require('jsonschema').Validator)();
-    validator.addSchema(Configuration.#configurationSchema);
-    try {
-      validator.validate(this.#configuration, Configuration.#configurationSchema);
-      if (this.#configuration.VERSION !== Configuration.staticConfiguration.VERSION) {
-        throw new Error("Configuration version mismatch");
-      }
-    } catch (e) {
-      console.error('Configuration validation error:', e);
-      throw e;
-    }
+  @inject('jsonSchema')
+  @inject('config')
+  private configureConfigSchemaValidation(config) {
+    const schema = Config.defaultConfigSchema;
+    jsonSchema.validate(config, schema);
   }
 
-  async onLifecycleEvent(event, handler) {
+  protected onLifecycleEvent(event, handler) {
     const lifecycleHandler = new LifecycleHandler(handler);
-    const handlerMap = {
-      'CONFIGURED': lifecycleHandler,
-      'LOADED': lifecycleHandler,
-      'SHUTTING_DOWN': new ShutdownHandler(handler),
-      'SHUTDOWN': () => {
-        this.status = 'SHUTDOWN';
-      }
+    this.#lifecycle[event] = lifecycleHandler;
+    return lifecycleHandler.bind(this);
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
     };
-    if (event in handlerMap) {
-      this.#lifecycle[event] = handlerMap[event];
-      if (event === "SHUTTING_DOWN" && this.#lifecycle.SHUTTING_DOWN) {
-        this.#lifecycle.shuttingDownHandler = handlerMap['SHUTTING_DOWN'];
-      }
+  }
+
+  protected executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
     }
   }
-
-  on(event, handler) {
-    const lifecycleEvent = new LifecycleEvent(event);
-    this.onLifecycleEvent(event, handler);
-  }
-
-  abstract executeLifecycleEvent(event);
 
   async load() {
-    if (!this.#lifecycle.loaded) {
-      try {
-        await this.executeLifecycleEvent("CONFIGURED");
-        if (this.#configuration.baz) {
-          console.log("Loading...");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          console.log("Loading complete...");
-          this.#lifecycle.loaded = true;
-          await this.executeLifecycleEvent("LOADED");
-        }
-      } catch (e) {
-        console.error('Load error:', e);
-      }
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
     }
   }
 
@@ -202,23 +158,17 @@ class NexusCore {
       if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
         this.#lifecycle.shuttingDown = true;
-        const shuttingDownHandler = this.#lifecycle.shuttingDownHandler;
-        if (shuttingDownHandler) {
-          shuttingDownHandler.execute(this);
-        }
+        this.executeLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
-        this.status = 'SHUTDOWN';
+        this.status = "SHUTDOWN";
       }
     } catch (e) {
       console.error("Shutdown error:", e);
-    } finally {
-      this.#lifecycle.shuttingDown = false;
-      this.#lifecycle.shuttingDownHandler = null;
     }
   }
 
   async start() {
-    const startMethodOrder = ["configure", "load"];
+    const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
       if (this[methodName] instanceof Function) {
         await this[methodName]();
@@ -232,30 +182,20 @@ class NexusCore {
       configured: false,
       loaded: false,
       shuttingDown: false,
-      shuttingDownHandler: null
     };
   }
-}
 
-enum EventTypes {
-  CONFIGURED = true,
-  LOADED = true,
-  SHUTTING_DOWN = true,
-  SHUTDOWN = true
-}
-
-class NexusCoreImpl extends NexusCore {
-  executeLifecycleEvent(event) {
-    super.executeLifecycleEvent(event);
-    this.#lifecycle[event] && this.#lifecycle[event].execute(this);
+  async on(event, handler) {
+    this.onLifecycleEvent(event, handler);
+    return this;
   }
 }
 
-const nexusCore = new NexusCoreImpl();
-nexusCore.on('DESTROYED', nexusCore => {
+const nexusCore = new NexusCore(nexusCore);
+nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure({ foo: "changed", baz: false });
+}).bind();
+nexusCore.configure(Config.defaultConfig);
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
