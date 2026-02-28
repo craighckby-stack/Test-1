@@ -4,39 +4,71 @@ class PolicyRemediationConfig {
   }
 
   merge(values) {
-    Object.assign(this, values);
+    Object.entries(values).forEach(([key, value]) => {
+      this[key] = value;
+    });
   }
 
-  static get schema() {
-    const pattern = /\w+([\s\S]*?)\w+/g;
-    const schema = {};
-    let props;
+  static async generateSchema() {
+    try {
+      const jsonRawText = window.rawText;
+      const jsonPayloads = jsonRawText.match(/\{[\s\S]*\}/g);
+      const schema = {};
 
-    while ((props = pattern.exec(JSON.stringify(window.rawText))) !== null) {
-      const key = props[1].trim();
-      const value = JSON.parse(props[0]);
+      jsonPayloads.forEach((payload) => {
+        const pluginName = PolicyRemediationConfig.getPluginName(payload);
+        const pluginCode = PolicyRemediationConfig.generatePluginCode(pluginName);
+        const riskProfile = PolicyRemediationConfig.getRiskProfile(pluginName);
 
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema({
-        type: 'object',
-        properties: {
-          [key]: { type: 'string' },
-          risk: { type: 'enum', enum: ['high', 'mid', 'low'] },
-          riskProfile: { type: 'object' },
-        },
+        schema[pluginName] = {
+          type: 'object',
+          properties: {
+            code: { type: 'string', pattern: 'if\\(true\\)\\{.*?\\}', flags: 'js' },
+            codegen: { type: 'function', required: true },
+            meta: { type: 'object', required: true },
+          },
+        };
       });
 
-      schema[key] = {
-        type: 'object',
-        properties: {
-          code: { type: 'string', pattern: 'if\\(true\\)\\{.*?\\}', flags: 'js' },
-          codegen: { type: 'function', required: true },
-          meta: { type: 'object', required: true },
-        },
+      return { ...schema };
+    } catch (e) {
+      console.error('Failed to generate schema:', e);
+      return {};
+    }
+  }
+
+  static get pluginName() {
+    return 'RECURSIVE_BOOTSTRAP_KERNEL';
+  }
+
+  static generatePluginCode(pluginName) {
+    return `function ${pluginName}() { return 'Hello World!'; }`;
+  }
+
+  static getRiskProfile(pluginName) {
+    try {
+      const regex = new RegExp(`risk: ([a-zA-Z]+)`, 'g');
+      const match = regex.exec(pluginName);
+
+      if (match && match[1]) {
+        return {
+          risk: match[1],
+        };
+      }
+
+      return {
+        risk: 'low',
+      };
+    } catch (e) {
+      console.error('Failed to get risk profile:', e);
+      return {
+        risk: 'low',
       };
     }
+  }
 
-    return { ...schema };
+  static get pluginConfig() {
+    return PolicyRemediationConfig.generateSchema();
   }
 }
 
@@ -53,8 +85,8 @@ class NexusCoreLifecycleHandler {
     return this.handler.bind(target.prototype);
   }
 
-  execute() {
-    this.handler();
+  execute(...args) {
+    return this.handler(...args);
   }
 }
 
@@ -64,6 +96,7 @@ class NexusCore {
     loaded: false,
     shutdown: false,
     version: 0,
+    insights: {},
   };
 
   #status = 'INIT';
@@ -118,11 +151,11 @@ class NexusCore {
   }
 
   validatePolicyConfig(policyConfig) {
-    const configSchema = PolicyRemediationConfig.schema;
+    const configSchema = PolicyRemediationConfig.pluginConfig;
     try {
       const jsonSchema = new (require('json-schema').Core)();
 
-      jsonSchema.validatePolicyConfig(policyConfig, configSchema);
+      jsonSchema.validate(policyConfig, configSchema);
     } catch (e) {
       console.error('Policy config validation error:', e);
       throw e;
@@ -154,42 +187,68 @@ class NexusCore {
   async milestoneCycle() {
     const regex = /\{[\s\S]*\}/g;
     const jsonPayloads = window.rawText.match(regex);
+    if (!jsonPayloads) return;
+
     const plugins = [];
 
-    jsonPayloads.forEach((payload) => {
-      const pluginName = this.#lifecycle.version;
-      const pluginCode = `function ${pluginName}() { return 'Hello World!'; }`;
-      const plugin = {
-        name: pluginName,
-        code: pluginCode,
-        riskProfile: { highRisk: true },
-      };
+    jsonPayloads.forEach(async (payload) => {
+      try {
+        const pluginName = PolicyRemediationConfig.getPluginName(payload);
+        const pluginCode = PolicyRemediationConfig.generatePluginCode(pluginName);
+        const plugin = {
+          name: pluginName,
+          code: pluginCode,
+          riskProfile: PolicyRemediationConfig.getRiskProfile(pluginName),
+        };
 
-      plugins.push(plugin);
-      const strategicInsight = JSON.parse(payload);
+        this.strategicLedgerInjection(payload, plugin);
 
-      this.strategicLedgerInjection(strategicInsight, plugin);
+        plugins.push(plugin);
+
+        const strategicInsight = JSON.parse(payload);
+
+        plugins.forEach((plugin) => {
+          console.log({
+            name: plugin.name,
+            code: plugin.code,
+            riskProfile: plugin.riskProfile,
+          });
+        });
+
+        this.onLifecycleEvent('MILESTONE_CYCLE');
+      } catch (error) {
+        console.error('Error processing plugin:', error);
+      }
     });
 
-    plugins.forEach((plugin) => {
-      console.log({
-        name: plugin.name,
-        code: plugin.code,
-        riskProfile: plugin.riskProfile,
-      });
-    });
-
-    this.onLifecycleEvent('MILESTONE_CYCLE');
+    return plugins;
   }
 
-  strategicLedgerInjection(strategicInsight, plugin = {}) {
-    Object.assign(strategicInsight, plugin);
-    const insights = {
-      ...this.#lifecycle.insights,
-      ...strategicInsight,
+  async startup() {
+    // Perform any initialization tasks before loading.
+    console.log('Startup complete.');
+  }
+
+  async shutdown() {
+    try {
+      this.#lifecycle.shutdown = true;
+      this.executeLifecycleEvent('SHUTTING_DOWN');
+    } catch (error) {
+      console.error('Error shutting down:', error);
+    } finally {
+      // Perform any cleanup tasks after shutting down.
+    }
+  }
+
+  async destroy() {
+    // Perform any cleanup tasks before destroying the instance.
+    this.#lifecycle.version = 0;
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shutdown: false,
+      version: 0,
     };
-    this.#lifecycle.version++;
-    this.#lifecycle.insights = insights;
   }
 
   get on() {
@@ -216,24 +275,79 @@ class NexusCore {
     }
   }
 
-  async destroy() {
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shutdown: false,
-      version: 0,
-    };
+  async strategicLedgerInjection(strategicInsight, plugin = {}) {
+    Object.assign(this.#lifecycle.insights, strategicInsight);
+    this.#lifecycle.version++;
   }
 
-  async shutDown() {
-    const shutdownMethods = NexusCore.protocolMethods(this);
-
-    for (const methodName of shutdownMethods) {
-      if (methodName instanceof Function) {
-        await this[methodName]();
-      }
+  async executeLifecycleEvent(event, data) {
+    switch (event) {
+      case 'MILESTONE_CYCLE':
+        this.eventHandlerMilestoneCycle(data);
+        break;
+      case 'LOADED':
+      case 'CONFIGURED':
+      case 'SHUTTING_DOWN':
+      case 'SHUTDOWN':
+        this.eventHandlerGenericLifecycleEvent(event, data);
+        break;
+      case 'DESTROYED':
+      default:
+        break;
     }
   }
+
+  async handlerGenericLifecycleEvent(event, data) {
+    console.log(`Lifecycle event: ${event}`);
+    this.#lifecycle[event] = true;
+    logLifecycleEventHistory(data);
+  }
+
+  async handlerMilestoneCycle(data) {
+    this.#lifecycle.milestoneCycle = data;
+  }
+
+  async eventHandlerGenericLifecycleEvent(event, data) {
+    console.log(`Lifecycle event: ${event}`);
+    this.#lifecycle[event] = true;
+    logLifecycleEventHistory(data);
+  }
+
+  async eventHandlerMilestoneCycle(data) {
+    console.log(`Milestone cycle complete: ${data}`);
+    this.#lifecycle.milestoneCycle = data;
+  }
+
+  async startupEvent() {
+    console.log('NexusCore instance started.');
+  }
+
+  async shutDownEvent() {
+    console.log('NexusCore instance shutting down.');
+  }
+
+  async destroyEvent() {
+    console.log('NexusCore instance destroyed.');
+  }
+
+  async milestoneCycleEvent() {
+    console.log('Milestone cycle complete.');
+  }
+
+  static get lifecycleEvents() {
+    return [
+      'MILESTONE_CYCLE',
+      'CONFIGURED',
+      'LOADED',
+      'SHUTTING_DOWN',
+      'SHUTDOWN',
+      'DESTROYED',
+    ];
+  }
+}
+
+function logLifecycleEventHistory(event) {
+  console.log('Lifecycle event history:', NexusCore.lifecycleEvents);
 }
 
 window.rawText = {
@@ -247,8 +361,8 @@ nexusCore.on('DESTROYED', () => {
   console.log('NexusCore instance destroyed.');
 });
 
-nexusCore.configure(PolicyRemediationConfig.defaultConfig);
+nexusCore.configure(PolicyRemediationConfig.pluginConfig);
 nexusCore.start();
 nexusCore.load();
-nexusCore.shutDown();
+nexusCore.shutdown();
 nexusCore.destroy();
