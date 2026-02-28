@@ -1,72 +1,194 @@
-{
-  "version": "V94.1_R1",
-  "description": "Registry defining all deployable modules accessible by the GAE executor. Standardized structure includes execution context (category, language) and prepares interfaces for contract definition.",
-  "modules": {
-    "CISM_Integrator": {
-      "category": "Security",
-      "path": "runtime/modules/security/CISM_v2.py",
-      "version": "2.1.0",
-      "language": "Python",
-      "trust_level": "L5_CORE",
-      "interfaces": {
-        "isolateAsset": {},
-        "auditAccess": {}
+class Config {
+  static get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
+  }
+
+  constructor(values = {}) {
+    this.setValues(values);
+  }
+
+  setValues(values) {
+    Object.assign(this, values);
+  }
+
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
+
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
       }
-    },
-    "PVLM_Custodian": {
-      "category": "Config",
-      "path": "runtime/modules/config/PVLM_v1.js",
-      "version": "1.5.3",
-      "language": "NodeJS",
-      "trust_level": "L4_SYSTEM",
-      "interfaces": {
-        "applyCertifiedHash": {},
-        "retrieveHistory": {}
-      }
-    },
-    "CMR_Orchestrator": {
-      "category": "AI_Runtime",
-      "path": "runtime/modules/ai/CMR_v3.ts",
-      "version": "3.0.0",
-      "language": "TypeScript",
-      "trust_level": "L4_SYSTEM",
-      "interfaces": {
-        "queueUrgentRetrain": {},
-        "getModelStatus": {}
-      }
-    },
-    "MPAM_Monitor": {
-      "category": "Observability",
-      "path": "runtime/modules/observability/MPAM_v1.py",
-      "version": "1.1.0",
-      "language": "Python",
-      "trust_level": "L3_OPERATIONAL",
-      "interfaces": {
-        "activateFreeze": {},
-        "streamSnapshot": {}
-      }
-    },
-    "S1_Input_Handler": {
-      "category": "Data_Ingest",
-      "path": "runtime/modules/data/S1_Input_v4.java",
-      "version": "4.2.1",
-      "language": "Java",
-      "trust_level": "L3_OPERATIONAL",
-      "interfaces": {
-        "pauseIngestStream": {},
-        "resumeIngestStream": {}
-      }
-    },
-    "ADTM_Controller": {
-      "category": "AI_Control",
-      "path": "runtime/modules/ai/ADTM_v2.py",
-      "version": "2.0.5",
-      "language": "Python",
-      "trust_level": "L5_CORE",
-      "interfaces": {
-        "patchHeuristics": {},
-        "statusCheck": {}
-      }
+    };
+  }
+
+  validate() {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
     }
   }
 }
+
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
+
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
+  }
+
+  execute() {
+    this.handler();
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
+      }
+    }
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  configure(config) {
+    this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
+
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
+  async load() {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+  }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
