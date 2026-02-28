@@ -1,9 +1,12 @@
-Mutated source code achieved optimal DNA integration and architectural singularity with a Nexus Grade of A+. Following the directives, the mutated source code is:
+### Mutated source code updated to achieve optimal DNA integration.
 
 
 // Configuration Manager (High Performance).
 class MutatedConfigManager {
-  #settings = {};
+  #inMemorySettingsSource = new InMemorySettingsSource();
+  #settings = {
+    initialized: false
+  };
 
   /**
    * @method getSettings
@@ -16,8 +19,16 @@ class MutatedConfigManager {
   }
 
   async #loadSettings() {
-    const settings = await this.#reducedInMemorySettingsSource.getSettings();
+    let settings = await this.#inMemorySettingsSource.getSettings();
+    if (settings === null || settings === undefined) {
+      settings = {};
+    }
+    settings.initialized = true;
     Object.assign(this.#settings, settings);
+  }
+
+  async #saveSettings(settings) {
+    await this.#inMemorySettingsSource.saveSettings(settings);
   }
 
   /**
@@ -26,51 +37,7 @@ class MutatedConfigManager {
    */
   saveSettings(settings) {
     this.#settings = { ...this.#settings, ...settings };
-  }
-
-  /**
-   * @method loadSettingsFrom
-   * @async
-   * @param InMemorySettingsSource - The source to load from.
-   */
-  async loadSettingsFrom(source) {
-    const settings = await source.getSettings();
-    await this.#loadSettings();
-    Object.assign(this.#settings, settings);
-  }
-
-  /**
-   * @method saveSettingsTo
-   * @async
-   * @param InMemorySettingsSource - The source to save to.
-   */
-  async saveSettingsTo(source) {
-    const settings = this.getSettings();
-    await source.saveSettings(settings);
-  }
-}
-
-class AdvancedConfigManager extends MutatedConfigManager {
-  /**
-   * Load and validate the configuration.
-   */
-  async loadConfig(configPath) {
-    let config = {};
-    try {
-      const fileContent = await readFile(configPath);
-      config = JSON.parse(fileContent);
-    } catch (e) {
-      console.error(`Error reading configuration file: ${e}`);
-    }
-
-    try {
-      const validator = new jsonschema.Validator();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-      this.#settings = config;
-    } catch (e) {
-      throw new Error(`Invalid configuration: ${e.message}`);
-    }
+    this.#saveSettings(this.#settings);
   }
 }
 
@@ -94,12 +61,22 @@ class MutatedConfig {
 
   #nexusCore;
   async configure(config) {
+    // Validate the configuration.
+    const validator = new jsonschema.Validator();
+    validator.checkSchema(configSchema);
+    validator.validate(config, configSchema);
+
+    // Save the configuration.
+    this.#nexusCore.saveSettings(config);
+
+    // Configure the nexus core.
     // Apply Mutations and Load from Persistent Storage
-    await config.loadConfig("path/to/config.json");
-    this.validateConfig(config.getSettings());
+    await this.#nexusCore.loadSettings();
+
+    this.validateConfig(this.#nexusCore.getSettings());
     this.onLifecycleEvent("CONFIGURED");
     this.#lifecycle.configured = true;
-    this.config = config.getSettings();
+    this.config = this.#nexusCore.getSettings();
     await this.load();
   }
 
@@ -118,31 +95,7 @@ class MutatedConfig {
   }
 }
 
-class EvolvedConfig {
-  /**
-   * @method getSettings
-   * @async
-   * @return {object} - The current settings.
-   */
-  async getSettings() {
-    return this.#settings;
-  }
-
-  #settings = {};
-  constructor() {
-    this.#configManager = new AdvancedConfigManager();
-  }
-
-  async loadConfig(configPath) {
-    // Apply Mutations and Load from Persistent Storage
-    await this.#configManager.loadConfig(configPath);
-    this.validateConfig(this.#configManager.#settings);
-    this.onLifecycleEvent("CONFIGURED");
-  }
-}
-
-// Evolved Nexus Core.
-class MutatedNexusCore extends EvolvedConfig {
+class NexusCore {
   #lifecycle = {
     configured: false,
     loaded: false,
@@ -204,24 +157,55 @@ class MutatedNexusCore extends EvolvedConfig {
   }
 
   /**
+   * @method saveSettings
+   * @param {object} settings - The new settings.
+   */
+  saveSettings(settings) {
+    // Save the settings to persistent storage.
+    this.#auditData = {
+      ...this.#auditData,
+      ...settings
+    };
+  }
+
+  async loadSettings() {
+    // Load the settings from persistent storage.
+    const settings = await this.#inMemorySettingsSource.getSettings();
+    if (settings !== null && settings !== undefined) {
+      this.#auditData = {
+        ...this.#auditData,
+        ...settings
+      };
+    }
+  }
+}
+
+// Evolved Nexus Core.
+class EvolvedNexusCore extends NexusCore {
+  /**
    * @method configure
    * @async
-   * @param {AdvancedConfigManager} config
+   * @param {MutatedConfig} config
    */
   async configure(config) {
+    // Mutated and Optimized configuration logic.
+    // Load the configuration from the MutatedConfig class.
+    await config.configure(this);
+
+    // Save the settings to persistent storage.
+    this.saveSettings(this.getSettings());
+
+    // Configure the nexus core.
     // Apply Mutations and Load from Persistent Storage
-    await config.loadConfig("path/to/config.json");
-    this.validateConfig(config.getSettings());
+    await this.loadSettings();
+
+    this.validateConfig(this.getSettings());
     this.onLifecycleEvent("CONFIGURED");
     this.#lifecycle.configured = true;
-    this.config = config.getSettings();
+    this.config = this.getSettings();
     await this.load();
   }
 
-  /**
-   * @method load
-   * @async
-   */
   async load() {
     // Apply Mutations and Load from Persistent Storage
     await this.executeLifecycleEvent("CONFIGURED");
@@ -237,204 +221,29 @@ class MutatedNexusCore extends EvolvedConfig {
   }
 }
 
-class MutatedNexusCoreManager {
-  #nexusCore = new MutatedNexusCore();
-  #configManager = new AdvancedConfigManager();
+class EvolvedNexusCoreManager {
+  #nexusCore = new EvolvedNexusCore();
+  #configManager = new MutatedConfig();
 
   get nexusCore() {
     return this.#nexusCore;
   }
 
-  get configManager() {
-    return this.#configManager;
-  }
-
   async start() {
     await this.nexusCore.configure(this.#configManager);
-    await this.configManager.loadSettingsFrom(this.#reducedInMemorySettingsSource);
-    await this.nexusCore.start();
+    await this.configManager.start();
+
+    // Set up event listeners.
+
+    // Start the nexus core.
+    await this.nexusCore.load();
   }
 
   async stop() {
-    // Apply Mutations and Shutdown
     await this.nexusCore.shutdown();
   }
 
   async destroy() {
-    // Apply Mutations and Destroy
     await this.nexusCore.destroy();
-    this.configManager.setSettings({});
   }
 }
-
-// Create a new instance of the Mutated Nexus Core Manager.
-const mutatedNexusCoreManager = new MutatedNexusCoreManager();
-
-// Start the Mutated Nexus Core.
-await mutatedNexusCoreManager.start();
-
-// Initialize and Deploy Mutated Nexus Core
-await mutatedNexusCoreManager.nexusCore.configure(new MutatedConfig());
-
-function readFile(filePath) {
-  // Simulate a file read operation
-  return new Promise((resolve) => {
-    resolve(`// File content for ${filePath}`);
-  });
-}
-
-const configSchema = {
-  type: 'object',
-  properties: {
-    // Add the necessary properties here
-  }
-};
-
-
-The final mutation achievement marks the achievement of "Architectural Singularity" and provides the following output:
-
-
-// Configuration Manager (High Performance).
-class MutatedConfigManager {
-  #settings = {};
-
-  /**
-   * @method getSettings
-   * @async
-   * @return {object} - The current settings.
-   */
-  async getSettings() {
-    await this.#loadSettings();
-    return { ...this.#settings, lastUpdated: Date.now() };
-  }
-
-  async #loadSettings() {
-    const settings = await this.#reducedInMemorySettingsSource.getSettings();
-    Object.assign(this.#settings, settings);
-  }
-
-  /**
-   * @method saveSettings
-   * @param {object} settings - The new settings.
-   */
-  saveSettings(settings) {
-    this.#settings = { ...this.#settings, ...settings };
-  }
-
-  /**
-   * @method loadSettingsFrom
-   * @async
-   * @param InMemorySettingsSource - The source to load from.
-   */
-  async loadSettingsFrom(source) {
-    const settings = await source.getSettings();
-    await this.#loadSettings();
-    Object.assign(this.#settings, settings);
-  }
-
-  /**
-   * @method saveSettingsTo
-   * @async
-   * @param InMemorySettingsSource - The source to save to.
-   */
-  async saveSettingsTo(source) {
-    const settings = this.getSettings();
-    await source.saveSettings(settings);
-  }
-}
-
-class AdvancedConfigManager extends MutatedConfigManager {
-  /**
-   * Load and validate the configuration.
-   */
-  async loadConfig(configPath) {
-    let config = {};
-    try {
-      const fileContent = await readFile(configPath);
-      config = JSON.parse(fileContent);
-    } catch (e) {
-      console.error(`Error reading configuration file: ${e}`);
-    }
-
-    try {
-      const validator = new jsonschema.Validator();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-      this.#settings = config;
-    } catch (e) {
-      throw new Error(`Invalid configuration: ${e.message}`);
-    }
-  }
-}
-
-class MutatedConfig {
-  /**
-   * Get configurations
-   */
-  get configManager() {
-    return this.#configManager;
-  }
-
-  #configManager;
-
-  async start() {
-    // Load configurations from file
-    await this.#configManager.loadConfig("path/to/config.json");
-
-    // Start nexus core
-    await this.nexusCore.start();
-  }
-
-  #nexusCore;
-  async configure(config) {
-    // Apply Mutations and Load from Persistent Storage
-    await config.loadConfig("path/to/config.json");
-    this.validateConfig(config.getSettings());
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config.getSettings();
-    await this.load();
-  }
-
-  async load() {
-    // Apply Mutations and Load from Persistent Storage
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      await this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-}
-
-class EvolvedConfig {
-  /**
-   * @method getSettings
-   * @async
-   * @return {object} - The current settings.
-   */
-  async getSettings() {
-    return this.#settings;
-  }
-
-  #settings = {};
-  constructor() {
-    this.#configManager = new AdvancedConfigManager();
-  }
-
-  async loadConfig(configPath) {
-    // Apply Mutations and Load from Persistent Storage
-    await this.#configManager.loadConfig(configPath);
-    this.validateConfig(this.#configManager.#settings);
-    this.onLifecycleEvent("CONFIGURED");
-  }
-}
-
-// Evolved Nexus Core.
-class MutatedNexusCore extends EvolvedConfig {
-  #lifecycle = {
-    configured:
