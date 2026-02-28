@@ -1,5 +1,7 @@
-Here is the refactored code incorporating the higher-order patterns from Firebase/Lifecycle and refining NexusCore's robustness and scalability:
+## Mutation Protocol V2.0 Applied
 
+
+### Mutated Class Config
 
 
 class Config {
@@ -53,56 +55,47 @@ class Config {
   toObject() {
     return Object.assign({}, this);
   }
-}
 
-class LifecycleEvent {
-  constructor(event, handler) {
-    this.event = event;
-    this.handler = handler instanceof Function ? new AsyncHandlerWrapper(handler) : handler;
-  }
-
-  isAsync() {
-    return this.handler.isAsync();
+  toJSON() {
+    return JSON.parse(JSON.stringify(this));
   }
 }
+
+
+### Enhanced AsyncHandlerWrapper
+
 
 class AsyncHandlerWrapper {
-  constructor(handler) {
-    this.handler = handler;
+  constructor(handler, context) {
+    this.handler = handler instanceof Function ? handler.bind(context) : handler;
   }
 
   async execute(...args) {
-    if (this.handler instanceof Function) {
-      return this.handler(...args);
-    } else {
-      console.error(`Handler: ${this.handler} is not callable.`);
-    }
-  }
-
-  isAsync() {
-    return true;
+    return this.handler(...args);
   }
 }
 
-class LifecycleHandler {
-  constructor(handler, context) {
-    this.handler = handler.bind(context);
-  }
 
-  async execute() {
-    await this.handler();
-  }
-}
+### Optimized Context Class
+
 
 class Context {
   constructor(values = {}) {
-    Object.assign(this, values);
+    Object.assign(this, this.defaults);
+  }
+
+  defaults() {
+    return {};
   }
 
   validate() {
     // implement validation logic here
   }
 }
+
+
+### Mutated Lifecycle Class
+
 
 class Lifecycle {
   constructor() {
@@ -138,13 +131,13 @@ class Lifecycle {
   }
 
   constructorLifeCycle() {
-    Object.keys(this.methods).forEach((method) => {
+    Object.keys(this.methods).some((method) => {
       this[method] = this.methods[method];
     });
   }
 
   getLifecycleEvent(event) {
-    return this.listeners.lifecycleHandlers.find((handler) => handler.event === event);
+    return this.listeners.getLifecycleHandlers().find((handler) => handler.event === event);
   }
 
   getLifecycleListeners() {
@@ -152,88 +145,45 @@ class Lifecycle {
   }
 
   getLifecycleHandlers() {
-    return this.listeners.lifecycleHandlers;
+    return this.listeners.getLifecycleHandlers();
   }
 
   dispose() {
-    this.listeners.destroy();
+    return this.listeners.dispose();
   }
 
   addLifecycleListener(event, handler) {
-    this.listeners.on(event, handler);
-  }
-
-  createEventManager() {
-    class EventManager {
-      constructor() {
-        this.listeners = {};
-      }
-
-      on(event, handler) {
-        if (!this.listeners[event]) {
-          this.listeners[event] = [];
-        }
-        this listeners[event].push(handler);
-      }
-
-      emit(event, ...args) {
-        if (this.listeners[event]) {
-          this.listeners[event].forEach((handler) => {
-            if (handler.isAsync()) {
-              handler.execute(...args).catch((error) => {
-                console.error(`Error handling event: ${event}`, error);
-              });
-            } else {
-              handler.execute(...args);
-            }
-          });
-        }
-      }
-
-      lifecycleHandlers() {
-        return Object.keys(this.listeners).map((event) => {
-          return this.listeners[event].map((handler) => {
-            return new LifecycleEvent(event, handler);
-          });
-        });
-      }
-    }
-
-    return new EventManager();
+    this.listeners.add(event, handler);
   }
 
   async applyLifecycle(event, ...args) {
-    await Promise.all(
-      this.listeners.lifecycleHandlers.find((handlers) => handlers.event === event).forEach(async (handler) => {
-        const lifecycleMethod = this[handler.event];
-        if (lifecycleMethod instanceof Function) {
-          if (handler.isAsync()) {
-            return await lifecycleMethod(...args);
-          } else {
-            return lifecycleMethod(...args);
-          }
-        }
-      })
-    );
+    const handlers = this.listeners.getLifecycleHandlers().find((handlers) => handlers.event === event);
+    if (handlers) {
+      return await Promise.all(
+        handlers.map(async (handler) => await handler.execute(...args))
+      ).then(() => {
+        const lifecycleMethod = this[lifecycleMethod];
+        return lifecycleMethod(...args);
+      });
+    }
   }
 
   async applyConfig(config) {
-    const handler = this.onConfigure.bind(this);
-    await handler().then((result) => {
+    await this.onConfigure().then(() => {
       this.lifecycle('CONFIGURE', config);
     });
   }
 
   async onConfigure() {
     const lifecycleHandler = this.configureConfig.bind(this);
-    return lifecycleHandler();
+    return await lifecycleHandler();
   }
 
   configureConfig() {
     this.config = new Config();
     this.config.validate();
     this.config.merge(this.contextChain);
-    console.log('Config applied successfully');
+    return 'Config applied successfully';
   }
 
   async chainContext(context) {
@@ -242,37 +192,41 @@ class Lifecycle {
 
   async load() {
     const lifecycleHandler = this.loadLifecycle.bind(this);
-    await lifecycleHandler();
+    return await lifecycleHandler();
   }
 
   loadLifecycle() {
     this.events.loaded = true;
-    console.log('Load complete');
+    return 'Load complete';
   }
 
   async start() {
-    const startMethodOrder = ["CONFIGURE", "onLoad", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
+    const methodNameOrder = ["CONFIGURE", "onLoad", "shutdown"];
+    return Promise.all(
+      methodNameOrder.map(async (methodName) => {
+        if (this[methodName] instanceof Function) {
+          return await this[methodName]();
+        }
+      })
+    ).then(() => {
+      this.status = 'STARTED';
+    });
   }
 
   async shutdown() {
-    try {
-      if (!this.events.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.events.shuttingDown = true;
-        this.lifecycle('SHUTTING_DOWN');
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
+    if (!this.events.shuttingDown) {
+      console.log("Shutdown initiated...");
+      this.events.shuttingDown = true;
+      this.lifecycle('SHUTTING_DOWN');
+      console.log("Shutdown complete...");
+      this.status = "SHUTDOWN";
     }
   }
 }
+
+
+### Mutated NexusCore Class
+
 
 class NexusCore extends Lifecycle {
   constructor() {
@@ -281,16 +235,13 @@ class NexusCore extends Lifecycle {
   }
 
   constructorLifeCycle() {
-    Object.keys(this.methods).forEach((method) => {
+    Object.keys(this.methods).some((method) => {
       this[method] = this.methods[method];
     });
   }
 
   async applyConfig(config) {
-    const handler = this.onConfigure.bind(this);
-    await handler().then((result) => {
-      this.lifecycle('CONFIGURE', config);
-    });
+    await this.applyConfig(config);
   }
 
   async chainContext(context) {
@@ -298,26 +249,11 @@ class NexusCore extends Lifecycle {
   }
 
   async start() {
-    const startMethodOrder = ["CONFIGURE", "onLoad", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
+    await super.start();
   }
 
   async shutdown() {
-    try {
-      if (!this.events.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.events.shuttingDown = true;
-        this.lifecycle('SHUTTING_DOWN');
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
+    await super.shutdown();
   }
 
   async load() {
@@ -325,7 +261,7 @@ class NexusCore extends Lifecycle {
   }
 
   async dispose() {
-    super.dispose();
+    await super.dispose();
   }
 
   addLifecycleListener(event, handler) {
@@ -333,10 +269,16 @@ class NexusCore extends Lifecycle {
   }
 }
 
-const instance = new NexusCore();
 
+### Optimized instance Creation
+
+
+const instance = new NexusCore();
 instance.on('DESTROYED', async () => {
   console.log('NexusCore instance destroyed.');
 });
 
-instance.start();
+await instance.start();
+
+
+Note that this is just one possible implementation outcome from applying the Mutation Protocol. Optimal results may vary depending on specific project needs and constraints.
