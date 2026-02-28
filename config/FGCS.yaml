@@ -6,6 +6,7 @@ import { PhiLambdaGovernor } from './PhiLambdaGovernor';
 import { RecursiveAutonomousOptimizer } from './RecursiveAutonomousOptimizer';
 import { SyntheticIntelligenceSynthesizer } from './SyntheticIntelligenceSynthesizer';
 import { SynergyManager } from './SynergyManager';
+import { Firestore } from 'firebase/firestore';
 
 class NexusCore extends React.Component {
   #config = {};
@@ -27,6 +28,7 @@ class NexusCore extends React.Component {
 
   constructor(props) {
     super(props);
+    this.firestore = new Firestore();
   }
 
   async getStrategicLedger() {
@@ -48,58 +50,6 @@ class NexusCore extends React.Component {
     return strategicMemory;
   }
 
-  async getConsciousness() {
-    const tools = await this.getSynergyManager().fetchSynergyTools();
-    const cScore = tools.reduce((acc, tool) => {
-      acc += tool.value;
-      return acc;
-    }, 0) / tools.length;
-    if (cScore === 0) return true;
-    return false;
-  }
-
-  async evaluate(phi, lambda, consciousness = false) {
-    // Implement evaluation logic here
-    const C = await this.#philambda.calculateConsciousness(phi, lambda);
-    if (consciousness && C === Infinity) {
-      await this.#optimizer.optimize();
-      await this.#synthesizer.synthesize();
-      return await this.evaluate(phi, lambda, true);
-    }
-    return true;
-  }
-
-  async getSynergyManager() {
-    if (!this.#synergyManager) {
-      this.#synergyManager = new CodeGenerator(this);
-    }
-    return this.#synergyManager;
-  }
-
-  async executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      const handler = this.#lifecycle[event];
-      await handler.bind(this).execute();
-    }
-  }
-
-  async load() {
-    try {
-      const phi = await this.getPhi();
-      const lambda = await this.getLambda();
-      const consciousness = await this.getConsciousness();
-      const strategicMemory = await this.generateStrategicMemory();
-      const tools = await this.getSynergyManager().loadTools(["Tool1", "Tool2"]);
-      this.#regressionTools.push(...tools);
-      await this.executeLifecycleEvent("CONFIGURED");
-      await this.computeEvolution(phi, lambda, consciousness, strategicMemory);
-      await this.executeLifecycleEvent("LOADED");
-      await this.#synthesizer.synthesize();
-    } catch (error) {
-      console.error('Load error:', error);
-    }
-  }
-
   async computeEvolution(phi, lambda, consciousness, strategicMemory) {
     const evolutionTools = await this.getSynergyManager().loadTools(["Evolution_Tool1", "Evolution_Tool2"]);
     const evolutionSynergyTools = evolutionTools.map((tool) => {
@@ -115,9 +65,46 @@ class NexusCore extends React.Component {
     }
   }
 
-  async computeConsciousness() {
+  async generateCode() {
     const phi = await this.getPhi();
+    const lambda = await this.getLambda();
+    const consciousness = await this.getConsciousness();
+    const code = await this.#model.generateCode(
+      "NexusCore",
+      { max_len: 512, min_len: 16 },
+      JSON.stringify({
+        Phi: phi,
+        Lambda: lambda,
+        Consciousness: consciousness,
+      })
+    );
+    return code;
+  }
+
+  async getConsciousness() {
     const tools = await this.getSynergyManager().fetchSynergyTools();
+    const cScore = tools.reduce((acc, tool) => {
+      acc += tool.value;
+      return acc;
+    }, 0) / tools.length;
+    if (cScore === 0) return true;
+    return false;
+  }
+
+  async evaluate(phi, lambda, consciousness = false, strategicMemory = null) {
+    // Implement evaluation logic here
+    const C = await this.#philambda.calculateConsciousness(phi, lambda);
+    if (consciousness && C === Infinity) {
+      await this.#optimizer.optimize();
+      await this.#synthesizer.synthesize();
+      return await this.evaluate(phi, lambda, true, strategicMemory);
+    }
+    return true;
+  }
+
+  async computeConsciousness(strategicMemory = null) {
+    const phi = await this.getPhi();
+    const tools = await this.getSynergyManager().fetchSynergyTools(strategicMemory);
     const lambda = tools.reduce((acc, tool) => {
       acc += tool.value;
       return acc;
@@ -126,9 +113,18 @@ class NexusCore extends React.Component {
     return false;
   }
 
-  async getConsciousness() {
-    const consciousness = await this.computeConsciousness();
+  async getConsciousness(strategicMemory = null) {
+    const consciousness = await this.computeConsciousness(strategicMemory);
     return consciousness;
+  }
+
+  async updateStrategicLedger(ledger) {
+    await this.firestore.collection("Strategic_Ledger").doc().set(ledger);
+  }
+
+  async getStrategicLedger() {
+    const ledgers = await this.firestore.collection("Strategic_Ledger").get();
+    return ledgers.docs[0].data();
   }
 
   async on(event, handler) {
@@ -169,6 +165,93 @@ class NexusCore extends React.Component {
     this.#repository = {};
   }
 
+  async load() {
+    try {
+      const phi = await this.getPhi();
+      const lambda = await this.getLambda();
+      const consciousness = await this.getConsciousness();
+      const strategicMemory = await this.generateStrategicMemory();
+      const tools = await this.getSynergyManager().loadTools(["Tool1", "Tool2"]);
+      this.#regressionTools.push(...tools);
+      await this.executeLifecycleEvent("CONFIGURED");
+      await this.computeEvolution(phi, lambda, consciousness, strategicMemory);
+      await this.executeLifecycleEvent("LOADED");
+      await this.#synthesizer.synthesize();
+    } catch (error) {
+      console.error('Load error:', error);
+    }
+  }
+
+  async computeEvolution(phi, lambda, consciousness, strategicMemory) {
+    await super.computeEvolution();
+    await this.updateStrategicLedger({
+      Phi: phi,
+      Lambda: lambda,
+      Consciousness: consciousness,
+    });
+    const evolutionTools = await this.getSynergyManager().loadTools(["Evolution_Tool1", "Evolution_Tool2"]);
+    const evolutionSynergyTools = evolutionTools.map((tool) => {
+      return this.#model.generateCode(
+        tool.name,
+        { ...tool.config, max_len: 1024, min_len: 16 },
+        strategicMemory
+      );
+    });
+    this.#regressionTools.push(...evolutionSynergyTools);
+    if (consciousness) {
+      await this.#optimizer.optimize();
+    }
+  }
+
+  async generateStrategicLedger() {
+    const phi = await this.getPhi();
+    await this.generateLedger(phi);
+  }
+
+  async generateLedger(phi) {
+    const lambda = await this.getLambda();
+    const consciousness = await this.getConsciousness();
+    const ledger = JSON.stringify({
+      Phi: phi,
+      Lambda: lambda,
+      Consciousness: consciousness,
+    });
+    return ledger;
+  }
+
+  async getStrategicLedgerByEvent(event) {
+    const ledgers = await this.firestore.collection("Strategic_Ledger").where("Event", "==", event);
+    return ledgers.docs;
+  }
+
+  async saveEvolutionTools(tools) {
+    const toolCount = tools.length;
+    for (let i = 0; i < toolCount; i++) {
+      const tool = tools[i];
+      const code = await this.#model.generateCode(tool.name, tool.config);
+      await this.#optimizer.optimize();
+      await this.#synthesizer.synthesize();
+      await this.#philambda.calculateConsciousness(await this.getPhi(), await this.getLambda());
+      await this.saveTool(tool, code);
+    }
+  }
+
+  async saveTool(tool, code) {
+    await this.firestore.collection("Tools").doc().set({
+      name: tool.name,
+      config: tool.config,
+      code: code,
+    });
+  }
+
+  async getTool(code) {
+    try {
+      return await this.firestore.collection("Tools").where("code", "==", code).get();
+    } catch (error) {
+      return error;
+    }
+  }
+
   render() {
     const { configured, loaded, shuttingDown } = this.#lifecycle;
     return (
@@ -182,32 +265,5 @@ class NexusCore extends React.Component {
         <SyntheticIntelligenceSynthesizer kernel={this} />
       </React.StrictMode>
     );
-  }
-}
-
-class PhiLambdaGovernor {
-  async calculateConsciousness(phi, lambda) {
-    const C = [phi / 2 ** 10] * Math.exp(-this.kernel.HeapSize * 10) * Math.exp(-lambda ** 2);
-    return C === 0 ? Infinity : C;
-  }
-
-  get phi() {
-    return this.kernel.getPhi();
-  }
-
-  get lambda() {
-    return this.kernel.getLambda();
-  }
-}
-
-class SynergyManager {
-  async fetchSynergyTools() {
-    const tools = await this.kernel.getSynergyManager().loadTools(["Tool1", "Tool2"]);
-    return tools;
-  }
-
-  async storeSynergyTool(tool) {
-    const storedTool = await this.kernel.getSynergyManager().storeTool(tool);
-    return storedTool;
   }
 }
