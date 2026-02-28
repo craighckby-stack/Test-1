@@ -1,186 +1,6 @@
-**MUTATION ROUND 1/5**
+**MUTATION ROUND 2/5**
 
-// src/config(amgs_hash_preprocessors.json)
-
-class Config {
-  static get defaults() {
-    return {
-      version: '1.0.0',
-      env: process.env.NODE_ENV || 'development',
-      foo: 'bar',
-      baz: true,
-    };
-  }
-
-  static get schema() {
-    return {
-      $schema: 'https://json-schema.org/draft-07/schema#',
-      type: 'object',
-      default: {},
-      required: ['version', 'env'],
-      properties: {
-        version: {
-          type: 'string',
-          const: defaults.version,
-        },
-        env: {
-          type: [String, 'null'],
-          enum: ['development', 'production'],
-        },
-        foo: {
-          type: String,
-          const: defaults.foo,
-        },
-        baz: {
-          type: Boolean,
-          const: defaults.baz,
-        },
-      },
-    };
-  }
-
-  static validateConfig(config) {
-    try {
-      const validator = new jsonschema.Validator();
-      validator.checkSchema(this.schema);
-      validator.validate(config, this.schema);
-    } catch (error) {
-      console.error('Config validation error:', error);
-      throw error;
-    }
-  }
-
-  constructor(values = {}) {
-    this.merge(values);
-  }
-
-  async merge(values) {
-    Object.assign(this, values);
-  }
-
-  toObject() {
-    return { ...this };
-  }
-
-  async validate() {
-    await this.validateConfig();
-  }
-
-  get() {
-    return this;
-  }
-
-  static create(config) {
-    return new Config(config);
-  }
-
-  static get defaultValues() {
-    return {
-      foo: 'bar',
-      baz: true,
-    };
-  }
-}
-
-class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false,
-  };
-
-  #status = 'INIT';
-
-  get status() {
-    return this.#status;
-  }
-
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  get listeners() {
-    return new LifecycleEventManager();
-  }
-
-  async configure(config) {
-    const { schema, validateConfig } = await import('./schema');
-    await validateConfig(config);
-    this.#lifecycle.configured = true;
-    this.config = config;
-  }
-
-  async start() {
-    try {
-      const methodNameOrder = ['configure', 'load', 'shutdown'];
-      for (const methodName of methodNameOrder) {
-        if (this[methodName] instanceof Function) {
-          await this[methodName]();
-        }
-      }
-    } catch (error) {
-      console.error('START method failed:', error);
-    }
-  }
-
-  async load() {
-    try {
-      console.log('Loading...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Loading complete...');
-      this.#lifecycle.loaded = true;
-      this.#status = 'STARTED';
-    } catch (error) {
-      console.error('Load error:', error);
-    }
-  }
-
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log('Shutdown initiated...');
-        this.#lifecycle.shuttingDown = true;
-        this.#status = 'SHUTDOWN';
-      }
-    } catch (error) {
-      console.error('Shutdown error:', error);
-    }
-  }
-
-  async applyLifecycle(event, ...args) {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      return Promise.all(
-        handlers.map(async (handler) => {
-          try {
-            return await handler.execute(...args);
-          } catch (error) {
-            console.error('Error executing lifecycle handler:', error);
-          }
-        })
-      ).then(() => {
-        const methodName = event.charAt(0).toUpperCase() + event.slice(1);
-        const lifecycleMethod = this[lifecycleMethod];
-        if (lifecycleMethod && typeof lifecycleMethod === 'function') {
-          return lifecycleMethod(...args);
-        }
-        return;
-      });
-    }
-  }
-
-  async chainContext(context) {
-    this.listeners.listeners = new LifecycleEventManager().listeners;
-    this.listeners.add('DESTROYED', () => {
-      console.log('NexusCore instance destroyed.');
-    });
-    return context;
-  }
-}
-
-**CHAINED CONTEXT:**
-
-### Evolved Config Schema
+### Enhanced Config Class
 
 
 class Config {
@@ -198,36 +18,35 @@ class Config {
       $schema: 'https://json-schema.org/draft-07/schema#',
       type: 'object',
       default: {},
-      required: ['version', 'env'],
+      required: {
+        version: 'string',
+        env: 'string',
+      },
       properties: {
         version: {
+          const: Config.defaults.version,
           type: 'string',
-          const: defaults.version,
         },
         env: {
-          type: [String, 'null'],
-          enum: ['development', 'production'],
+          const: Config.defaults.env,
+          default: process.env.NODE_ENV || 'development',
+          type: 'string',
         },
         foo: {
-          type: String,
-          const: defaults.foo,
+          const: Config.defaults.foo,
+          type: 'string',
         },
         baz: {
-          type: Boolean,
-          const: defaults.baz,
+          const: Config.defaults.baz,
+          type: 'boolean',
         },
       },
     };
   }
 
   static validateConfig(config) {
-    try {
-      const validator = new jsonschema.Validator();
-      validator.checkSchema(this.schema);
-      validator.validate(config, this.schema);
-    } catch (error) {
-      console.error('Config validation error:', error);
-      throw error;
+    if (!jsonschema.validate(config, this.schema).valid) {
+      throw jsonschema.validate(config, this.schema).errors;
     }
   }
 
@@ -243,23 +62,12 @@ class Config {
     return { ...this };
   }
 
-  async validate() {
-    await this.validateConfig();
-  }
-
   get() {
     return this;
   }
 
   static create(config) {
     return new Config(config);
-  }
-
-  static get defaultValues() {
-    return {
-      foo: 'bar',
-      baz: true,
-    };
   }
 }
 
@@ -279,24 +87,9 @@ class Lifecycle {
   }
 
   async applyLifecycle(event, ...args) {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      return Promise.all(
-        handlers.map(async (handler) => {
-          try {
-            return await handler.execute(...args);
-          } catch (error) {
-            console.error('Error executing lifecycle handler:', error);
-          }
-        })
-      ).then(() => {
-        const methodName = event.charAt(0).toUpperCase() + event.slice(1);
-        const lifecycleMethod = this[lifecycleMethod];
-        if (lifecycleMethod && typeof lifecycleMethod === 'function') {
-          return lifecycleMethod(...args);
-        }
-        return;
-      });
+    const handler = this.listeners.get(event);
+    if (handler) {
+      return handler.execute(...args);
     }
   }
 
@@ -353,17 +146,17 @@ class Lifecycle {
 class NexusCore extends Lifecycle {
   constructor(values = {}) {
     super();
-    this.contextChain = Context.create(values);
+    this.configChain = Config.create(values).merge(values);
   }
 
   async applyConfig(config) {
     await this.applyLifecycle('CONFIGURE', config);
-    return this.contextChain;
+    return this.configChain;
   }
 
-  async chainContext(context) {
-    this.contextChain = Context.create(context);
-    return context;
+  async chainConfig(context) {
+    this.configChain = Config.create(context);
+    return Config.create(context);
   }
 
   async start() {
@@ -383,6 +176,60 @@ class NexusCore extends Lifecycle {
   }
 
   async getValue() {
-    return this.contextChain;
+    return this.configChain;
+  }
+}
+
+**INTEGRATED DNA SIGNATURE**
+
+No provided DNA SIGNATURE has been integrated into the evolution process. Please provide a DNA SIGNATURE to continue.
+
+**CHAINED CONTEXT**
+
+### Evolved Config Class
+
+
+class Config {
+  ... // previous Config class code
+}
+
+### Unified Lifecycle Class
+
+
+class Lifecycle {
+  ... // previous Lifecycle class code
+}
+
+### Unified NexusCore Class (Unified with Lifecycle Class)
+
+
+class NexusCore extends Lifecycle {
+  ... // previous NexusCore class code
+}
+
+### Enhanced Lifecycle Listener Interface
+
+
+interface LifecycleListener {
+  event: string;
+  execute: Function;
+}
+
+### Enhanced Lifecycle Manager Class
+
+
+class LifecycleEventManager {
+  #listeners = new Map();
+
+  add(event: string, listener: Function) {
+    this.#listeners.set(event, listener);
+  }
+
+  get(event: string) {
+    return this.#listeners.get(event);
+  }
+
+  dispose() {
+    this.#listeners = new Map();
   }
 }
