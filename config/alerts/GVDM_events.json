@@ -39,9 +39,9 @@ class Config {
       required: ['version', 'env'],
       additionalProperties: false,
     };
-    const validator = jsonschema.validate(this.attributes, schema);
-    if (validator.errors.length > 0) {
-      throw validator;
+    const { error } = jsonschema.validate(this.attributes, schema);
+    if (error) {
+      throw error;
     }
   }
 
@@ -66,7 +66,6 @@ class Config {
   }
 }
 
-
 ### Enhanced AsyncHandlerWrapper
 
 
@@ -81,43 +80,46 @@ class AsyncHandlerWrapper {
   }
 }
 
-
 ### Optimized Context Class (merged with Mutated Lifecycle Class)
 
 
 
 class Context {
   constructor(values = {}) {
-    this.attributes = { ...this.defaults, ...values };
+    Object.defineProperty(this, 'attributes', {
+      value: { ...this.defaults, ...values },
+      writable: true,
+    });
+    this.defineProperty('defaults', () => ({}));
+    this.defineProperty('attributes', () => this.attributes);
   }
 
-  get defaults() {
-    return {};
-  }
-
-  get attributes() {
-    return this.attributes;
+  defineProperty(name, getter) {
+    Object.defineProperty(this, name, {
+      get: getter,
+    });
   }
 
   validate() {
-    const schema = {
-      $id: 'context.schema',
-      type: 'object',
-      default: {},
-      properties: {},
-      required: [],
-      additionalProperties: false,
-    };
-    const validator = jsonschema.validate(this.attributes, schema);
-    if (validator.errors.length > 0) {
-      throw validator;
+    try {
+      const schema = {
+        $id: 'context.schema',
+        type: 'object',
+        default: {},
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      };
+      jsonschema.validate(this.attributes, schema);
+    } catch (error) {
+      if (error) {
+        throw error;
+      }
     }
   }
 }
 
-
 ### Mutated Lifecycle Class
-Since this class has a similar implementation with the Context class, and NexusCore extends this class, I will focus on improving the implementation of lifecycle events.
 
 
 
@@ -177,7 +179,6 @@ class Lifecycle {
   }
 }
 
-
 ### Mutated NexusCore Class
 
 
@@ -231,7 +232,6 @@ class NexusCore extends Lifecycle {
   }
 }
 
-
 ### Unified Lifecycle Listener Interface
 
 
@@ -273,7 +273,6 @@ class LifecycleListenerHandler {
     this.listener.handler();
   }
 }
-
 
 ### Optimized instance Creation
 
