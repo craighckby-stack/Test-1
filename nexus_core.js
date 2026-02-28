@@ -1,79 +1,194 @@
-// Import required modules
-const alphaCode = require('@deepmind/alphacode');
-const genkit = require('genkit');
+class Config {
+  static get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
+  }
 
-// Parse the current file using the AlphaCode parser
-const parser = alphaCode.getCodeParser();
-parser.parseFile(__filename, (tree) => {
-  // Get the metadata from the current file
-  const filePath = __filename;
-  const fileDir = path.dirname(filePath);
-  const fileName = path.basename(filePath, '.js');
+  constructor(values = {}) {
+    this.setValues(values);
+  }
 
-  // Define a new abstract class that will handle configuration
-  const configClass = `
-    import { Inject, injectable, singleton } from '${genkit.packagesLocation}.genkit';
-    import { JsonSchema } from 'jsonschema';
+  setValues(values) {
+    Object.assign(this, values);
+  }
 
-    // Register new metadata in the configuration class
-    abstract class Config {
-      static readonly defaultConfigSchema = {
-        type: 'object',
-        properties: {
-          metaDirectory: { type: 'string', pattern: '^[\\w\\/]+\\.json$', description: 'path to the metadata file' }
-        },
-      };
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
 
-      static readonly defaultEnvironmentConfig = {
-        NODE_ENV: 'development',
-        LOG_LEVEL: 'debug'
-      };
-
-      static get staticEnvironment() {
-        const currentNodeEnv = process.env.NODE_ENV;
-        return currentNodeEnv ? currentNodeEnv : process.env.NODE_ENV_DEFAULT || 'development';
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
       }
+    };
+  }
 
-      constructor(values = {}, container) {
-        this.values = values;
-        this.container = container;
-      }
+  validate() {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+}
 
-      abstract init(container: any);
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
 
-      validateConfig(@Inject('config') config: any, container: any) {
-        const configFilePath = `${this.container.resolve('configDir')}config.json`;
-        const schemaValidator = new JsonSchema();
-        const metaConfig = schemaValidator.validate(config, this.staticEnvironment ? this.defaultEnvironmentConfig.NODE_ENV : 'node');
-        return metaConfig;
-      }
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+  }
 
-      get logger () {
-        return new Logger({logLevel: this.values.LOG_LEVEL});
-      }
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
+  }
 
-      get configFilePath () {
-        return this.container.resolve('configDir') + fileName + ".json";
-      }
+  execute() {
+    this.handler();
+  }
+}
 
-      loadConfig (configObj, options = {}) {
-        const configFilePath = this.configFilePath;
-        return this.container.resolve('fs').readFile(configFilePath, options, (err, content) => {
-          if (err) {
-            throw err;
-          }
-          this.values = JSON.parse(content);
-        });
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
       }
     }
-  `;
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
 
-  // Update the AST with the new class definition
-  tree.updateClassDeclarations(parser.parse(configClass).functions);
+  get lifecycle() {
+    return this.#lifecycle;
+  }
 
-  // Generate the modified code from the updated AST
-  const modifiedCode = tree.generateCode({ format: 'esmodule' });
+  configure(config) {
+    this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
 
-  // Inject the modified code into the current file
-  this.exports = modifiedCode;
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
+  async load() {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+  }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
 });
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
