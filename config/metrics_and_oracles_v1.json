@@ -1,46 +1,43 @@
 {
-  "system_version": "v94.1",
-  "description": "Tiered definitions for autonomous validation and performance tracking.",
-  "evaluation_tiers": [
-    "lightweight_validation",
-    "integration_testing",
-    "production_readiness"
-  ],
-  "metrics": {
-    "evolution_success_rate": {
-      "type": "KPI",
-      "unit": "percentage",
-      "aggregation": "rolling_mean(100)",
-      "critical_threshold": 0.98,
-      "alert_if": "below_threshold",
-      "is_resource_intensive": false
-    },
-    "compute_token_efficiency": {
-      "type": "ResourceUsage",
-      "unit": "tokens_per_successful_step",
-      "aggregation": "P90",
-      "max_acceptable": 12000,
-      "is_resource_intensive": true
-    }
+  "version": "2.0",
+  "description": "Defines modular metrics and profiles for Autonomous Code Evolution (ACE).",
+  "definitions": {
+    "BASE_METRICS": [
+      { "id": "M_EXEC_LATENCY_P95", "unit": "ms", "type": "temporal" },
+      { "id": "M_RESOURCE_USAGE", "unit": "cu", "type": "resource" },
+      { "id": "M_CODE_COMPLEXITY", "unit": "score", "type": "static" },
+      { "id": "M_TEST_COVERAGE_DELTA", "unit": "%", "type": "static" }
+    ],
+    "DERIVED_METRICS": [
+      { 
+        "id": "D_FITNESS_SCORE", 
+        "formula": "(1 / M_EXEC_LATENCY_P95) * (M_TEST_COVERAGE_DELTA + 1)",
+        "weight": 1.0
+      }
+    ]
   },
-  "oracles": {
-    "syntactic_conformance_check": {
-      "purpose": "Validate output code structure/format.",
-      "tier": ["lightweight_validation"],
-      "component_id": "validation.syntax_checker",
-      "timeout_ms": 500
-    },
-    "behavioral_equivalence_oracle": {
-      "purpose": "Verify functionality against initial requirements.",
-      "tier": ["integration_testing", "production_readiness"],
-      "component_id": "validation.state_differ",
-      "strictness_level": "max",
-      "required_pass_rate": 0.995,
-      "caching_strategy": "disabled"
+  "profiles": {
+    "P_PRODUCTION_STABILITY": {
+      "target_metric": "D_FITNESS_SCORE",
+      "optimization_goal": "maximize",
+      "oracles": [
+        { 
+          "id": "O_LATENCY_CRITICAL", 
+          "metric": "M_EXEC_LATENCY_P95", 
+          "condition": "less_than", 
+          "value": 150, 
+          "violation_type": "penalty",
+          "penalty_factor": 0.6 
+        },
+        { 
+          "id": "O_NO_REGRESSION", 
+          "metric": "M_TEST_COVERAGE_DELTA", 
+          "condition": "greater_than_or_equal", 
+          "value": 0.0, 
+          "violation_type": "reward",
+          "reward_factor": 0.1 
+        }
+      ]
     }
-  },
-  "default_evaluation_pipeline": {
-    "lightweight_validation": ["syntactic_conformance_check"],
-    "integration_testing": ["behavioral_equivalence_oracle", "compute_token_efficiency"]
   }
 }
