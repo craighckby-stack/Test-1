@@ -1,194 +1,35 @@
-class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
+## Integrity Baseline Commitment Module (IBCM) S01 Protocol Definition
 
-  constructor(values = {}) {
-    this.setValues(values);
-  }
+**MISSION:** To cryptographically secure, sign, and anchor the definitive state of approved governance artifacts (GIRM payload) by generating the verifiable `IB_Reference` prior to System Evolution Protocol (GSEP) deployment initiation.
 
-  setValues(values) {
-    Object.assign(this, values);
-  }
+**INTEGRATION:** Execution is strictly conditional on `EGOM.State: APPROVED`. This module acts as the mandatory gateway, translating validated governance output into the immutable input (`IB_Reference`) required by the Governance Integrity Reconciliation & Audit Module (GIRAM I-S01) and ensuring permanent ledger commitment via DILS.
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
+### Formal I/O Schemas:
 
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
+*   **Input:**
+    *   `GIRM_Artifacts`: Payload<ArtifactSet> | Critical governance file set and validated change metadata.
+    *   `EGOM_Approval_Token`: Payload<TimestampedSignature> | Formal approval token from Executive Governance Operations Module.
+*   **Intermediate Data Structures:**
+    *   `IB_Commitment_Payload`: Serialized artifact hash derived from the BHG phase, structured according to the `CNRE_Schema_V1`.
+*   **Output (Success):**
+    *   `IB_Reference`: String | Non-Repudiable Cryptographic Anchor (Signed CNRE Hash).
+*   **Output (Failure):**
+    *   `System_State_Revert`: Signal the necessity for a controlled rollback to the pre-IBCM state.
+    *   `ALERT_BASELINE_FAIL`: Critical system alert signal.
 
-  validate() {
-    try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-}
+### Execution Phases:
 
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
+1.  **Phase I: Context and Integrity Validation (CIV):
+    *   **Action:** Verify the validity and expiration of the `EGOM_Approval_Token`. Check input `GIRM_Artifacts` completeness and confirm artifact hashes match change management manifest (`CrypVer-S02`).
 
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
+2.  **Phase II: Baseline Hash Generation (BHG):
+    *   **Action:** Concatenate the approved artifact payload and metadata. Perform Systemic Hash Derivation (SHD) using SHA-512 to generate the composite root hash.
+    *   **Output:** Unsigned `IB_Commitment_Payload` structured using the `CNRE_Schema_V1` (incorporating hash, timestamp, artifact identifiers).
 
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
+3.  **Phase III: Immutable Commitment Signing (ICS):
+    *   **Action:** Utilize the system's designated private key via `CrypSig-S04` to cryptographically sign the `IB_Commitment_Payload`. This resulting signed package constitutes the definitive `IB_Reference`.
 
-  execute() {
-    this.handler();
-  }
-}
-
-class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
-
-  #status = "INIT";
-
-  get status() {
-    return this.#status;
-  }
-
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
-      }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-    }
-  }
-
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  configure(config) {
-    this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
-  }
-
-  validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-  }
-
-  async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
-  }
-
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
-  async destroy() {
-    this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
-  }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
-}
-
-const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
+4.  **Phase IV: Anchor Commitment and Logging (ACL):
+    *   **Action A (DILS Anchor):** Submit the `IB_Reference` directly to the Distributed Immutable Ledger System (DILS) via the designated D-02 Write Handler. Wait for ledger confirmation receipt.
+    *   **Action B (Audit Logging):** Log the full `IB_Commitment_Payload` and ledger transaction ID with the D-01 Audit Logger.
+    *   **Completion:** Signal IBCM state completion upon receiving DILS ledger confirmation.
