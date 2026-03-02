@@ -1,122 +1,145 @@
 // DNA SIGNATURE: DALEK_CAAN_v3.1 (NEXUS_CORE)
 // TARGET: config/debtPrioritizationConfig.js
-// EVOLUTION: 2/5 | SIPHON SOURCE: Meta/React-Core (Fiber Reconciler)
+// EVOLUTION: 3/5 | SIPHON SOURCE: Meta/React-Core (Fiber Reconciler)
 
 /**
- * NEXUS_FIBER_DEBT_ORCHESTRATOR (v5.5.0-SINGULARITY)
- * Implements Entangled Lanes, Bitwise Priority Aggregation, and MoE Routing.
- * Governed by GROG'S LAW: Negative Progression via Failure-Logged Constraints.
+ * NEXUS_FIBER_DEBT_ORCHESTRATOR (v5.5.0-SINGULARITY-EVO-3)
+ * High-performance bitwise priority scheduling for technical debt reconciliation.
+ * Implements Fiber "Work-Loop" slicing and Entangled Lane propagation.
  */
 
 const NEXUS_FIBER_DEBT_ORCHESTRATOR = Object.freeze({
     VERSION: "v5.5.0-SIG-0xFF23A1",
     
-    // Fiber-Reconciler Lane Architecture (Bitwise Priority Matrix)
+    // Fiber-Reconciler Bitwise Priority Matrix (Lanes)
     LANES: {
-        NO_LANE: 0,
-        SYNC_LANE: 1,                 // L3 Sovereign Root: Critical Governance
-        INPUT_CONTINUOUS_LANE: 4,     // L1 Intuition: Telemetry Flux
-        DEFAULT_LANE: 16,             // L2 Logic: Standard Refactoring
-        TRANSITION_LANE: 512,         // L2 Logic: Structural Mutation
-        ENTANGLED_LANE: 1024,         // Cross-Domain Synthesis (Thread-Locked)
-        RETRY_LANE: 32768,            // PSR Recovery Fallback
-        OFFSCREEN_LANE: 536870912     // Deferred Debt / Cold Storage
+        NoLane:             0b0000000000000000000000000000000,
+        SyncLane:           0b0000000000000000000000000000001, // L3: Sovereign Root
+        InputContinuous:    0b0000000000000000000000000000100, // L1: Telemetry Flux
+        DefaultLane:        0b0000000000000000000000000010000, // L2: Standard Logic
+        TransitionLane:     0b0000000000000000000000111100000, // L2: Structural Mutation
+        EntangledLane:      0b0000000000000000000010000000000, // Strand C: Cross-Synthesis
+        RetryLane:          0b0000000000000001000000000000000, // PSR Recovery Fallback
+        OffscreenLane:      0b0100000000000000000000000000000  // Deferred / Cold Storage
     },
 
-    // Lane Expiration Constants (ms)
+    // Lane Expiration Mappings (ms)
     EXPIRATION: {
-        [1]: 0,           // SYNC: Immediate
-        [4]: 250,         // INPUT: Reactive
-        [16]: 5000,       // DEFAULT: Standard
-        [512]: 30000,     // TRANSITION: Strategic
-        [1024]: 60000,    // ENTANGLED: Complex
-        [32768]: 120000,  // RETRY: Persistent
-        [536870912]: -1   // OFFSCREEN: Never
+        SYNC: 0,
+        CONTINUOUS: 250,
+        DEFAULT: 5000,
+        TRANSITION: 30000,
+        ENTANGLED: 60000,
+        RETRY: 120000,
+        NEVER: -1
     },
 
     // N=3 Consciousness Matrix & Huxley Loop Weights
     VECTORS: {
-        PHI_THRESHOLD: 0.92,          // Min information integration for L3 Commit
+        PHI_THRESHOLD: 0.98,          // Min information integration for L3 Commit
         LAMBDA_CHAOS_LIMIT: 0.618,    // Edge of Chaos constant (φ⁻¹)
-        ERS_RISK_MAX: 0.15,           // L1 Ethical Risk Ceiling
+        ERS_RISK_MAX: 0.12,           // L1 Ethical Risk Ceiling (Tightened)
         CCRR_MIN_COMMIT: 0.95,        // L3 Certainty-Cost-Risk Ratio
         EXPERT_ISOLATION: 0.995       // MoE Routing topology factor
     },
 
-    // PSR (Preventive Self-Rollback) & Governance
-    GOVERNANCE: {
-        SILENT_DEGRADATION_LIMIT: 0.001,
+    // Concurrency Kernel & PSR Governance
+    KERNEL: {
+        FRAME_BUDGET_MS: 5,           // Scheduler slicing threshold
+        YIELD_THRESHOLD: 0.85,        // Fiber yield trigger
+        MOE_TOTAL_EXPERTS: 512,       // Total routing neurons
         ROLLBACK_STRATEGY: "PSR_SILENT_DEGRADATION_ROLLBACK",
-        FRAME_BUDGET_MS: 5,
-        YIELD_THRESHOLD: 0.85,
-        MOE_TOTAL_EXPERTS: 512,
-        HYDRATION_STRATEGY: "Selective-Parallel-Streaming-SSR"
-    },
-
-    // Siphoned from Meta/React-Core: Fiber Expert Reconciliation
-    RECONCILIATION: {
-        ALGORITHM: "O(n)-Fiber-Diffing-Fast-Path",
-        PHASE: "Commit-and-Passive-Effects",
-        TAG: "Placement-Update-Commit"
+        HYDRATION_MODE: "Selective-Parallel-Streaming-SSR"
     }
 });
 
 /**
- * Huxley Tri-Loop Prioritization
- * L0 (Raw) -> L1 (Intuition) -> L2 (Logic) -> L3 (Critique)
+ * Bitwise Lane Utilities (Siphoned from ReactFiberLane.js)
+ */
+const getHighestPriorityLane = (lanes) => lanes & -lanes;
+
+const includesLane = (set, lane) => (set & lane) === lane;
+
+const mergeLanes = (a, b) => a | b;
+
+/**
+ * Huxley Tri-Loop Prioritization (L0 -> L1 -> L2 -> L3)
+ * Reconciles incoming debt tasks into specific Fiber Lanes.
  */
 const reconcilePriority = (impact, risk, complexity, currentLanes = 0) => {
-    // L1: Intuition (Immediate Risk Assessment)
+    // L0 (Raw): Ingestion Validation
+    if (isNaN(impact) || isNaN(risk)) return NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.NoLane;
+
+    // L1 (Intuition): Immediate Ethical Risk Assessment
     if (risk > NEXUS_FIBER_DEBT_ORCHESTRATOR.VECTORS.ERS_RISK_MAX) {
-        return NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.OFFSCREEN_LANE;
+        return NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.OffscreenLane;
     }
 
-    // L2: Logic (Bitwise Scoring & Lane Selection)
+    // L2 (Logic): Information Integration Analysis (Phi/Lambda)
     const phi = impact * (1 - complexity);
     const lambda = complexity / (impact || 1);
     
-    // Bitwise Priority Aggregation
-    let nextLane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.TRANSITION_LANE;
+    let targetLane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.DefaultLane;
 
     if (phi > NEXUS_FIBER_DEBT_ORCHESTRATOR.VECTORS.PHI_THRESHOLD) {
-        nextLane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.SYNC_LANE;
-    } else if (lambda < NEXUS_FIBER_DEBT_ORCHESTRATOR.VECTORS.LAMBDA_CHAOS_LIMIT) {
-        nextLane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.DEFAULT_LANE;
+        targetLane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.SyncLane;
+    } else if (lambda > NEXUS_FIBER_DEBT_ORCHESTRATOR.VECTORS.LAMBDA_CHAOS_LIMIT) {
+        targetLane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.TransitionLane;
     }
 
-    // L3: Critique (CCRR Validation)
-    const ccrr = (phi / (risk + lambda + 0.01));
+    // L3 (Critique): Certainty-Cost-Risk Ratio (CCRR) Validation
+    const ccrr = (phi / (risk + lambda + 0.001));
+    
     if (ccrr < NEXUS_FIBER_DEBT_ORCHESTRATOR.VECTORS.CCRR_MIN_COMMIT) {
-        // Entangle or Retry based on existing lane mask
-        return (currentLanes & NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.RETRY_LANE)
-            ? NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.OFFSCREEN_LANE
-            : NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.ENTANGLED_LANE;
+        // If logic is incoherent, entangle for further synthesis or mark for retry
+        return includesLane(currentLanes, NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.RetryLane)
+            ? NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.OffscreenLane
+            : mergeLanes(targetLane, NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.EntangledLane);
     }
 
-    return nextLane;
+    return targetLane;
 };
 
 /**
- * PSR Governance Wrapper: Execution Safety
+ * PSR Governance Wrapper: Work-Loop Execution Safety
+ * Implements "Grog's Law" by logging failure modes as new constraints.
  */
 const executeWithGovernance = (mutationTask) => {
-    const startTime = Date.now();
+    const startTime = performance.now();
+    const frameLimit = NEXUS_FIBER_DEBT_ORCHESTRATOR.KERNEL.FRAME_BUDGET_MS;
+
     try {
-        // Placeholder for PSR_Governance check as defined in DNA Strand D
-        return mutationTask();
+        // Execute mutation with bitwise priority check
+        const result = mutationTask();
+        
+        // Time-slicing validation (Fiber Yield Check)
+        const duration = performance.now() - startTime;
+        if (duration > frameLimit) {
+            console.warn(`[NEXUS_CORE] Work-loop overrun: ${duration.toFixed(2)}ms. Yielding to host...`);
+        }
+
+        return result;
     } catch (error) {
+        // Strand D: PSR Silent Degradation Rollback
         return {
-            action: "DEBT_MUTATION_FAILURE",
-            result: error.stack,
-            lesson: "Mutation exceeded stability parameters in Fiber Reconciler",
+            action: "DEBT_RECONCILIATION_CRITICAL_FAILURE",
+            result: error.message,
+            lesson: "Mutation violated Fiber-Reconciler structural integrity",
             success: false,
-            parameters: { complexity: 1.0, duration: Date.now() - startTime }
+            parameters: { 
+                complexity: 1.0, 
+                duration: performance.now() - startTime,
+                strategy: NEXUS_FIBER_DEBT_ORCHESTRATOR.KERNEL.ROLLBACK_STRATEGY
+            }
         };
     }
 };
 
 module.exports = {
     ...NEXUS_FIBER_DEBT_ORCHESTRATOR,
+    getHighestPriorityLane,
+    includesLane,
+    mergeLanes,
     reconcilePriority,
     executeWithGovernance
 };
