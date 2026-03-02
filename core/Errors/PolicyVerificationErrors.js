@@ -1,5 +1,3 @@
-const { RobustCustomError } = require('@core/errors/RobustCustomError');
-
 /**
  * PolicyVerificationErrors.js
  * Sovereign AGI v94.1 Structured Error Definitions
@@ -7,57 +5,33 @@ const { RobustCustomError } = require('@core/errors/RobustCustomError');
  * within the Policy Formal Verification Unit.
  */
 
-class PolicyVerificationError extends RobustCustomError {
-    static STATUS_CODE = 'PVF_ERROR';
-
-    constructor(message, status = PolicyVerificationError.STATUS_CODE) {
+class PolicyVerificationError extends Error {
+    constructor(message, status = 'PVF_ERROR') {
         super(message);
-        // RobustCustomError handles stack trace capture and setting the name.
+        this.name = this.constructor.name;
         this.status = status;
+        // Capture the stack trace while avoiding the constructor call itself
+        Error.captureStackTrace(this, this.constructor); 
     }
 }
 
-/**
- * Private helper function to encapsulate the synchronous, repetitive logic for defining
- * a standardized PolicyVerificationError derived class, including setting the static
- * status code and providing a constructor with a default message.
- *
- * @param {string} name The desired class name.
- * @param {string} statusCode The unique status code for the error.
- * @param {string} defaultMessage The message used if none is provided during instantiation.
- * @returns {typeof PolicyVerificationError} A new class extending PolicyVerificationError.
- */
-const _definePolicyErrorClass = (name, statusCode, defaultMessage) => {
-    const DerivedError = class extends PolicyVerificationError {
-        static STATUS_CODE = statusCode;
+class PolicyConfigError extends PolicyVerificationError {
+    constructor(message = "Configuration required for verification failed to load or was invalid.") {
+        super(message, 'CONFIG_LOAD_FAILURE');
+    }
+}
 
-        constructor(message = defaultMessage) {
-            // Delegate message and specific status code to the base class constructor.
-            super(message, statusCode);
-        }
-    };
-    // Ensure the generated class has the correct name for stack traces/debugging
-    Object.defineProperty(DerivedError, 'name', { value: name });
-    return DerivedError;
-};
+class PolicySchemaValidationError extends PolicyVerificationError {
+    constructor(message = "Proposed policy update failed structural schema validation.") {
+        super(message, 'SCHEMA_VIOLATION');
+    }
+}
 
-const PolicyConfigError = _definePolicyErrorClass(
-    'PolicyConfigError',
-    'CONFIG_LOAD_FAILURE',
-    "Configuration required for verification failed to load or was invalid."
-);
-
-const PolicySchemaValidationError = _definePolicyErrorClass(
-    'PolicySchemaValidationError',
-    'SCHEMA_VIOLATION',
-    "Proposed policy update failed structural schema validation."
-);
-
-const PolicyAxiomaticViolationError = _definePolicyErrorClass(
-    'PolicyAxiomaticViolationError',
-    'FAILURE_AXIOMATIC',
-    "Formal Verification Engine detected a violation of core policy axioms."
-);
+class PolicyAxiomaticViolationError extends PolicyVerificationError {
+    constructor(message = "Formal Verification Engine detected a violation of core policy axioms.") {
+        super(message, 'FAILURE_AXIOMATIC');
+    }
+}
 
 module.exports = {
     PolicyVerificationError,
