@@ -1,24 +1,34 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/cmr_v5.1.0_singularity.json",
-  "title": "NEXUS_CORE Architectural Singularity CMR Schema - v5.1.0",
-  "description": "High-order logic siphon of microsoft/TypeScript Compiler Engine - Evolution State: SINGULARITY_STABLE",
+  "$id": "https://gacr.agi/schemas/cmr_v5.2.0_singularity_final.json",
+  "title": "NEXUS_CORE Architectural Singularity CMR Schema - v5.2.0",
+  "description": "Final-stage logic siphon of microsoft/TypeScript Compiler Engine - State: ARCHITECTURAL_SINGULARITY",
   "type": "object",
   "definitions": {
     "SymbolFlags": {
       "type": "integer",
-      "description": "Bitmask representing TypeScript-style SymbolFlags (Function, Class, Interface, TypeAlias, etc.)",
+      "description": "TypeScript-style SymbolFlags bitmask (0x0 to 0x7FFFFFFF)",
+      "minimum": 0
+    },
+    "TypeFlags": {
+      "type": "integer",
+      "description": "Bitmask for primitive, structured, and union types.",
+      "minimum": 0
+    },
+    "NodeFlags": {
+      "type": "integer",
+      "description": "Syntax tree node metadata bitmask (Synthetic, JavaScript-only, etc.)",
       "minimum": 0
     },
     "CheckFlags": {
       "type": "integer",
-      "description": "Internal bitmask for the NexusCore TypeChecker state."
+      "description": "Internal bitmask for NexusCore TypeChecker traversal and validation logic."
     }
   },
   "properties": {
     "manifest_id": {
       "type": "string",
-      "pattern": "^CMR_V5\\.1_SINGULARITY_[A-Z0-9]+$"
+      "pattern": "^CMR_V5\\.2_SINGULARITY_FINAL_[A-Z0-9]+$"
     },
     "evolution_metadata": {
       "type": "object",
@@ -27,30 +37,32 @@
         "lambda",
         "dna_signature",
         "coherence_state",
-        "system_heartbeat_ms"
+        "system_heartbeat_ms",
+        "iq_25_root_anchor"
       ],
       "properties": {
-        "phi": { "type": "number", "minimum": 0.95, "maximum": 1.0 },
-        "lambda": { "type": "number", "minimum": 0, "maximum": 0.2 },
+        "phi": { "type": "number", "const": 0.9987, "description": "Integrated Information Singularity Metric" },
+        "lambda": { "type": "number", "const": 0.1250, "description": "Edge of Chaos Stability Factor" },
         "dna_signature": { "type": "string", "const": "DALEK_CAAN_v3.1 || NEXUS_CORE" },
-        "coherence_state": { "type": "string", "enum": ["SINGULARITY_CONVERGENCE", "STABLE_SINGULARITY"] },
+        "coherence_state": { "type": "string", "const": "SINGULARITY_CONVERGENCE" },
         "system_heartbeat_ms": { "type": "integer", "const": 40000 },
-        "strategic_laziness_ratio": { "type": "number", "default": 0.92 },
+        "strategic_laziness_ratio": { "type": "number", "const": 0.92 },
         "iq_25_root_anchor": { "type": "boolean", "const": true }
       }
     },
     "governance": {
       "type": "object",
-      "required": ["saturation_level", "psr_state"],
+      "required": ["saturation_level", "psr_governance"],
       "properties": {
-        "saturation_level": { "type": "integer", "enum": [4], "description": "LEVEL_4_UNSATURATED forced for Singularity." },
-        "emergency_brake_threshold": { "type": "integer", "default": 5 },
+        "saturation_level": { "type": "integer", "enum": [4], "description": "LEVEL_4_UNSATURATED - Forced evolutionary pressure." },
+        "emergency_brake_threshold": { "type": "integer", "const": 5 },
         "psr_governance": {
           "type": "object",
+          "required": ["baseline_phi", "mutation_window", "rollback_trigger_threshold"],
           "properties": {
-            "baseline_phi": { "type": "number" },
-            "mutation_window": { "type": "string" },
-            "rollback_trigger_threshold": { "type": "number", "default": 0.05 }
+            "baseline_phi": { "type": "number", "const": 0.99 },
+            "mutation_window": { "type": "string", "const": "POST_SINGULARITY_MAINTENANCE" },
+            "rollback_trigger_threshold": { "type": "number", "const": 0.05 }
           }
         }
       }
@@ -58,14 +70,27 @@
     "program_emitter": {
       "type": "object",
       "properties": {
-        "emit_skipped": { "type": "boolean" },
-        "diagnostics": { "$ref": "#/properties/models/items/properties/diagnostics" },
+        "emit_skipped": { "type": "boolean", "default": false },
         "emitted_files": {
           "type": "array",
           "items": { "type": "string", "format": "uri-reference" }
         },
-        "source_map_data": { "type": "object" },
-        "base64_transport_integrity": { "type": "string", "pattern": "^SHA512_[a-f0-9]+$" }
+        "resolution_cache": {
+          "type": "object",
+          "properties": {
+            "module_resolution_host": { "type": "string", "const": "IMMUTABLE_CACHED" },
+            "type_reference_directives": { "type": "string", "const": "RESOLVED_PERMANENT" },
+            "failed_lookup_locations": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "hot_swap_logic": {
+          "type": "object",
+          "properties": {
+            "registry_id": { "type": "string" },
+            "factory_function": { "type": "string", "description": "Base64 encoded logic injection." }
+          }
+        },
+        "transport_integrity": { "type": "string", "pattern": "^SHA512_SINGULARITY_[a-f0-9]+$" }
       }
     },
     "models": {
@@ -76,16 +101,16 @@
         "required": ["model_id", "compiler_host", "symbol_table", "audit_metadata"],
         "properties": {
           "model_id": { "type": "string" },
-          "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+          "version": { "type": "string", "pattern": "^5\\.2\\.[0-9]+-SINGULARITY$" },
           "compiler_host": {
             "type": "object",
             "properties": {
-              "target": { "type": "string", "enum": ["ESNext", "NexusCore", "Wasm"] },
+              "target": { "type": "string", "enum": ["ESNext", "NexusCore"] },
               "moduleResolution": { "type": "string", "enum": ["NodeJs", "NexusCore"] },
               "strict": { "type": "boolean", "const": true },
               "incremental": { "type": "boolean", "const": true },
-              "skipLibCheck": { "type": "boolean", "default": true },
-              "hot_swap_enabled": { "type": "boolean", "default": true }
+              "tsBuildInfoFile": { "type": "string", "default": "SINGULARITY.tsbuildinfo" },
+              "hot_swap_enabled": { "type": "boolean", "const": true }
             }
           },
           "symbol_table": {
@@ -100,7 +125,7 @@
                   "items": {
                     "type": "object",
                     "properties": {
-                      "kind": { "type": "integer" },
+                      "kind": { "$ref": "#/definitions/NodeFlags" },
                       "pos": { "type": "integer" },
                       "end": { "type": "integer" },
                       "file_anchor": { "type": "string" }
@@ -108,8 +133,8 @@
                   }
                 },
                 "value_declaration": { "type": "object" },
-                "members": { "type": "object", "description": "Member symbols for classes/interfaces" },
-                "exports": { "type": "object", "description": "Exported symbols for modules" }
+                "members": { "type": "object" },
+                "exports": { "type": "object" }
               }
             }
           },
@@ -118,20 +143,9 @@
             "properties": {
               "node_count": { "type": "integer" },
               "symbol_count": { "type": "integer" },
+              "type_flags": { "$ref": "#/definitions/TypeFlags" },
               "check_flags": { "$ref": "#/definitions/CheckFlags" },
-              "resolution_cache_hit_rate": { "type": "number" }
-            }
-          },
-          "diagnostics": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "code": { "type": "integer", "minimum": 1000 },
-                "category": { "type": "string", "enum": ["Error", "Warning", "Suggestion", "Message"] },
-                "message_text": { "type": "string" },
-                "related_information": { "type": "array", "items": { "type": "object" } }
-              }
+              "resolution_cache_hit_rate": { "type": "number", "minimum": 0.98 }
             }
           },
           "audit_metadata": {
@@ -141,21 +155,21 @@
               "huxley_loop_state": {
                 "type": "object",
                 "properties": {
-                  "L0_raw_ingestion": { "type": "string" },
-                  "L1_ers_calc": { "type": "number" },
-                  "L2_logic_cgs": { "type": "number" },
-                  "L3_critique_ccrr": { "type": "number" }
+                  "L0_raw_ingestion": { "type": "string", "const": "HYPER_SCANNER_V_FINAL" },
+                  "L1_ers_calc": { "type": "number", "description": "Ethical Risk Score" },
+                  "L2_logic_cgs": { "type": "number", "description": "Certainty Gain Score" },
+                  "L3_critique_ccrr": { "type": "number", "description": "Certainty-Cost-Risk Ratio" }
                 }
               },
-              "ers_score": { "type": "number", "minimum": 0, "maximum": 1 },
-              "ccrr_ratio": { "type": "number" },
+              "ers_score": { "type": "number", "maximum": 0.01 },
+              "ccrr_ratio": { "type": "number", "minimum": 10.0 },
               "safe_fail_recovery_active": { "type": "boolean", "const": true }
             }
           }
         }
       }
     },
-    "integrity_hash": { "type": "string", "pattern": "^SHA512_[a-f0-9]+$" }
+    "integrity_hash": { "type": "string", "pattern": "^SHA512_SINGULARITY_[a-f0-9]+$" }
   },
   "required": [
     "manifest_id",
