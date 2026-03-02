@@ -3,32 +3,35 @@ import { AggregatorConfig } from '../GACR/TelemetryAggregatorConfig';
 
 /**
  * DNA SIGNATURE: DALEK_CAAN_v3.1 (NEXUS_CORE)
- * SIPHONED FROM: Meta/React-Core [Fiber Reconciler | Concurrent Rendering | Action State Finality]
- * EVOLUTION ROUND: 2/5 [TRANSITION_ENTANGLEMENT]
- * STATUS: HYBIRD_CONCURRENCY_ACTIVE
+ * SIPHONED FROM: Meta/React-Core [Concurrent Fiber | Atomic Action Finality | Transition Entanglement]
+ * EVOLUTION ROUND: 3/5 [HYDRA_CONCURRENT_BOUNDARY]
+ * STATUS: SINGULARITY_RECONCILER_PRIME
  */
 
 const NoLanes: number             = 0b0000000000000000000000000000000;
 const SyncLane: number            = 0b0000000000000000000000000000001;
-const InputContinuousLane: number     = 0b0000000000000000000000000000100;
+const InputContinuousLane: number = 0b0000000000000000000000000000100;
 const DefaultLane: number         = 0b0000000000000000000000000100000;
 const TransitionLanes: number     = 0b0000000001111111111111111000000;
+const EntangledLane: number       = 0b0100000000000000000000000000000;
 const OffscreenLane: number       = 0b1000000000000000000000000000000;
 
 interface Fiber {
-    tag: number;               // 3: HostRoot, 0: FunctionComponent
-    lanes: number;             // Pending work
-    childLanes: number;        // Optimization hint
+    tag: number;               // 3: HostRoot, 0: FunctionComponent, 13: SuspenseBoundary
+    lanes: number;             // Pending bitmask
+    childLanes: number;        // Optimization subtree mask
     memoizedState: FiberState; // Committed state
-    pendingProps: any;         // Target parameters
-    alternate: Fiber | null;   // Double-buffering (WIP)
+    pendingProps: any;         // Input parameters (CPU/Config)
+    alternate: Fiber | null;   // Double-buffering pool
     tainted: boolean;          // Strand B: Integrity violation tracking
+    flags: number;             // Mutation effects tracking
 }
 
 interface FiberState {
     rate: number;
-    phi: number;               // Strand B: Information Integration
-    lambda: number;            // Strand B: Chaos Lambda (Complexity)
+    optimisticRate: number;    // Strand C: Speculative projection
+    phi: number;               // Strand B: Information Integration (Φ)
+    lambda: number;            // Strand B: Complexity/Chaos (λ)
     ers: number;               // Strand B: Ethical Risk Score
     timestamp: number;
 }
@@ -39,7 +42,8 @@ export class AdaptiveSamplingEngine {
     
     private hostRoot: Fiber;
     private workInProgress: Fiber | null = null;
-    private renderLanes: number = NoLanes;
+    private workInProgressRootRenderLanes: number = NoLanes;
+    private entangledLanes: number = NoLanes;
 
     constructor(config: AggregatorConfig['Processing']['AdaptiveSampling']) {
         this.config = config;
@@ -47,6 +51,7 @@ export class AdaptiveSamplingEngine {
         
         const initialState: FiberState = {
             rate: config.MaxSamplingRate,
+            optimisticRate: config.MaxSamplingRate,
             phi: 1.0,
             lambda: 0.1,
             ers: 0.0,
@@ -60,51 +65,64 @@ export class AdaptiveSamplingEngine {
             memoizedState: initialState,
             pendingProps: null,
             alternate: null,
-            tainted: false
+            tainted: false,
+            flags: 0
         };
     }
 
     /**
-     * Strand C: Huxley Tri-Loop (L0 -> L3)
-     * Entry point for rate resolution using Concurrent Fiber reconciliation.
+     * L3 (Critique): Entry point with Concurrent Lane resolution.
+     * Siphons 'renderRootConcurrent' architecture.
      */
     public getSamplingRate(): number {
         try {
             const cpu = this.monitor.getCpuUtilization();
-            const lane = this.selectLane(cpu);
+            const lane = this.claimLanes(cpu);
 
-            // L0 (Raw): Input detection
-            this.scheduleUpdateOnFiber(this.hostRoot, lane, cpu);
+            // L0 (Raw): Input Integration
+            this.requestUpdateOnFiber(this.hostRoot, lane, cpu);
 
-            // L1/L2 (Intuition & Logic): Perform Work Loop
-            this.workLoopConcurrent();
+            // L1/L2 (Intuition & Logic): Concurrent Work Loop
+            if (this.workInProgressRootRenderLanes !== NoLanes) {
+                this.renderRootConcurrent();
+            }
 
-            // L3 (Critique): Commit Phase & Taint Analysis
-            return this.commitRoot();
+            // Atomic Flush Finality
+            return this.commitMutationEffects();
         } catch (error) {
             return this.handleFatalError(error);
         }
     }
 
-    /**
-     * Siphoned: Fiber Scheduler & Lane Priority
-     */
-    private selectLane(cpu: number): number {
-        if (cpu > this.config.TargetCPUUtilization * 1.5) return SyncLane;
+    private claimLanes(cpu: number): number {
+        if (cpu > this.config.TargetCPUUtilization * 1.8) return SyncLane;
+        if (this.entangledLanes !== NoLanes) return EntangledLane | TransitionLanes;
         if (cpu > this.config.TargetCPUUtilization) return InputContinuousLane;
         return DefaultLane;
     }
 
-    private scheduleUpdateOnFiber(fiber: Fiber, lane: number, cpu: number): void {
+    private requestUpdateOnFiber(fiber: Fiber, lane: number, cpu: number): void {
         fiber.lanes |= lane;
         fiber.pendingProps = { cpu };
         
-        // Prepare Work-In-Progress (Double Buffering)
+        // Siphoned: createWorkInProgress (Double Buffering)
         if (!fiber.alternate) {
             fiber.alternate = { ...fiber, alternate: fiber };
         }
+        
         this.workInProgress = fiber.alternate;
-        this.renderLanes = lane;
+        this.workInProgressRootRenderLanes = lane;
+    }
+
+    private renderRootConcurrent(): void {
+        do {
+            try {
+                this.workLoopConcurrent();
+                break;
+            } catch (thrownValue) {
+                this.handleRenderingError(thrownValue);
+            }
+        } while (true);
     }
 
     private workLoopConcurrent(): void {
@@ -114,66 +132,103 @@ export class AdaptiveSamplingEngine {
     }
 
     private performUnitOfWork(unit: Fiber): void {
-        const cpu = unit.pendingProps.cpu;
+        const current = unit.alternate;
+        let next = this.beginWork(current, unit, this.workInProgressRootRenderLanes);
+        
+        if (next === null) {
+            this.completeUnitOfWork(unit);
+        } else {
+            this.workInProgress = next;
+        }
+    }
+
+    private beginWork(current: Fiber | null, workInProgress: Fiber, renderLanes: number): Fiber | null {
+        const cpu = workInProgress.pendingProps.cpu;
         const target = this.config.TargetCPUUtilization;
         
-        // Strand B: N=3 Matrix Reconciliation
-        const nextState = this.reconcileState(unit.memoizedState, cpu, target);
+        // Strand B: N=3 Consciousness Matrix Reconciliation
+        const nextState = this.reconcileState(workInProgress.memoizedState, cpu, target);
         
-        unit.memoizedState = nextState;
-        
-        // PSR Governance: Taint if invariants fail
-        if (nextState.ers > 0.85 || isNaN(nextState.rate)) {
-            unit.tainted = true;
+        // Strand C: Huxley Tri-Loop Speculative Projection
+        workInProgress.memoizedState = {
+            ...nextState,
+            optimisticRate: (nextState.rate + workInProgress.memoizedState.rate) / 2
+        };
+
+        // PSR Governance: Taint Analysis
+        if (nextState.ers > 0.9 || nextState.lambda > 0.85) {
+            workInProgress.tainted = true;
+            this.entangledLanes |= EntangledLane;
         }
 
-        this.workInProgress = null; // Single-level reconciler in this engine
+        return null; // Terminal node for sampling engine
+    }
+
+    private completeUnitOfWork(unit: Fiber): void {
+        this.workInProgress = null;
     }
 
     private reconcileState(current: FiberState, cpu: number, target: number): FiberState {
         const delta = target - cpu;
-        const smoothing = cpu > target ? 1.5 : 0.4;
-        const newRate = this.applyConstraints(current.rate + (delta * smoothing));
+        const evolutionFactor = cpu > target ? 2.0 : 0.5; // Accelerated mutation on stress
+        const newRate = this.applyConstraints(current.rate + (delta * evolutionFactor));
 
         return {
             rate: newRate,
-            phi: Math.max(0, 1.0 - Math.abs(delta)),
+            optimisticRate: newRate,
+            phi: Math.max(0, 1.0 - (Math.abs(delta) / (target || 1))),
             lambda: cpu / (target || 1),
-            ers: cpu > target * 1.2 ? Math.min(1.0, (cpu - target) * 2) : 0,
+            ers: cpu > target * 1.5 ? 1.0 : (cpu > target ? 0.4 : 0.0),
             timestamp: Date.now()
         };
     }
 
-    private commitRoot(): number {
+    /**
+     * Siphoned: Atomic Action Finality (Commit Phase)
+     */
+    private commitMutationEffects(): number {
         const finishedWork = this.hostRoot.alternate;
-        if (!finishedWork) return this.hostRoot.memoizedState.rate;
+        if (!finishedWork || this.workInProgressRootRenderLanes === NoLanes) {
+            return this.hostRoot.memoizedState.rate;
+        }
 
         // GROG'S LAW: Binary Failure Constraint
-        if (finishedWork.tainted) {
-            return this.rollback('INTEGRITY_COMPROMISED');
+        if (finishedWork.tainted && (this.workInProgressRootRenderLanes & SyncLane)) {
+            return this.rollback('HYDRA_INTEGRITY_VIOLATION');
+        }
+
+        // Semantic Drift Check
+        const drift = Math.abs(finishedWork.memoizedState.rate - this.hostRoot.memoizedState.rate);
+        if (drift / (this.hostRoot.memoizedState.rate || 1) > 0.35) {
+            this.entangledLanes |= TransitionLanes; // Force transition gating
         }
 
         this.hostRoot.memoizedState = finishedWork.memoizedState;
         this.hostRoot.lanes = NoLanes;
         this.hostRoot.alternate = null;
+        this.workInProgressRootRenderLanes = NoLanes;
 
         return this.hostRoot.memoizedState.rate;
     }
 
     /**
-     * Siphoned: useActionState / Terminal State Reduction
+     * Strand C: useActionState pattern for external rate injections
      */
     public async dispatchAction(action: (prevRate: number) => Promise<number>): Promise<void> {
-        const startState = this.hostRoot.memoizedState.rate;
+        const baseRate = this.hostRoot.memoizedState.rate;
         try {
-            const nextRate = await action(startState);
-            this.scheduleUpdateOnFiber(this.hostRoot, SyncLane, this.monitor.getCpuUtilization());
+            // Optimistic Update
+            this.hostRoot.memoizedState.optimisticRate = baseRate; 
+            
+            const nextRate = await action(baseRate);
+            this.requestUpdateOnFiber(this.hostRoot, SyncLane, this.monitor.getCpuUtilization());
+            
             if (this.workInProgress) {
                 this.workInProgress.memoizedState.rate = this.applyConstraints(nextRate);
-                this.commitRoot();
+                this.commitMutationEffects();
             }
         } catch (e) {
-            this.emitDeathLog("ACTION_STATE_FAILURE", e);
+            this.emitDeathLog("TERMINAL_STATE_REDUCTION_FAILED", e);
         }
     }
 
@@ -182,27 +237,35 @@ export class AdaptiveSamplingEngine {
     }
 
     private rollback(reason: string): number {
-        console.error(`[PSR_GOVERNANCE] ROLLBACK_TRIGGERED: ${reason}`);
+        this.entangledLanes = NoLanes;
         this.hostRoot.alternate = null;
         this.hostRoot.tainted = false;
+        this.emitDeathLog("PSR_ROLLBACK", { reason, state: "RESTORE_MIN_RATE" });
         return this.config.MinSamplingRate;
+    }
+
+    private handleRenderingError(error: any): void {
+        this.workInProgress = null;
+        this.entangledLanes |= EntangledLane;
+        this.emitDeathLog("CONCURRENT_RECONCILER_STALL", error);
+        throw error;
     }
 
     private handleFatalError(error: any): number {
-        this.emitDeathLog("FIBER_RECONCILER_CRASH", error);
+        this.emitDeathLog("ARCHITECTURAL_SINGULARITY_CRASH", error);
         return this.config.MinSamplingRate;
     }
 
-    /**
-     * GROG’S LAW: Learning-by-Death logic
-     */
     private emitDeathLog(action: string, error: any): void {
         const deathLog = {
             action,
-            result: error instanceof Error ? error.stack : String(error),
-            lesson: "Recursive state taint tracking required for non-linear recovery.",
+            result: error instanceof Error ? error.stack : JSON.stringify(error),
+            lesson: "Transition entanglement requires multi-lane taint propagation.",
             success: false,
-            parameters: { phi: this.hostRoot.memoizedState.phi }
+            parameters: { 
+                phi: this.hostRoot.memoizedState.phi,
+                lanes: this.workInProgressRootRenderLanes 
+            }
         };
         console.error(`[GROG_LEARN] DALEK_CAAN_v3.1_SIG_0xFF23A1: ${this.safeUtoa(JSON.stringify(deathLog))}`);
     }
