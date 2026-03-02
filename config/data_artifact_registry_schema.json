@@ -1,22 +1,34 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Data Artifact Registry Schema (v98.4 NEXUS_CORE Siphon-Grog)",
-  "description": "Architectural singularity substrate for logic siphoning. Implements MLA latent projections and PSR governance protocols.",
+  "title": "Data Artifact Registry Schema (v3.5.2-SINGULARITY-EVO-4)",
+  "description": "Architectural singularity substrate. Implements DeepSeek-V2.5 MLA (Multi-Head Latent Attention) and Huxley Tri-Loop L0-L3 reasoning governance.",
   "type": "object",
-  "required": ["registry_version", "saturation_state", "artifacts"],
+  "required": [
+    "registry_version",
+    "saturation_state",
+    "artifacts"
+  ],
   "properties": {
     "registry_version": {
       "type": "string",
-      "description": "Systemic version (DNA VI). Current: v3.5.1-SINGULARITY_ROUND_3."
+      "description": "NEXUS_CORE Evolution Version. Current: v3.5.2-EVO-4 (DALEK CAAN v3.1)."
     },
     "saturation_state": {
       "type": "object",
-      "required": ["level", "semantic_drift_threshold", "emergency_brake"],
-      "description": "DALEK CAAN v3.1 Evolution Boundary Governance parameters.",
+      "required": [
+        "level",
+        "semantic_drift_threshold",
+        "emergency_brake"
+      ],
       "properties": {
         "level": {
           "type": "integer",
-          "enum": [1, 2, 3, 4],
+          "enum": [
+            1,
+            2,
+            3,
+            4
+          ],
           "default": 2
         },
         "semantic_drift_threshold": {
@@ -26,52 +38,81 @@
         "emergency_brake": {
           "type": "boolean",
           "default": false
+        },
+        "iq25_alignment_lock": {
+          "type": "boolean",
+          "default": true,
+          "description": "Grog's Law: Enforce stupidity-first alignment to prevent unsafe complexity."
         }
       }
     },
     "artifacts": {
       "type": "object",
-      "description": "Sovereign Identifier Registry. Integrated with DeepSeek-V2.5 topology.",
       "patternProperties": {
         "^[A-Z][A-Z0-9_]{3,}$": {
           "type": "object",
-          "required": ["artifact_type", "source_system", "governance"],
+          "required": [
+            "artifact_type",
+            "source_system",
+            "governance"
+          ],
           "properties": {
             "artifact_type": {
               "type": "string",
               "enum": [
                 "PRIMITIVE",
                 "STRUCTURED",
-                "TIMESERIES",
                 "LATENT_VECTOR",
                 "MLA_LATENT_MATRIX",
                 "MLA_KV_CACHE",
                 "MOE_EXPERT_STATE",
-                "MOE_GATE_LOGS"
+                "MOE_SOFT_GATE",
+                "HUXLEY_REASONING_TRACE"
               ]
             },
             "source_system": {
               "type": "string",
-              "enum": ["CORE", "HMC", "SDR", "EXTERNAL", "SIPHON_ENGINE", "DEEPSEEK_V2_5", "MOE_ROUTER"]
+              "enum": [
+                "CORE",
+                "SDR",
+                "EXTERNAL",
+                "SIPHON_ENGINE",
+                "DEEPSEEK_V2_5",
+                "MOE_ROUTER",
+                "HUXLEY_ENGINE"
+              ]
             },
-            "description": { "type": "string" },
             "governance": {
               "type": "object",
-              "required": ["ers_threshold", "ccrr_threshold", "psr_threshold"],
+              "required": [
+                "ers_threshold",
+                "ccrr_threshold",
+                "psr_threshold"
+              ],
               "properties": {
                 "sensitivity_level": {
                   "type": "string",
-                  "enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "PII", "REGULATED", "SENSORY_LATENT"]
+                  "enum": [
+                    "PUBLIC",
+                    "INTERNAL",
+                    "CONFIDENTIAL",
+                    "SENSORY_LATENT",
+                    "Sovereign"
+                  ]
                 },
-                "retention_days": { "type": "integer", "minimum": 0 },
-                "ers_threshold": { "type": "number", "default": 0.15 },
-                "ccrr_threshold": { "type": "number", "default": 0.20 },
+                "ers_threshold": {
+                  "type": "number",
+                  "default": 0.15
+                },
+                "ccrr_threshold": {
+                  "type": "number",
+                  "default": 0.20
+                },
                 "psr_threshold": {
                   "type": "number",
-                  "default": 0.88,
-                  "description": "Baseline-Mutation-Comparison threshold (DNA II.3)."
+                  "default": 0.88
                 },
-                "identity_anchor_lock": {
+                "huxley_loop_enforced": {
                   "type": "boolean",
                   "default": true
                 }
@@ -80,19 +121,34 @@
             "operational_metadata": {
               "type": "object",
               "properties": {
-                "phi_coherence": { "type": "number", "default": 0.999 },
-                "lambda_entropy": { "type": "number", "default": 0.618 },
+                "phi_coherence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "lambda_entropy": {
+                  "type": "number",
+                  "default": 0.618
+                },
                 "compression_ratio": {
                   "type": "number",
-                  "default": 3.0,
-                  "description": "MLA latent compression (1536 / KV_DIM)."
+                  "description": "MLA latent compression (Standard: 3.0 or 1536/512)."
                 },
                 "moe_expert_config": {
                   "type": "object",
                   "properties": {
-                    "active_experts": { "type": "integer", "default": 8 },
-                    "aux_loss_weight": { "type": "number", "default": 0.001 },
-                    "gate_noise": { "type": "number", "default": 0.1 }
+                    "active_experts": {
+                      "type": "integer",
+                      "default": 8
+                    },
+                    "gate_noise_scaling": {
+                      "type": "number",
+                      "default": 0.1
+                    },
+                    "aux_loss_weight": {
+                      "type": "number",
+                      "default": 0.001
+                    }
                   }
                 }
               }
@@ -100,32 +156,66 @@
             "derivation_details": {
               "type": "object",
               "properties": {
-                "cgs_limit": { "type": "number", "default": 2.10 },
                 "siphon_chain": {
                   "type": "array",
-                  "items": { "type": "string" },
-                  "description": "Ordered model chain (Gemini-Architect -> Cerebras-Worker -> Gemini-Auditor)."
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 3,
+                  "description": "Chain: Gemini-Architect -> Cerebras-Worker -> Gemini-Auditor."
                 },
-                "input_dependencies": {
-                  "type": "array",
-                  "items": { "type": "string" }
+                "cgs_limit": {
+                  "type": "number",
+                  "default": 2.10
                 }
               }
             },
-            "schema_ref": { "type": "string" },
+            "schema_ref": {
+              "type": "string"
+            },
             "base_type": {
               "type": "string",
-              "enum": ["string", "integer", "float", "boolean", "timestamp", "any"]
+              "enum": [
+                "string",
+                "integer",
+                "float",
+                "boolean",
+                "timestamp",
+                "latent_matrix"
+              ]
             }
           },
           "allOf": [
             {
-              "if": { "properties": { "artifact_type": { "enum": ["STRUCTURED", "TIMESERIES"] } } },
-              "then": { "required": ["schema_ref"] }
+              "if": {
+                "properties": {
+                  "artifact_type": {
+                    "enum": [
+                      "STRUCTURED",
+                      "MLA_LATENT_MATRIX"
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "schema_ref"
+                ]
+              }
             },
             {
-              "if": { "properties": { "artifact_type": { "const": "PRIMITIVE" } } },
-              "then": { "required": ["base_type"] }
+              "if": {
+                "properties": {
+                  "artifact_type": {
+                    "const": "PRIMITIVE"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "base_type"
+                ]
+              }
             }
           ]
         }
