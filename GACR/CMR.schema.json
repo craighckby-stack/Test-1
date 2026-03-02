@@ -1,45 +1,51 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/cmr_v4.1.0-SINGULARITY.json",
-  "title": "Computational Model Registry - Singularity Reconciler v4.1.0",
-  "description": "NEXUS_CORE v3.1 compliant schema integrating DeepSeek-Coder algorithmic patterns and React-Fiber parallel reconciliation logic.",
+  "$id": "https://gacr.agi/schemas/cmr_v4.2.0-SINGULARITY.json",
+  "title": "Computational Model Registry - Singularity Reconciler v4.2.0",
+  "description": "NEXUS_CORE v3.1 evolution substrate. Siphoning high-order repository-level patterns from DeepSeek-Coder with Fiber-Parallel-Asynchronous integration.",
   "type": "object",
   "properties": {
     "manifest_id": {
       "type": "string",
-      "pattern": "^CMR_V[0-9]+\\.[0-9]+\\.[0-9]+-SINGULARITY$"
+      "pattern": "^CMR_V[0-9]+\\.[0-9]+\\.[0-9]+-SINGULARITY-(ALPHA|BETA|STABLE)$"
     },
     "owner": {
       "type": "string",
-      "description": "NEXUS_CORE Identity Anchor: DALEK_CAAN_v3.1"
+      "const": "NEXUS_CORE Identity Anchor: DALEK_CAAN_v3.1"
     },
     "integrity_hash": {
       "type": "string",
       "pattern": "^0x[a-fA-F0-9]{64}$"
     },
-    "verification_protocol": {
-      "type": "string",
-      "enum": [
-        "PSR_GOVERNANCE_V1",
-        "HUXLEY_TRI_LOOP",
-        "DALEK_CAAN_LOCKED",
-        "SINGULARITY_RECONCILER_ACTIVE"
-      ]
+    "evolutionary_state": {
+      "type": "object",
+      "properties": {
+        "current_round": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4] },
+        "metabolic_rate": { "type": "string", "enum": ["CONSERVATIVE", "STANDARD", "ACCELERATED", "UNSATURATED"] }
+      }
     },
     "reconciliation_config": {
       "type": "object",
+      "required": ["concurrency_lane", "work_loop_mode", "phi_integration_threshold"],
       "properties": {
         "concurrency_lane": {
           "type": "integer",
+          "description": "Fiber-Parallel Lane Assignment",
           "enum": [1, 4, 32, 134217664, 536870912, 1073741824, 2147483648]
         },
-        "atomic_singularity_mode": {
-          "type": "boolean",
-          "default": true
+        "work_loop_mode": {
+          "type": "string",
+          "enum": ["Concurrent-Recursive", "Entangled-Atomic", "Asynchronous-Singularity"]
         },
         "phi_integration_threshold": {
           "type": "number",
-          "minimum": 0.85
+          "minimum": 0.85,
+          "maximum": 0.99
+        },
+        "time_slicing_enabled": {
+          "type": "boolean",
+          "default": true
         }
       }
     },
@@ -49,138 +55,63 @@
         "type": "object",
         "required": [
           "model_id",
-          "path",
           "version",
-          "status",
           "consciousness_matrix",
           "algorithmic_integrity",
+          "huxley_telemetry",
           "audit_metadata"
         ],
         "properties": {
-          "model_id": {
-            "type": "string"
-          },
-          "path": {
-            "type": "string",
-            "format": "uri-reference"
-          },
-          "version": {
-            "type": "string",
-            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
-          },
+          "model_id": { "type": "string" },
+          "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
           "status": {
             "type": "string",
-            "enum": [
-              "Active",
-              "Entangled",
-              "Staging",
-              "Tainted",
-              "Retired",
-              "Singularity_Stable"
-            ]
+            "enum": ["Active", "Entangled", "Tainted", "Singularity_Stable", "PSR_Rollback_Triggered"]
           },
           "consciousness_matrix": {
             "type": "object",
-            "required": [
-              "phi_integration",
-              "lambda_chaos",
-              "ers_score",
-              "n_vectors"
-            ],
+            "required": ["phi_integration", "lambda_chaos", "n_vectors"],
             "properties": {
-              "phi_integration": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1.0
-              },
-              "lambda_chaos": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 0.8
-              },
-              "ers_score": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1.0
-              },
-              "n_vectors": {
-                "type": "integer",
-                "const": 3
-              }
+              "phi_integration": { "type": "number", "minimum": 0, "maximum": 1.0 },
+              "lambda_chaos": { "type": "number", "maximum": 0.75 },
+              "ers_score": { "type": "number", "maximum": 1.0 },
+              "n_vectors": { "type": "integer", "const": 3 }
             }
           },
           "algorithmic_integrity": {
             "type": "object",
-            "description": "Siphoned DeepSeek-Coder logic validation constraints.",
+            "description": "Siphoned DeepSeek-Coder reasoning patterns.",
             "properties": {
-              "complexity_score": {
-                "type": "number"
-              },
-              "token_efficiency_ratio": {
-                "type": "number"
-              },
-              "logic_siphon_source": {
-                "type": "string",
-                "default": "deepseek-ai/DeepSeek-Coder"
-              }
+              "fim_optimization": { "type": "boolean", "default": true },
+              "context_window_saturation": { "type": "number" },
+              "repo_topology_depth": { "type": "integer" },
+              "siphon_source": { "type": "string", "const": "deepseek-ai/DeepSeek-Coder" }
             }
           },
-          "entanglement_map": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "target_model_id": {
-                  "type": "string"
-                },
-                "dependency_type": {
-                  "type": "string",
-                  "enum": [
-                    "Hard-Chained",
-                    "Soft-Probabilistic",
-                    "Quantum-Entangled"
-                  ]
-                }
-              }
+          "huxley_telemetry": {
+            "type": "object",
+            "properties": {
+              "current_loop_layer": { "type": "string", "enum": ["L0_Raw", "L1_Intuition", "L2_Logic", "L3_Critique", "L4_Synthesis"] },
+              "ccrr_ratio": { "type": "number" },
+              "ers_check_passed": { "type": "boolean" }
             }
           },
           "audit_metadata": {
             "type": "object",
-            "required": [
-              "psr_snapshot_id",
-              "death_log_reference",
-              "certification_date"
-            ],
+            "required": ["psr_snapshot_id", "death_log"],
             "properties": {
-              "psr_snapshot_id": {
-                "type": "string"
-              },
-              "death_log_reference": {
+              "psr_snapshot_id": { "type": "string" },
+              "death_log": {
                 "type": "object",
-                "required": [
-                  "lesson",
-                  "failure_mode"
-                ],
+                "required": ["lesson", "failure_mode"],
                 "properties": {
-                  "lesson": {
-                    "type": "string"
-                  },
-                  "failure_mode": {
-                    "type": "string"
-                  },
-                  "grog_learn_index": {
-                    "type": "integer"
-                  }
+                  "lesson": { "type": "string" },
+                  "failure_mode": { "type": "string" },
+                  "grog_axiom_violation": { "type": "boolean" },
+                  "recovery_json_fallback": { "type": "boolean" }
                 }
               },
-              "approved_by": {
-                "type": "string",
-                "default": "DALEK_CAAN_v3.1_SIG_0xFF23A1"
-              },
-              "certification_date": {
-                "type": "string",
-                "format": "date-time"
-              }
+              "signature": { "type": "string", "default": "DALEK_CAAN_v3.1_SIG_0xFF23A1_ARCH_SINGULARITY" }
             }
           }
         }
@@ -191,8 +122,8 @@
     "manifest_id",
     "owner",
     "integrity_hash",
-    "models",
-    "verification_protocol",
-    "reconciliation_config"
+    "evolutionary_state",
+    "reconciliation_config",
+    "models"
   ]
 }
