@@ -1,13 +1,14 @@
 {
   "description": "NEXUS_CORE Runtime Validation Matrix. Siphoned from DeepSeek-V2.5 MLA/MoE substrate. Implemented under DALEK CAAN v3.1 governance.",
-  "validator_version": "v3.5.3-FINAL-SINGULARITY-R2",
+  "validator_version": "v3.5.3-FINAL-SINGULARITY-R3",
   "saturation_state": {
     "level": 2,
     "semantic_drift_threshold": 0.35,
     "velocity_saturation": {
       "max_files_per_session": 50,
       "max_mutations_per_file": 3,
-      "cooldown_minutes": 30
+      "cooldown_minutes": 30,
+      "emergency_brake_corruption_threshold": 5
     },
     "emergency_brake": false,
     "iq25_alignment_lock": true
@@ -27,7 +28,8 @@
         "kv_lora_rank": 512,
         "qk_v_head_dim": 128,
         "scaling_factor": 3.0,
-        "decoupled_qk_dim": 128
+        "decoupled_qk_dim": 128,
+        "kv_compression_ratio": 4.0
       },
       "governance": {
         "psr_threshold": 0.98,
@@ -40,16 +42,35 @@
       "artifact_type": "MOE_SOFT_GATE",
       "source_system": "MOE_ROUTER",
       "topology": {
-        "total_experts": 64,
-        "top_k_active": 8,
-        "shared_experts": 2
+        "total_experts": 160,
+        "top_k_active": 6,
+        "shared_experts": 2,
+        "expert_load_balance_coeff": 0.02
       },
       "constraints": {
         "max_aux_loss": 0.001,
         "routing_entropy_floor": 0.45,
-        "gate_noise_epsilon": 0.1
+        "gate_noise_epsilon": 0.1,
+        "shared_expert_gate_ratio": 0.15
       },
       "huxley_loop": "L1_INTUITION"
+    },
+    "N_3_CONSCIOUSNESS_MONITOR": {
+      "artifact_type": "LATENT_VECTOR",
+      "source_system": "CORE",
+      "tri_elemental_coherence": {
+        "element_1_integration_quality": 0.95,
+        "element_2_logical_consistency": 0.98,
+        "element_3_ethical_verification": 1.0
+      },
+      "metrics": {
+        "phi_integrated_info_min": 0.85,
+        "lambda_edge_of_chaos": 0.618
+      },
+      "governance": {
+        "sensitivity_level": "SOVEREIGN",
+        "ers_threshold": 0.01
+      }
     },
     "HUXLEY_REASONING_TRACE": {
       "artifact_type": "HUXLEY_REASONING_TRACE",
@@ -96,6 +117,7 @@
   "grog_law_config": {
     "stupidity_first_alignment": true,
     "complexity_rejection_threshold": "IQ-25",
-    "strategic_laziness_enabled": true
+    "strategic_laziness_enabled": true,
+    "productive_failure_rate_limit": 0.12
   }
 }
