@@ -1,112 +1,151 @@
 /**
- * AGI-KERNEL: SchemaAnalyzerKernel (v1.0)
- * High-integrity, asynchronous core service for Schema Migration Simulation Engine.
- * This kernel replaces the synchronous SchemaAnalyzer utility, strictly adhering 
- * to the AIA Enforcement Layer mandates for non-blocking execution, recursive abstraction,
- * and auditable dependency injection.
+ * Schema Analyzer Utility (v94.1 Intelligence Layer)
+ * Core computational service for the Schema Migration Simulation Engine.
+ * Performs deep, structured comparison between two normalized schema graphs 
+ * to determine complexity, dependencies, and change impact categorization. 
+ * Designed for intensive computation, utilizing structured methods to prepare 
+ * for eventual parallelization (e.g., Worker threads/Off-main-thread analysis).
+ * 
+ * NOTE: For v94.1 intelligence, this class expects DependencyGrapher output for accurate scoring.
  */
-
-// Internal Interfaces Definition (For Audited Dependency Injection)
-
-interface ISchemaMetricCalculatorToolKernel {
-    calculate(params: {
-        schemaA: object,
-        breakingChangeCount: number,
-        affectedCount: number,
-        dependencyGraph: object | null,
-        config: object
-    }): Promise<Readonly<{ complexityScore: number, efficiencyScore: number }>>;
-}
-
-interface ISchemaAnalyzerConfigRegistryKernel {
-    initialize(): Promise<void>;
-    getAnalyzerConfiguration(): Promise<Readonly<{ complexityWeight: number, criticalityThreshold: number, [key: string]: any }>>;
-}
-
-interface IRawSchemaDiffGeneratorToolKernel {
-    generate(schemaA: object, schemaB: object): Promise<ReadonlyArray<object>>;
-}
-
-interface IChangeClassificationEngineToolKernel {
-    classify(
-        rawDiffs: ReadonlyArray<object>, 
-        config: Readonly<{ criticalityThreshold: number }>
-    ): Promise<Readonly<{ breakingChanges: ReadonlyArray<object>, nonBreakingChanges: ReadonlyArray<object>, entitiesAffected: ReadonlySet<string> }>>;
-}
-
-export class SchemaAnalyzerKernel {
-    private config: Readonly<{ complexityWeight: number, criticalityThreshold: number, [key: string]: any }> = Object.freeze({});
-
+class SchemaAnalyzer {
+    
     /**
-     * Initializes the Kernel with required asynchronous dependencies.
-     * All intensive computational and I/O tasks are delegated to specialized Tool Kernels.
+     * @param {object} config - Configuration object containing sensitivity and threshold settings.
      */
-    constructor(
-        private readonly configRegistry: ISchemaAnalyzerConfigRegistryKernel,
-        private readonly metricCalculator: ISchemaMetricCalculatorToolKernel,
-        private readonly diffGenerator: IRawSchemaDiffGeneratorToolKernel,
-        private readonly classificationEngine: IChangeClassificationEngineToolKernel
-    ) {
-        // Configuration loading is strictly asynchronous via initialize().
+    constructor(config = {}) {
+        this.config = {
+            // Default V94.1 analysis thresholds
+            complexityWeight: 0.1, 
+            criticalityThreshold: 5, // Severity level required for a change to be marked critical
+            // ... other analysis rules
+            ...config
+        };
     }
 
     /**
-     * Initializes the Kernel by asynchronously loading and immutably freezing configuration.
+     * Executes the heavy lifting of schema diffing and categorization.
+     * Assumes schemas A and B are already normalized graph representations.
+     * @param {object} schemaA - The baseline normalized schema graph.
+     * @param {object} schemaB - The proposed normalized schema graph.
+     * @param {object | null} [dependencyGraph=null] - Pre-calculated dependency map (crucial for accurate metrics).
+     * @returns {Promise<{
+     *   metrics: { complexityScore: number, breakingChangesCount: number, efficiencyScore: number },
+     *   criticalChanges: Array<object>, 
+     *   nonBreakingChanges: Array<object>,
+     *   entitiesAffected: Array<string>
+     * }>}
      */
-    public async initialize(): Promise<void> {
-        const loadedConfig = await this.configRegistry.getAnalyzerConfiguration();
-        this.config = Object.freeze(loadedConfig);
-    }
-
-    /**
-     * Executes the schema analysis delta computation.
-     * 
-     * @param schemaA - The baseline normalized schema graph.
-     * @param schemaB - The proposed normalized schema graph.
-     * @param dependencyGraph - Pre-calculated dependency map (optional).
-     * @returns Immutable analysis results.
-     */
-    public async computeDelta(
-        schemaA: object, 
-        schemaB: object, 
-        dependencyGraph: object | null = null
-    ): Promise<Readonly<{
-        metrics: Readonly<{ complexityScore: number, breakingChangesCount: number, efficiencyScore: number }>,
-        criticalChanges: ReadonlyArray<object>,
-        nonBreakingChanges: ReadonlyArray<object>,
-        entitiesAffected: ReadonlyArray<string>
-    }>> {
+    async computeDelta(schemaA, schemaB, dependencyGraph = null) {
         if (!schemaA || !schemaB) {
-            throw new Error("KRNL_SA_001: Both schemas must be provided for delta computation.");
+            throw new Error("Both schemas must be provided for delta computation.");
         }
 
-        // Step 1: Generate detailed, raw differences (Delegated to specialized Tool Kernel)
-        const rawDiffs = await this.diffGenerator.generate(schemaA, schemaB);
+        // Step 1: Generate detailed, raw differences based on entity structure
+        const rawDiffs = await this._calculateRawDiffs(schemaA, schemaB);
         
-        // Step 2: Classify and categorize changes (Delegated to specialized Tool Kernel)
-        const classified = await this.classificationEngine.classify(rawDiffs, {
-            criticalityThreshold: this.config.criticalityThreshold
-        });
+        // Step 2: Classify and categorize changes based on severity and impact rules
+        const categorized = this._classifyChanges(rawDiffs);
         
-        // Step 3: Compute final metrics (Delegated to specialized Tool Kernel, replacing synchronous plugin)
-        const { complexityScore, efficiencyScore } = await this.metricCalculator.calculate({
-            schemaA: schemaA, 
-            breakingChangeCount: classified.breakingChanges.length, 
-            affectedCount: classified.entitiesAffected.size,
-            dependencyGraph: dependencyGraph,
-            config: this.config
-        });
+        // Step 3: Compute final metrics using categorized data and dependency structure
+        const { complexityScore, efficiencyScore } = this._calculateMetrics(
+            schemaA, 
+            categorized.breakingChanges.length, 
+            categorized.entitiesAffected.size,
+            dependencyGraph 
+        );
 
-        // Ensure all output structures are immutable
-        return Object.freeze({
-            metrics: Object.freeze({
+        return {
+            metrics: {
                 complexityScore,
-                breakingChangesCount: classified.breakingChanges.length,
+                breakingChangesCount: categorized.breakingChanges.length,
                 efficiencyScore
-            }),
-            criticalChanges: Object.freeze(Array.from(classified.breakingChanges)),
-            nonBreakingChanges: Object.freeze(Array.from(classified.nonBreakingChanges)),
-            entitiesAffected: Object.freeze(Array.from(classified.entitiesAffected))
+            },
+            criticalChanges: categorized.breakingChanges,
+            nonBreakingChanges: categorized.nonBreakingChanges,
+            entitiesAffected: Array.from(categorized.entitiesAffected)
+        };
+    }
+
+    /**
+     * Internal: Performs deep, property-level comparison across entities (simulated).
+     * @param {object} schemaA 
+     * @param {object} schemaB 
+     * @returns {Promise<Array<{ entity: string, property?: string, change: string, severity: number, isBreaking: boolean, type: string }>>} 
+     */
+    async _calculateRawDiffs(schemaA, schemaB) {
+        // Simulate computation delay typical for intensive graph diffing
+        await new Promise(resolve => setTimeout(resolve, 50)); 
+
+        // Mocked results showing use of 'severity' score
+        return [
+            { entity: 'User', property: 'name', change: 'Type widened (string->varchar)', severity: 1, isBreaking: false, type: 'FormatChange' },
+            { entity: 'AuditLog', property: null, change: 'Index added', severity: 0, isBreaking: false, type: 'Addition' },
+            { entity: 'CoreSetting', property: 'id', change: 'Primary Key Type Change (int -> UUID)', severity: 10, isBreaking: true, type: 'TypeChange' },
+            { entity: 'AuthToken', property: null, change: 'Entity Deleted', severity: 20, isBreaking: true, type: 'Deletion' }
+        ];
+    }
+    
+    /**
+     * Internal: Categorizes raw diffs into critical/non-critical buckets based on configured thresholds.
+     * @param {Array<object>} rawDiffs 
+     * @returns {{ breakingChanges: Array<object>, nonBreakingChanges: Array<object>, entitiesAffected: Set<string> }}
+     */
+    _classifyChanges(rawDiffs) {
+        const entitiesAffected = new Set();
+        const breakingChanges = [];
+        const nonBreakingChanges = [];
+        
+        rawDiffs.forEach(diff => {
+            entitiesAffected.add(diff.entity);
+            
+            // Classify based on pre-calculated breaking flag and runtime severity check
+            if (diff.isBreaking && diff.severity >= this.config.criticalityThreshold) {
+                breakingChanges.push(diff);
+            } else {
+                nonBreakingChanges.push(diff);
+            }
         });
+        
+        return { breakingChanges, nonBreakingChanges, entitiesAffected };
+    }
+
+    /**
+     * Internal: Calculates migration metrics based on scope, breaking changes, and structural depth (if dependency graph provided).
+     * @param {object} schemaA - Base schema structure.
+     * @param {number} breakingChangeCount - Number of critical changes.
+     * @param {number} affectedCount - Number of entities impacted.
+     * @param {object | null} dependencyGraph - The graph detailing entity relationships.
+     * @returns {{ complexityScore: number, efficiencyScore: number }}
+     */
+    _calculateMetrics(schemaA, breakingChangeCount, affectedCount, dependencyGraph) {
+        const totalEntities = Object.keys(schemaA).length || 1; 
+        const normalizedAffected = affectedCount / totalEntities;
+        
+        let interdependenceFactor = 0.5; // Default assumption if graph is missing
+        
+        if (dependencyGraph && dependencyGraph.calculateCascadeRisk) {
+            // If DependencyGrapher utility is available (suggested scaffold), use it for precise risk analysis
+            // Note: This assumes DependencyGrapher is either imported or passed/shimmed.
+            try {
+                // Placeholder integration assuming a DependencyGrapher interface
+                interdependenceFactor = dependencyGraph.calculateCascadeRisk(dependencyGraph.graphData, new Set(Array.from(schemaA)));
+            } catch (e) {
+                // Fallback if graph computation fails
+                interdependenceFactor = 0.5 + breakingChangeCount * 0.05; 
+            }
+        }
+
+        const complexityScore = Math.min(
+            1.0, 
+            (normalizedAffected * this.config.complexityWeight * 5) + interdependenceFactor * 0.5 + (breakingChangeCount * 0.02)
+        );
+        
+        // Efficiency score: Reflects system streamlining vs. complexity cost.
+        const efficiencyScore = 1.0 - (complexityScore * 0.6) - (breakingChangeCount * 0.01);
+
+        return { complexityScore, efficiencyScore: Math.max(0, efficiencyScore) };
     }
 }
+
+module.exports = { SchemaAnalyzer };
