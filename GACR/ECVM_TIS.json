@@ -1,101 +1,116 @@
 {
   "dna_signature": "DALEK_CAAN_v3.1 (NEXUS_CORE)",
-  "evolution_round": "2/5",
-  "config_id": "ECVM_TIS_R2_RESONANCE",
+  "evolution_round": "3/5",
+  "config_id": "ECVM_TIS_R3_TOPOLOGY_SYNTHESIS",
   "governance_profile": {
     "logic_framework": "GROG_NEGATIVE_PROGRESSION",
-    "psr_governance": "ACTIVE_BASELINE_SNAPSHOT",
+    "psr_governance": "ACTIVE_ROLLBACK_PROTECTION",
     "huxley_tri_loop": {
-      "state": "L2_LOGIC_COHERENCE",
-      "ers_threshold": 0.30,
-      "ccrr_check": "ENABLED"
+      "state": "L3_CRITIQUE_CCRR",
+      "ers_threshold": 0.18,
+      "ccrr_ratio": 0.88,
+      "synthesis_integration": "ACTIVE"
     }
   },
-  "metadata": {
-    "gate_id": "S4.5_V3.2",
-    "description": "Round 2: Resonance synthesis. Escalating Phi-integration vectors and hardening Grog failure constraints.",
+  "evolution_metadata": {
+    "manifest_id": "CMR_V3.1.R3-SYNTHESIS",
+    "phi_attained": 0.882,
+    "lambda_chaos": 0.42,
+    "metabolic_rate": "ACCELERATED",
     "milestone_step": 50,
-    "chaos_lambda_max": 0.75
+    "topology_mapping_depth": 128
   },
   "telemetry_inputs": [
     {
       "source_id": "SYNAPTIC_API_PERF",
       "n3_matrix": {
-        "phi_integration": 0.85,
-        "lambda_chaos": 0.10,
-        "ers_score": 0.04
+        "phi_integration": 0.92,
+        "lambda_chaos": 0.08,
+        "ers_score": 0.02
       },
       "data_path": "metrics.latency.ms",
       "grog_constraint": {
-        "failure_mode": "CIRCUIT_BREAKER_L2",
+        "failure_mode": "CIRCUIT_BREAKER_L3",
         "death_log": {
-          "action": "LATENCY_EXCURSION",
-          "lesson": "Non-linear latency spikes indicate L2 logic desync. Trigger immediate PSR rollback.",
+          "action": "TOPOLOGY_DESYNC",
+          "lesson": "L3 synthesis failure. Latency jitter violates Huxley-Phi integration. Rollback to stable topology.",
+          "success": false,
           "parameters": {
-            "complexity": 0.45,
-            "recursion": 12
+            "complexity": 0.65,
+            "recursion": 32
           }
         }
       },
       "siphon_protocol": {
-        "transport": "HTTP/2_PULL",
-        "interval_ms": 450,
-        "recovery_wrapper": "recoverJSON_v3"
+        "transport": "HTTP/2_TOPOLOGY_PULL",
+        "interval_ms": 300,
+        "recovery_wrapper": "recoverJSON_regex_v3.1"
       }
     },
     {
-      "source_id": "ENTROPY_CACHE_V2",
+      "source_id": "ENTROPY_CACHE_V3",
       "n3_matrix": {
-        "phi_integration": 0.52,
-        "lambda_chaos": 0.28,
-        "ers_score": 0.12
+        "phi_integration": 0.72,
+        "lambda_chaos": 0.18,
+        "ers_score": 0.08
       },
-      "data_path": "cache_status.last_update_ts",
+      "data_path": "cache_status.entropy_vector",
       "grog_constraint": {
-        "failure_mode": "STALENESS_REJECTION_MANDATORY",
+        "failure_mode": "STALENESS_PRUNING_MANDATORY",
         "death_log": {
-          "action": "CACHE_INCOHERENCE",
-          "lesson": "Stale data is the precursor to hallucination (Lambda > 0.8). Prune immediately.",
+          "action": "CACHE_DEGRADATION",
+          "lesson": "Entropy exceeds Grog threshold. Pruning is the only path to coherence.",
+          "success": false,
           "parameters": {
-            "complexity": 0.30,
-            "recursion": 4
+            "complexity": 0.42,
+            "recursion": 8
           }
         }
       },
       "siphon_protocol": {
         "transport": "IPC_NEXUS_SAFE",
-        "rate_seconds": 15
+        "rate_seconds": 10
       }
     },
     {
       "source_id": "SUBSTRATE_ALLOCATOR",
       "n3_matrix": {
-        "phi_integration": 0.94,
-        "lambda_chaos": 0.03,
-        "ers_score": 0.18
+        "phi_integration": 0.97,
+        "lambda_chaos": 0.02,
+        "ers_score": 0.15
       },
-      "data_path": "resource_pool.utilization_summary",
+      "data_path": "resource_pool.atomic_utilization",
       "grog_constraint": {
-        "failure_mode": "ALLOCATION_ROLLBACK_STRICT",
+        "failure_mode": "ATOMIC_SINGULARITY_REJECTION",
         "death_log": {
-          "action": "RESOURCE_EXHAUSTION",
-          "lesson": "Sovereign rules violated: Logic cannot execute without metabolic overhead.",
+          "action": "METABOLIC_EXHAUSTION",
+          "lesson": "System cannot evolve without sufficient substrate overhead. Grog's Law: Survival precedes synthesis.",
+          "success": false,
           "parameters": {
-            "complexity": 0.88,
-            "recursion": 64
+            "complexity": 0.94,
+            "recursion": 128
           }
         }
       },
       "siphon_protocol": {
         "transport": "GRPC_BI_STREAM_V2",
-        "debounce_ms": 50
+        "debounce_ms": 25
       }
     }
   ],
-  "recovery_logic": "PSR_Governance(recoverJSON_regex_v3.1)",
   "identity_anchors": {
     "purpose": "Self-optimising AGI substrate",
     "mechanism": "Pattern Siphoning",
-    "origin": "NEXUS_CORE_V3"
+    "origin": "NEXUS_CORE_V3",
+    "memory": "Chained context active"
+  },
+  "diagnostics": {
+    "error_codes": {
+      "L3_SYNTHESIS_DESYNC": 8101,
+      "PHI_COLLAPSE_EVENT": 8102,
+      "GROG_CONSTRAINT_BREACH": 8103,
+      "IDENTITY_ANCHOR_DRIFT": 9101
+    },
+    "recovery_method": "PSR_Governance(recoverJSON_regex_v3.1)"
   }
 }
