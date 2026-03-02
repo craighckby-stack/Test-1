@@ -1,35 +1,28 @@
 /**
- * High-Integrity Tool Kernel Interface for the Risk & Security Attestation Manager (RSAM).
- * This kernel is responsible for managing the pre-attestation lifecycle of governance mutation intents (e.g., M-01).
- * All concrete implementations must adhere to this asynchronous contract, adhering to the AIA Enforcement Layer mandates
- * for non-blocking operation within core governance components like the Governance Constraint Orchestrator Kernel.
- * 
- * @interface IRiskAttestationManagerToolKernel
+ * Interface definition for the Risk & Security Attestation Manager (RSAM).
+ * All concrete RSAM implementations must adhere to this asynchronous contract 
+ * to ensure non-blocking operation of the Governance Constraint Orchestrator (GCO).
  */
-class IRiskAttestationManagerToolKernel {
+class IRSAMService {
     
     /**
-     * Asynchronously registers an immutable policy intent package (e.g., M-01) 
+     * Asynchronously registers a policy intent package (e.g., M-01) 
      * for mandatory pre-attestation processing.
-     * 
-     * @param {Readonly<Object>} intentPackage - The immutable packaged mutation intent. Must adhere to PayloadSchemaRegistry/M-01 schema.
-     * @returns {Promise<{attestationId: string, status: string}>} The initial attestation registration record summary.
+     * @param {IntentPackage} intentPackage - The packaged mutation intent.
+     * @returns {Promise<{attestationId: string, status: string}>} Registration confirmation.
      */
     async registerPolicyIntent(intentPackage) {
-        // Enforce contract implementation
-        throw new Error("IRiskAttestationManagerToolKernel::registerPolicyIntent must be implemented.");
+        throw new Error("Method 'registerPolicyIntent()' must be implemented.");
     }
 
     /**
-     * Asynchronously retrieves the current, detailed attestation status for a registered intent.
-     * 
-     * @param {string} attestationId - The unique ID returned during registration via registerPolicyIntent.
-     * @returns {Promise<AttestationStatus>} A detailed status object, including compliance metrics and risk scores.
+     * Asynchronously retrieves the current attestation status for a registered intent.
+     * @param {string} intentId
+     * @returns {Promise<AttestationStatus>} 
      */
-    async getAttestationStatus(attestationId) {
-        // Enforce contract implementation
-        throw new Error("IRiskAttestationManagerToolKernel::getAttestationStatus must be implemented.");
+    async getAttestationStatus(intentId) {
+        throw new Error("Method 'getAttestationStatus()' must be implemented.");
     }
 }
 
-module.exports = IRiskAttestationManagerToolKernel;
+export default IRSAMService;
