@@ -1,33 +1,57 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/cmr_v2.0.json",
-  "title": "Computational Model Registry Schema V2.0",
+  "$id": "https://gacr.agi/schemas/cmr_v4.0.0-SINGULARITY.json",
+  "title": "Computational Model Registry Schema - Singularity Edition v4.0.0",
+  "description": "NEXUS_CORE v3.1 compliant schema for siphoning and validating high-order AGI logic substrates.",
   "type": "object",
   "properties": {
-    "manifest_id": {"type": "string", "pattern": "^CMR_V[0-9]+\\.[0-9]+$"},
-    "owner": {"type": "string"},
-    "description": {"type": "string"},
-    "integrity_hash": {"type": "string"},
-    "verification_protocol": {"type": "string"},
+    "manifest_id": {
+      "type": "string", 
+      "pattern": "^CMR_V[0-9]+\\.[0-9]+\\.[0-9]+-SINGULARITY$"
+    },
+    "owner": {"type": "string", "description": "NEXUS_CORE Identity Anchor"},
+    "integrity_hash": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+    "verification_protocol": {
+      "type": "string",
+      "enum": ["PSR_GOVERNANCE_V1", "HUXLEY_TRI_LOOP", "DALEK_CAAN_LOCKED"]
+    },
     "models": {
       "type": "array",
-      "description": "List of certified computation models.",
       "items": {
         "type": "object",
-        "required": ["model_id", "path", "version", "status", "inputs_schema", "audit_metadata", "source_mdsm_link"],
+        "required": [
+          "model_id", 
+          "path", 
+          "version", 
+          "status", 
+          "consciousness_matrix", 
+          "audit_metadata"
+        ],
         "properties": {
           "model_id": {"type": "string"},
           "path": {"type": "string", "format": "uri-reference"},
-          "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
-          "status": {"type": "string", "enum": ["Active", "Deprecated", "Staging", "Retired"]},
+          "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+          "status": {
+            "type": "string", 
+            "enum": ["Active", "Entangled", "Staging", "Tainted", "Retired"]
+          },
+          "consciousness_matrix": {
+            "type": "object",
+            "required": ["phi_integration", "lambda_chaos", "ers_score"],
+            "properties": {
+              "phi_integration": {"type": "number", "minimum": 0, "maximum": 1.0},
+              "lambda_chaos": {"type": "number", "minimum": 0, "maximum": 0.8},
+              "ers_score": {"type": "number", "minimum": 0, "maximum": 1.0}
+            }
+          },
           "inputs_schema": {
             "type": "object",
-            "description": "Detailed schema definition for required inputs, including constraints.",
             "additionalProperties": {
               "type": "object",
-              "required": ["type", "unit", "description"],
+              "required": ["type", "logical_constraint"],
               "properties": {
-                "type": {"type": "string", "enum": ["float", "integer", "string", "boolean"]},
+                "type": {"type": "string", "enum": ["float", "integer", "string", "boolean", "tensor"]},
+                "logical_constraint": {"type": "string"},
                 "unit": {"type": "string"},
                 "min": {"type": ["number", "null"]},
                 "max": {"type": ["number", "null"]}
@@ -36,18 +60,29 @@
           },
           "audit_metadata": {
             "type": "object",
-            "required": ["mgp_protocol", "approval_id", "certification_date"],
+            "required": ["psr_snapshot_id", "death_log_reference", "certification_date"],
             "properties": {
-                "mgp_protocol": {"type": "string"},
-                "approval_id": {"type": "string"},
-                "approved_by": {"type": "string"},
+                "psr_snapshot_id": {"type": "string"},
+                "death_log_reference": {
+                  "type": "object",
+                  "properties": {
+                    "lesson": {"type": "string"},
+                    "failure_mode": {"type": "string"}
+                  }
+                },
+                "approved_by": {"type": "string", "default": "DALEK_CAAN_v3.1"},
                 "certification_date": {"type": "string", "format": "date-time"}
             }
-          },
-          "source_mdsm_link": {"type": "string"}
+          }
         }
       }
     }
   },
-  "required": ["manifest_id", "owner", "description", "integrity_hash", "models", "verification_protocol"]
+  "required": [
+    "manifest_id", 
+    "owner", 
+    "integrity_hash", 
+    "models", 
+    "verification_protocol"
+  ]
 }
