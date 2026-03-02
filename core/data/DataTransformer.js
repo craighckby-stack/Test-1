@@ -5,26 +5,18 @@
  */
 import Logger from '../utility/Logger.js';
 import SchemaValidator from './SchemaValidator.js'; 
-// AGI-KERNEL: Utilizing extracted plugin for decoding
-import DataDecoderUtility from '../utility/DataDecoderUtility.js'; 
 
 class DataTransformer {
-    #logger: Logger;
-    #validator: typeof SchemaValidator;
-    #decoder: typeof DataDecoderUtility;
-
     constructor() {
-        this.#logger = Logger.module('DataTransformer');
-        this.#setupDependencies();
-    }
-
-    /**
-     * Resolves and sets up external dependencies (Validator, Decoder).
-     * @private
-     */
-    #setupDependencies(): void {
-        this.#validator = SchemaValidator; 
-        this.#decoder = DataDecoderUtility; 
+        this.logger = Logger.module('DataTransformer');
+        this.validator = SchemaValidator; // Utilize the new validation module
+        
+        // Define decoding strategies centrally
+        this.decoders = {
+            'JSON': this._decodeJson,
+            'PLAINTEXT': this._decodePlaintext,
+            // Decoders can be dynamically registered later
+        };
     }
 
     /**
@@ -34,67 +26,64 @@ class DataTransformer {
      * @returns {any} The finalized, validated data payload.
      * @throws {Error} If security fails, decoding fails, or schema validation fails.
      */
-    transform(rawData: any, sourceConfig: { encoding_format: string, security_level: string, primitive_type: string, key?: string }): any {
+    transform(rawData, sourceConfig) {
         const { encoding_format, security_level, primitive_type } = sourceConfig;
         const configKey = sourceConfig.key || primitive_type; 
 
         // 1. Security & Integrity Check (Critical Path)
-        if (!this.#verifySecurity(rawData, security_level, configKey)) {
+        if (!this._verifySecurity(rawData, security_level, configKey)) {
              throw new Error(`[DATA_SECURITY_FAILURE] Security verification failed for source: ${configKey}`);
         }
 
         // 2. Data Decoding
-        let decodedData = this.#decodeData(rawData, encoding_format, configKey);
+        let decodedData = this._decodeData(rawData, encoding_format, configKey);
 
         // 3. Schema & Type Validation
-        this.#validateSchema(decodedData, primitive_type, configKey);
+        this._validateSchema(decodedData, primitive_type, configKey);
         
         return decodedData;
     }
 
     /**
-     * Delegates the raw data decoding to the external DataDecoderUtility tool.
+     * Handles specific encoding formats using defined strategies.
      * @private
      */
-    #executeDecodingDelegation(rawData: any, format: string): any {
-        return this.#decoder.execute({ rawData, format });
-    }
+    _decodeData(rawData, format, key) {
+        const handler = this.decoders[format.toUpperCase()];
 
-    /**
-     * Handles specific encoding formats using the DataDecoderUtility plugin, including error mapping.
-     * @private
-     */
-    #decodeData(rawData: any, format: string, key: string): any {
+        if (!handler) {
+            this.logger.warn(`Unsupported encoding format detected (${format}) for ${key}. Passing raw data.`);
+            return rawData;
+        }
+
         try {
-            // Use the extracted utility for data transformation
-            return this.#executeDecodingDelegation(rawData, format);
+            // Call the handler, bound implicitly to the class instance if needed, though simple ones don't require 'this'
+            return handler(rawData);
         } catch (error) {
-            // The decoder plugin throws if a supported format (like JSON) fails parsing.
-            const errorMessage = (error instanceof Error) ? error.message : String(error);
-
-            // Note: If the format is unsupported, the plugin returns rawData without throwing.
-            this.#logger.error(`Decoding failed for ${key} (Format: ${format}). Error: ${errorMessage}`);
+            this.logger.error(`Decoding failed for ${key} (Format: ${format}). Error: ${error.message}`);
             throw new Error(`[DECODING_FAILURE] Failed to decode data for ${key}.`);
         }
+    }
+
+    // --- Specific Decoders ---
+
+    _decodeJson(rawData) {
+        return (typeof rawData === 'string') ? JSON.parse(rawData) : rawData;
+    }
+
+    _decodePlaintext(rawData) {
+        return rawData; 
     }
 
     // --- Core Checks ---
 
     /**
-     * Delegates the schema validation check to the external SchemaValidator tool.
-     * @private
-     */
-    #delegateToValidator(data: any, primitiveType: string): boolean {
-        return this.#validator.validate(data, primitiveType);
-    }
-
-    /**
      * Executes schema validation using the centralized Validator utility.
      * @private
      */
-    #validateSchema(data: any, primitiveType: string, key: string): void {
-        if (!this.#delegateToValidator(data, primitiveType)) {
-             this.#logger.error(`[SCHEMA_MISMATCH] Validation failed for expected type: ${primitiveType} in source ${key}`);
+    _validateSchema(data, primitiveType, key) {
+        if (!this.validator.validate(data, primitiveType)) {
+             this.logger.error(`[SCHEMA_MISMATCH] Validation failed for expected type: ${primitiveType} in source ${key}`);
              throw new Error(`[SCHEMA_VALIDATION_FAILURE] Data structure invalid for primitive type: ${primitiveType}.`);
         }
     }
@@ -103,8 +92,9 @@ class DataTransformer {
      * Executes security checks (e.g., signature verification, TLS integrity).
      * @private
      */
-    #verifySecurity(data: any, requiredLevel: string, key: string): boolean {
-        this.#logger.debug(`Running security checks (Level: ${requiredLevel}) for ${key}`);
+    _verifySecurity(data, requiredLevel, key) {
+        // Logic hook retained, but renamed and contextualized.
+        this.logger.debug(`Running security checks (Level: ${requiredLevel}) for ${key}`);
         return true; 
     }
 }
