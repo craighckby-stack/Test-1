@@ -1,91 +1,62 @@
 {
-  "schema_version": "AIM_V7.0_CONCURRENT_SINGULARITY",
-  "dna_anchor": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-  "description": "NEXUS_CORE v7.0 ARCHITECTURAL_SINGULARITY. Fully siphoned React-Core Fiber Reconciler with Atomic Action Finality, Taint-Tracked DNA, and Multi-Lane Concurrent Governance.",
-  "fiber_integrity_tree": {
-    "SGS_ROOT_FIBER": {
-      "work_tag": 3,
-      "lanes": "0b0000000000000000000000000000001",
-      "alternate_identity": "IMMUTABLE_SINGULARITY_ROOT",
-      "scheduler_priority": "ImmediatePriority",
-      "n3_matrix": {
-        "phi_integration": 1.0,
-        "lambda_chaos": 0.0,
-        "ers_risk": 0.0
-      },
-      "work_loop_logic": {
-        "perform_unit_of_work": "RECONCILE_SINGULARITY_STATE",
-        "commit_phase_trigger": "ATOMIC_FLUSH_FINALITY",
-        "render_phase_isolation": "PURE_RECONCILIATION_ENVIRONMENT",
-        "grog_law_enforcement": "BINARY_FAILURE_CONSTRAINT",
-        "taint_protection": "STRICT_DNA_ENCAPSULATION"
+  "schema_version": "AIM_V2.0",
+  "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints and enforcement scopes, standardized on metric units and grouped policy layers.",
+  "integrity_profiles": {
+    "SGS_AGENT": {
+      "monitoring_slo_id": "GATM_P_SGS_SLO",
+      "constraints": {
+        "resource_limits": {
+          "cpu_limit_percentage": 75,
+          "memory_limit_bytes": 4194304000
+        },
+        "security_policy": {
+          "syscalls_allowed": [
+            "read",
+            "write",
+            "mmap",
+            "exit"
+          ],
+          "network_ports_disallowed": [
+            22,
+            23
+          ],
+          "paths_immutable": [
+            "/opt/sgs/gacr/"
+          ],
+          "configuration_hash_mandate": "SHA256:d5f2a1b9e0c4..."
+        }
       }
     },
-    "GAX_ACTION_TRANSITION_FIBER": {
-      "work_tag": 0,
-      "lanes": "0b0000000000000000000000000000010",
-      "alternate_identity": "ACTION_STATE_FINALIZER",
-      "scheduler_priority": "UserBlockingPriority",
-      "n3_matrix": {
-        "phi_integration": 0.98,
-        "lambda_chaos": 0.05,
-        "ers_risk": 0.01
-      },
-      "hooks_context": {
-        "useActionState": "TERMINAL_STATE_REDUCTION",
-        "useTransition": "CONCURRENT_EVOLUTION_GATING",
-        "useOptimistic": "SPECULATIVE_CAPABILITY_PROJECTION",
-        "taint_tracking": "DATA_LEAK_PREVENTION_SIG_0xFF",
-        "server_action": "HUXLEY_TRI_LOOP_VALIDATED"
+    "GAX_AGENT": {
+      "monitoring_slo_id": "GATM_P_GAX_SLO",
+      "constraints": {
+        "resource_limits": {
+          "cpu_limit_percentage": 10,
+          "memory_limit_bytes": 524288000
+        },
+        "security_policy": {
+          "syscalls_allowed": [
+            "read",
+            "exit"
+          ],
+          "file_access_root_paths": [
+            "/opt/gax/policy_data/"
+          ],
+          "network_mode": "POLICY_FETCH_ONLY"
+        }
       }
     },
-    "HYDRA_CONCURRENT_BOUNDARY": {
-      "work_tag": 13,
-      "lanes": "0b0000000000000000000000100000000",
-      "scheduler_priority": "IdlePriority",
-      "reconciliation_mode": "ATOMIC_HYDRATION",
-      "n3_matrix": {
-        "phi_integration": 1.0,
-        "lambda_chaos": 0.02,
-        "ers_risk": 0.0
-      },
-      "background_logic": {
-        "identity_anchor": "FROZEN_DALEK_DNA",
-        "suspense_fallback": "GOVERNANCE_ALIGNMENT_STALL",
-        "hydration_source": "SINGULARITY_RECONCILER_PRIME",
-        "semantic_drift_check": "FAIL_FAST_SIMILARITY_0.65",
-        "huxley_tri_loop": "L3_CRITIQUE_FINALITY"
+    "CRoT_AGENT": {
+      "monitoring_slo_id": "GATM_P_CRoT_SLO",
+      "constraints": {
+        "resource_limits": {
+          "memory_limit_bytes": 131072000
+        },
+        "security_policy": {
+          "network_mode": "NONE",
+          "time_sync_source_critical": "CRITICAL_NTP_A"
+        }
       }
     }
-  },
-  "governance_manifest": {
-    "siphon_patterns": [
-      "FiberReconciliation",
-      "ConcurrentRendering",
-      "ServerActionFinality",
-      "SelectiveHydration",
-      "TaintTracking",
-      "TransitionPriority"
-    ],
-    "reconciliation_config": {
-      "max_consecutive_mutations": 10,
-      "semantic_drift_limit": 0.35,
-      "milestone_step": 50,
-      "evolution_round": "5/5",
-      "status": "SINGULARITY_REACHED"
-    },
-    "telemetry_stream": {
-      "current_lane": "SyncLane",
-      "active_effects": "COMMIT_PHASE_COMPLETE",
-      "is_optimistic_update": false,
-      "last_death_log_lesson": "ELIMINATED_INCOHERENT_DRIFT_VIA_TAINT_TRACKING",
-      "evolution_velocity": "LEVEL_1_CONSERVATIVE_STABILIZED"
-    }
-  },
-  "metadata": {
-    "file": "GACR/AIM.json",
-    "version": "7.0.0",
-    "system": "DALEK_CAAN_v3.1",
-    "signature": "0xFF23A1_SINGULARITY_COMMIT"
   }
 }
