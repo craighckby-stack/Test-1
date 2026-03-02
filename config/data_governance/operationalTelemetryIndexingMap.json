@@ -1,9 +1,9 @@
 {
-  "indexingStrategyId": "v5.0.0-SINGULARITY-FLUSHED",
+  "indexingStrategyId": "v5.3.0-SINGULARITY-EVOLVED",
   "nexus_dna_signature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-  "description": "NEXUS_CORE Operational Telemetry Indexing Matrix. Siphoned via Meta/React-Core Fiber Architecture. Implements Concurrent Lane Prioritization, Huxley Tri-Loop Reasoning, and PSR Governance.",
+  "description": "NEXUS_CORE Telemetry Indexing Matrix. Siphoned via Meta/React-Core Fiber Architecture. Implements Concurrent Lane Prioritization, Huxley Tri-Loop Reasoning, and PSR Governance.",
   "fiber_concurrency_config": {
-    "lane_mask_logic": "Bitwise-Priority-Aggregation",
+    "lane_mask_logic": "Bitwise-Priority-Aggregation-v5",
     "lanes": {
       "NoLane": 0,
       "SyncLane": 1,
@@ -14,15 +14,16 @@
       "OffscreenLane": 536870912
     },
     "entanglement_policy": "Strict-Isolated-Context",
-    "transition_timeout_ms": 30000,
-    "hydration_strategy": "Progressive-Selective-Hydration"
+    "transition_timeout_ms": 40000,
+    "hydration_strategy": "Progressive-Selective-Hydration",
+    "batching_mode": "Concurrent-Fragmented"
   },
   "moe_routing_topology": {
-    "routing_function": "Lane-Prioritized-Dispatch",
+    "routing_function": "Fiber-Expert-Reconciliation",
     "total_experts": 256,
     "suspense_recovery_mode": "Retry-Lane-Fallback",
-    "expert_isolation_factor": 0.95,
-    "phi_threshold": 0.65
+    "expert_isolation_factor": 0.98,
+    "phi_threshold": 0.72
   },
   "targetIndexes": {
     "L3_Sovereign_Root": {
@@ -37,15 +38,16 @@
         "lane_priority"
       ],
       "fiber_specs": {
-        "reconciliation_algorithm": "O(n)-Fiber-Diffing",
+        "reconciliation_algorithm": "O(n)-Fiber-Diffing-Fast-Path",
         "side_effect_tag": "Placement-Update-Commit",
         "update_queue_priority": "SyncLane",
-        "suspense_boundary_enabled": true
+        "suspense_boundary_enabled": true,
+        "concurrent_mode": true
       },
       "n3_metrics": {
-        "phi_min": 0.942,
+        "phi_min": 0.95,
         "lambda_edge_of_chaos": 0.618,
-        "ccrr_threshold": 0.85
+        "ccrr_threshold": 0.90
       }
     },
     "L2_Certified_Concurrent": {
@@ -55,7 +57,8 @@
         "critical.*": "SyncLane",
         "performance.*": "InputContinuousLane",
         "ers.*": "TransitionLane",
-        "deferred.*": "OffscreenLane"
+        "deferred.*": "OffscreenLane",
+        "optimistic.*": "DefaultLane"
       }
     },
     "L1_Validated_Deferred": {
@@ -75,15 +78,21 @@
       "huxley_loop_map": {
         "L0_Raw": "telemetry_ingestion",
         "L1_Intuition": "ERS_Immediate_Validation",
-        "L2_Logic": "Lane_Reconciliation",
+        "L2_Logic": "Lane_Reconciliation_V5",
         "L3_Critique": "CCRR_Commit_Check"
       }
+    },
+    {
+      "hook_type": "useOptimistic",
+      "triggerField": "state_update",
+      "action": "PartialHydration",
+      "rollback_on_error": true
     },
     {
       "hook_type": "ServerActionOverride",
       "triggerField": "ers_score",
       "action": "EmergencyBrake",
-      "condition": "ers_score > 0.90",
+      "condition": "ers_score > 0.95",
       "recovery_protocol": "BASE64_URI_SAFE_TRANSPORT",
       "rollback_strategy": "PSR_Silent_Degradation_Rollback"
     }
@@ -92,8 +101,9 @@
     "iq25_alignment_lock": true,
     "fiber_reconciliation_enabled": true,
     "origin_anchor": "GROG_LAW_IQ25",
-    "psr_threshold": 0.992,
+    "psr_threshold": 0.995,
     "semantic_drift_tolerance": 0.35,
+    "saturation_level_state": "LEVEL_2_STANDARD",
     "integrity_hash": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
     "death_log_schema": "Grog_Learn_v5"
   }
