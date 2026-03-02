@@ -1,98 +1,36 @@
+// Utility demonstrating runtime application of TTRP v2.1 transport constraints.
+
 /**
- * AGI-KERNEL Component: TransportLatencyPolicyKernel
- * Encapsulates the logic for checking and validating transport latency
- * against mandated thresholds, strictly enforcing architectural separation.
+ * Evaluates a potential telemetry payload against transport policy rules
+ * before transmission to ensure operational compliance (TTRP v2.1).
+ * @param {object} policyConfiguration - The parsed TTRP policy JSON.
+ * @param {string} streamType - 'CRITICAL' or 'STANDARD'.
+ * @param {number} currentLatencyMs - Measured transport latency to the target endpoint.
  */
-class TransportLatencyPolicyKernel {
-    #config;
-    #telemetryService;
+function checkTransportReadiness(policyConfiguration, streamType, currentLatencyMs) {
+    const transportKey = streamType === 'CRITICAL' 
+        ? 'CRITICAL_TRANSPORT_TARGET' 
+        : 'STANDARD_TRANSPORT_TARGET';
+        
+    const config = policyConfiguration.TRANSPORT_CONFIGURATION[transportKey];
 
-    /**
-     * @param {object} config - Configuration object containing maxLatencyMs.
-     * @param {object} telemetryService - External service providing latency data.
-     */
-    constructor(config, telemetryService) {
-        this.#setupDependencies(config, telemetryService);
+    if (!config) {
+        console.error(`Error: Transport target ${transportKey} not defined in policy.`);
+        return false; 
     }
 
-    /**
-     * Private method to handle synchronous dependency resolution and validation.
-     * Satisfies the Synchronous Setup Extraction Goal.
-     */
-    #setupDependencies(config, telemetryService) {
-        if (!config || typeof config.maxLatencyMs !== 'number' || config.maxLatencyMs <= 0) {
-            this.#throwSetupError("Invalid configuration: 'maxLatencyMs' must be a positive number.");
-        }
-        if (!telemetryService || typeof telemetryService.getLatency !== 'function') {
-            this.#throwSetupError("Telemetry service dependency is missing or invalid (missing 'getLatency' function).");
-        }
-        this.#config = Object.freeze(config);
-        this.#telemetryService = telemetryService;
+    const maxLatency = config.MAX_LATENCY_MS;
+
+    if (currentLatencyMs > maxLatency) {
+        // Per TTRP policy, if latency exceeds tolerance, we might queue or drop.
+        console.warn(`Latency check failure: ${streamType} stream latency (${currentLatencyMs}ms) exceeds policy limit (${maxLatency}ms). Payload will be queued or dropped.`);
+        // In a real system, this would trigger queueing or dropping based on system logic
+        return false; 
     }
-
-    /**
-     * Executes the transport latency check policy.
-     * @param {string} transportId - The ID of the transport to check.
-     * @returns {Promise<boolean>} True if latency is within limits, false otherwise.
-     */
-    async check(transportId) {
-        const latency = await this.#delegateToTelemetryRetrieval(transportId);
-        return this.#validateLatency(latency);
-    }
-
-    // --- I/O Proxy Functions ---
-
-    /**
-     * Isolates interaction with the external telemetry service.
-     * Satisfies the I/O Proxy Creation Goal.
-     */
-    async #delegateToTelemetryRetrieval(transportId) {
-        try {
-            // Assumes telemetryService.getLatency returns latency in milliseconds
-            return await this.#telemetryService.getLatency(transportId);
-        } catch (error) {
-            this.#logExternalServiceError(transportId, error);
-            // In case of telemetry failure, default to assuming policy failure (fail-safe)
-            return Infinity; 
-        }
-    }
-
-    /**
-     * Isolates core validation logic and control flow (failure logging).
-     * Satisfies the I/O Proxy Creation Goal.
-     */
-    #validateLatency(currentLatencyMs) {
-        const max = this.#config.maxLatencyMs;
-
-        if (currentLatencyMs > max) {
-            this.#logLatencyBreach(currentLatencyMs, max);
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * Isolates I/O operation (logging) for policy breaches.
-     * Satisfies the I/O Proxy Creation Goal.
-     */
-    #logLatencyBreach(latency, max) {
-        // Use console.warn for policy failure notifications
-        console.warn(`[TransportLatencyPolicyKernel] Policy violation: Latency breach detected. Max: ${max}ms. Measured: ${latency}ms.`);
-    }
-
-    /**
-     * Isolates I/O operation (error logging) for external service failures.
-     * Satisfies the I/O Proxy Creation Goal.
-     */
-    #logExternalServiceError(id, error) {
-        console.error(`[TransportLatencyPolicyKernel] CRITICAL: Failed to access Telemetry Service for ID ${id}.`, error.message);
-    }
-
-    /**
-     * Isolates control flow for setup errors.
-     * Satisfies the I/O Proxy Creation Goal.
-     */
-    #throwSetupError(message) {
-        throw new Error(`[TransportLatencyPolicyKernel Setup Error] ${message}`);
-    }
+    
+    return true;
 }
+
+// Example usage assuming policy structure defined by ttrp_policy_schema.json v2.1
+// const TTRP_CONFIG = { ... }; 
+// checkTransportReadiness(TTRP_CONFIG, 'CRITICAL', 80);
