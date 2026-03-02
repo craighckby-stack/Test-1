@@ -1,80 +1,65 @@
+// ID: CSV-01 (Compliance Schema Validator)
+// Purpose: Enforces structural integrity of compliance configuration files using AJV.
+import Ajv from 'ajv';
+import * as fs from 'fs';
+import path from 'path';
+
 import { PolicyIntegrityError } from '../errors/policyErrors.js';
+// Import definitions/constants, proposed for higher organization (see scaffold proposal)
+import { 
+    MINIMAL_FALLBACK_SCHEMA, 
+    DEFAULT_GOVERNANCE_SCHEMA_PATH,
+    AJV_CONFIGURATION
+} from './schema/PolicySchemaDefinitions.js';
 
-/**
- * @interface ISpecValidatorKernel
- * Defines the required interface for validating data against a specification.
- * The implementation must be pre-configured with the Policy Governance Schema.
- */
-
-class PolicySchemaValidatorKernel {
+class PolicySchemaValidator {
     /**
-     * @type {ISpecValidatorKernel}
+     * @type {Ajv}
      */
-    #specValidator;
-
+    #ajv;
     /**
-     * Initializes the kernel by injecting a pre-configured specification validator.
-     * The injected validator MUST be pre-configured with the governance schema.
-     * @param {ISpecValidatorKernel} specValidator - The pre-configured specification validation kernel.
+     * @type {import('ajv').ValidateFunction}
      */
-    constructor(specValidator) {
-        this.#specValidator = specValidator;
-        this.#setupDependencies();
-    }
+    #validateFunction;
 
     /**
-     * Rigorously validates and initializes all required dependencies.
-     * Synchronous setup logic is isolated here.
-     * @private
+     * Initializes the validator by compiling the policy governance schema.
+     * @param {string} schemaPath - Optional path to the external JSON schema file.
      */
-    #setupDependencies() {
-        if (!this.#specValidator || typeof this.#specValidator.validate !== 'function') {
-            throw new Error("[PSK-DEP] PolicySchemaValidatorKernel requires a valid ISpecValidatorKernel dependency with a 'validate' method.");
+    constructor(schemaPath = DEFAULT_GOVERNANCE_SCHEMA_PATH) {
+        // Use externalized configuration for maintenance ease
+        this.#ajv = new Ajv(AJV_CONFIGURATION);
+        
+        const schema = this.#loadAndParseSchema(schemaPath);
+        
+        try {
+            // Pre-compile schema to ensure validation performance is maximal at runtime.
+            this.#validateFunction = this.#ajv.compile(schema);
+        } catch (e) {
+            // Indicate structural invalidity of the JSON schema itself
+            console.error(`[CSV-01] AJV Compilation Failure: Schema in ${schemaPath || 'Fallback'} is invalid.`, e.message);
+            throw new Error(`Failed to compile governance schema: ${e.message}`);
         }
     }
 
     /**
-     * Delegates the validation execution to the injected Spec Validator.
-     * @private
-     * @param {object} policyConfigData
-     * @returns {{isValid: boolean, errors: Array<object>}}
+     * Loads the required JSON schema synchronously from the filesystem or uses a fallback.
+     * @param {string} schemaPath 
+     * @returns {object} The parsed JSON schema object.
      */
-    #delegateToValidatorValidate(policyConfigData) {
-        // Assuming ISpecValidatorKernel.validate returns { isValid, errors }
-        return this.#specValidator.validate(policyConfigData);
-    }
-
-    /**
-     * Logs the validation failure details using system console.
-     * @private
-     * @param {Array<object>} errors 
-     * @param {string} schemaIdentifier 
-     */
-    #logValidationFailure(errors, schemaIdentifier) {
-        const errorList = errors || [];
-        
-        // Generate robust error details utilizing AJV fields
-        const errorDetails = errorList.map(e => {
-            const dataPath = e.instancePath || e.dataPath || 'root';
-            const schemaPath = e.schemaPath || 'unknown';
-            return `[Path: ${dataPath}] ${e.message}. Schema Ref: ${schemaPath} (Keyword: ${e.keyword})`;
-        }).join('\n');
-        
-        // Note: Using console.error is considered a proxy for system logging.
-        console.error(`[CSV-01] Policy Validation Failed against schema ${schemaIdentifier}. Errors: ${errorList.length}. Details:\n${errorDetails}`);
-    }
-
-    /**
-     * Throws a PolicyIntegrityError.
-     * @private
-     * @param {number} errorCount 
-     * @param {Array<object>} errorList 
-     */
-    #throwIntegrityError(errorCount, errorList) {
-         throw new PolicyIntegrityError(
-            `Policy configuration failed strict compliance schema validation. Found ${errorCount} structural issues.`, 
-            errorList 
-        );
+    #loadAndParseSchema(schemaPath) {
+        try {
+            const schemaContent = fs.readFileSync(schemaPath, 'utf8');
+            // console.info(`[CSV-01] Loaded schema from ${schemaPath}.`); // Reduced unnecessary success logging
+            return JSON.parse(schemaContent);
+        } catch (e) {
+            if (e.code === 'ENOENT') {
+                console.warn(`[CSV-01] Governance schema file not found at ${schemaPath}. Utilizing defined minimal compliance fallback schema.`);
+                return MINIMAL_FALLBACK_SCHEMA; 
+            }
+            // Catch parsing errors, permission errors, etc.
+            throw new Error(`Failed to load and parse governance schema from ${schemaPath}: ${e.message}`);
+        }
     }
 
     /**
@@ -84,19 +69,30 @@ class PolicySchemaValidatorKernel {
      * @throws {PolicyIntegrityError} If validation fails.
      */
     validate(policyConfigData) {
-        const { isValid, errors } = this.#delegateToValidatorValidate(policyConfigData);
-        
-        if (!isValid) {
-            const errorList = errors || [];
-            // Assuming the injected ISpecValidatorKernel provides a property
-            // to identify the specification it is using.
-            const schemaIdentifier = this.#specValidator.schemaSourceIdentifier || 'Unknown Policy Schema'; 
+        // Sanity check for immediate input integrity
+        if (!policyConfigData || typeof policyConfigData !== 'object' || Array.isArray(policyConfigData)) {
+             throw new PolicyIntegrityError("Input policy configuration is not a valid object.", [{keyword: "type", message: "Input data must be a valid JSON object."}] as any);
+        }
+
+        if (!this.#validateFunction(policyConfigData)) {
+            const errors = this.#validateFunction.errors || [];
             
-            this.#logValidationFailure(errorList, schemaIdentifier);
-            this.#throwIntegrityError(errorList.length, errorList);
+            // Generate robust error details utilizing modern AJV fields (instancePath)
+            const errorDetails = errors.map(e => {
+                const dataPath = e.instancePath || e.dataPath || 'root';
+                const schemaPath = e.schemaPath || 'unknown';
+                return `[Path: ${dataPath}] ${e.message}. Schema Ref: ${schemaPath} (Keyword: ${e.keyword})`;
+            }).join('\n');
+            
+            console.error(`[CSV-01] Policy Validation Failed. Errors: ${errors.length}. Details:\n${errorDetails}`);
+
+            throw new PolicyIntegrityError(
+                `Policy configuration failed strict compliance schema validation. Found ${errors.length} structural issues.`,
+                errors 
+            );
         }
         return true;
     }
 }
 
-export default PolicySchemaValidatorKernel;
+export default PolicySchemaValidator;
