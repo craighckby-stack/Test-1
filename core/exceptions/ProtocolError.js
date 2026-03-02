@@ -2,25 +2,15 @@
  * core/exceptions/ProtocolError.js
  * 
  * Custom error class for failures related to adherence to the Sovereign Manifest Protocol 
- * or core architectural contracts.
- * Inherits standardized error handling from BaseApplicationError.
+ * or core architectural contracts (e.g., required input compliance).
  */
-const BaseApplicationError = require('./BaseApplicationError');
-
-class ProtocolError extends BaseApplicationError {
-    // Enforce the error contract using static, canonical fields
-    static ERROR_NAME = 'ProtocolError';
-    static ERROR_PREFIX = 'AGI_PRTCL';
-    static HTTP_STATUS_CODE = 500;
-
-    /**
-     * @param {string} message - Human-readable error message.
-     * @param {object} [context={}] - Optional metadata relevant to the error occurrence.
-     */
+class ProtocolError extends Error {
     constructor(message, context = {}) {
-        // Protocol failures are typically Internal Server Errors (500).
-        // Use the canonical static status code definition, ensuring consistency.
-        super(message, ProtocolError.HTTP_STATUS_CODE, context);
+        super(message);
+        this.name = 'ProtocolError';
+        this.statusCode = 500; // Internal Protocol Failure
+        this.context = context;
+        Error.captureStackTrace(this, ProtocolError);
     }
 }
 
