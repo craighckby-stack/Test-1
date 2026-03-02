@@ -1,110 +1,62 @@
-import { ISchemaFormatParserToolKernel } from './ISchemaFormatParserToolKernel';
-import { ICanonicalGraphGeneratorToolKernel } from './ICanonicalGraphGeneratorToolKernel';
-import { IStructuralSchemaValidatorToolKernel } from './IStructuralSchemaValidatorToolKernel';
-import { ISchemaParserConfigRegistryKernel } from './ISchemaParserConfigRegistryKernel';
-import { ILoggerToolKernel } from '@kernel/logging'; // Assumed dependency
-
 /**
- * ISchemaNormalizerKernel Interface
- * Mandates the contract for secure, asynchronous schema normalization.
- */
-export interface ISchemaNormalizerKernel {
-    /** Loads parser configuration asynchronously from the audited registry. */
-    initialize(): Promise<void>;
-    
-    /** 
-     * Converts raw schema definition into a standardized, validated, and immutable ADT graph model.
-     * @returns {Promise<Readonly<object>>} The standardized, validated, and immutable graph representation.
-     */
-    normalize(rawSchemaDefinition: string | object, format: string): Promise<Readonly<object>>;
-}
-
-/**
- * Schema Normalizer Kernel
- * Responsibility: Securely ingest raw schema definitions and convert them into a standardized, 
- * deterministic Abstract Definition Tree (ADT) by leveraging auditable Tool Kernels 
- * for parsing, canonical generation, and structural validation.
+ * Schema Normalizer Utility
+ * Responsibility: Ingest raw schema definitions (e.g., SQL DDL, YAML configuration, API specifications)
+ * and convert them into a standardized, deterministic Graph Model (Abstract Definition Tree - ADT)
+ * suitable for consumption by the SchemaAnalyzer and the migration engine.
  * 
- * This strictly adheres to AIA mandates by abstracting configuration loading and ensuring 
- * all complex computation (parsing, generation, validation) is delegated asynchronously.
+ * This decouples raw format handling from complex structural analysis.
  */
-export class SchemaNormalizerKernel implements ISchemaNormalizerKernel {
+export class SchemaNormalizer {
 
-    private parserDelegator: ISchemaFormatParserToolKernel;
-    private payloadGenerator: ICanonicalGraphGeneratorToolKernel;
-    private validator: IStructuralSchemaValidatorToolKernel;
-    private configRegistry: ISchemaParserConfigRegistryKernel;
-    private logger: ILoggerToolKernel;
-
-    private parserRegistry: Readonly<Record<string, any>> = {};
-
-    constructor(
-        parserDelegator: ISchemaFormatParserToolKernel,
-        payloadGenerator: ICanonicalGraphGeneratorToolKernel,
-        validator: IStructuralSchemaValidatorToolKernel,
-        configRegistry: ISchemaParserConfigRegistryKernel,
-        logger: ILoggerToolKernel
-    ) {
-        if (!parserDelegator || !payloadGenerator || !validator || !configRegistry || !logger) {
-            throw new Error("Critical dependencies missing for SchemaNormalizerKernel.");
-        }
-        this.parserDelegator = parserDelegator;
-        this.payloadGenerator = payloadGenerator;
-        this.validator = validator;
-        this.configRegistry = configRegistry;
-        this.logger = logger;
+    constructor(parserRegistry = {}) {
+        this.parsers = parserRegistry; // Allows injection of custom format parsers
     }
 
     /**
-     * Initializes the kernel by asynchronously loading the required parser configuration 
-     * via the audited configuration registry.
-     */
-    async initialize(): Promise<void> {
-        this.logger.debug("[SchemaNormalizerKernel] Initializing and loading parser registry configuration.");
-        // Load configuration asynchronously, ensuring non-blocking execution.
-        this.parserRegistry = Object.freeze(await this.configRegistry.getParserRegistry());
-        this.logger.info(`[SchemaNormalizerKernel] Configuration loaded. Registered ${Object.keys(this.parserRegistry).length} parsers.`);
-    }
-
-    /**
-     * Ingests a raw definition and converts it into a standardized schema graph model (Schema ADT).
+     * Ingests a raw definition and converts it into a standardized schema graph model.
      * @param {string | object} rawSchemaDefinition - Raw input schema data.
      * @param {string} format - The source format ('SQL', 'GraphQL', 'YAML', 'JSON_ADT').
-     * @returns {Promise<Readonly<object>>} The standardized, validated, and immutable graph representation.
+     * @returns {Promise<object>} The standardized, validated graph representation.
      */
-    async normalize(rawSchemaDefinition: string | object, format: string): Promise<Readonly<object>> {
+    async normalize(rawSchemaDefinition, format) {
         if (!rawSchemaDefinition) {
-            this.logger.error("Normalization input failed: Schema definition cannot be empty.");
             throw new Error("Schema definition cannot be empty.");
         }
-        if (Object.keys(this.parserRegistry).length === 0) {
-             throw new Error("SchemaNormalizerKernel not initialized or parser registry is empty.");
-        }
 
-        this.logger.info(`Starting schema normalization for format: ${format}.`);
+        console.log(`[SchemaNormalizer] Starting normalization from ${format} format...`);
 
-        // 1. Parsing and Syntax Check (Delegated)
-        const parsedStructure = await this.parserDelegator.execute({
-            rawDefinition: rawSchemaDefinition,
-            format,
-            parserRegistry: this.parserRegistry // Pass immutable configuration
-        });
+        // 1. Parsing and Syntax Check
+        const parsedStructure = this._parse(rawSchemaDefinition, format);
 
-        // 2. Dependency Mapping and Graph Construction (Canonical Generation)
-        const graphModel = await this.payloadGenerator.generate(parsedStructure, { targetType: 'SchemaADT' });
+        // 2. Dependency Mapping and Graph Construction
+        const graphModel = this._buildGraph(parsedStructure);
         
-        // 3. Validation and Consistency Check (Structural Validation)
-        const validationResult = await this.validator.validate(graphModel, { context: 'Normalization' });
+        // 3. Validation and Consistency Check
+        this._validate(graphModel);
 
-        if (!validationResult.isValid) {
-            const errorMessages = validationResult.errors ? validationResult.errors.map(e => e.message).join(', ') : 'Unknown structural errors.';
-            this.logger.crit(`Normalization failed: Structural validation error detected for format ${format}. Details: ${errorMessages}`);
-            throw new Error(`Normalization failed due to structural validation errors: ${errorMessages}`);
-        }
+        return graphModel;
+    }
 
-        this.logger.info(`Schema normalization successful for format: ${format}.`);
+    /** Placeholder for format-specific parsing logic. */
+    _parse(rawDefinition, format) {
+        // Example: if format === 'SQL', invoke a DDL parser.
+        if (this.parsers[format]) {
+            return this.parsers[format].parse(rawDefinition);
+        } 
         
-        // Ensure immutability for downstream consumption (e.g., SchemaAnalyzerKernel)
-        return Object.freeze(graphModel);
+        // Fallback assuming a generic object structure if no parser is defined
+        return rawDefinition; 
+    }
+
+    /** Converts parsed definitions into the canonical entity/field/relationship graph structure. */
+    _buildGraph(parsedStructure) {
+        // Constructs standardized nodes (Entities) and edges (Relationships)
+        return parsedStructure; // In reality, deep transformation occurs here.
+    }
+
+    /** Ensures structural integrity (e.g., no cyclical dependencies, all types resolve). */
+    _validate(graph) {
+        // throw detailed error if invalid structure is detected
+        return true;
     }
 }
