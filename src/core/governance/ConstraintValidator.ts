@@ -1,89 +1,45 @@
-import { ISpecValidatorKernel } from '../../interfaces/tools/ISpecValidatorKernel';
-import { ILoggerToolKernel } from '../../interfaces/tools/ILoggerToolKernel';
-import { IConstraintDefinitionConfigRegistryKernel } from './interfaces/IConstraintDefinitionConfigRegistryKernel'; 
+import { GAXConstraintSet, ConstraintValidationResult } from './types';
 
 /**
- * ConstraintValidatorKernel enforces structural and content integrity of governance configurations
- * against predefined canonical constraint schemas using Dependency Injection (DI).
+ * Utility class responsible for runtime validation of the GAX Constraint Set structure.
+ * Ensures static governance configuration files adhere to the expected schema.
  */
-export class ConstraintValidatorKernel {
-    private validator: ISpecValidatorKernel;
-    private definitionRegistry: IConstraintDefinitionConfigRegistryKernel;
-    private logger: ILoggerToolKernel;
-    private canonicalConstraintId: string;
-
-    constructor(
-        dependencies: {
-            validator: ISpecValidatorKernel;
-            definitionRegistry: IConstraintDefinitionConfigRegistryKernel;
-            logger: ILoggerToolKernel;
-        }
-    ) {
-        // Mandate: Isolate synchronous dependency assignment and validation
-        this.#setupDependencies(dependencies);
-    }
+export class ConstraintValidator {
 
     /**
-     * Isolates dependency assignment and synchronous validation, satisfying the synchronous setup extraction mandate.
+     * Checks the raw input data against the expected GAXConstraintSet structure.
+     * NOTE: In a production environment, a library like Zod or Yup would define the schema rigorously.
      */
-    #setupDependencies(dependencies: { 
-        validator: ISpecValidatorKernel; 
-        definitionRegistry: IConstraintDefinitionConfigRegistryKernel; 
-        logger: ILoggerToolKernel;
-    }): void {
-        if (!dependencies.validator) {
-            throw new Error('ConstraintValidatorKernel requires ISpecValidatorKernel dependency.');
-        }
-        if (!dependencies.definitionRegistry) {
-            throw new Error('ConstraintValidatorKernel requires IConstraintDefinitionConfigRegistryKernel dependency.');
-        }
-        if (!dependencies.logger) {
-            throw new Error('ConstraintValidatorKernel requires ILoggerToolKernel dependency.');
-        }
-        
-        this.validator = dependencies.validator;
-        this.definitionRegistry = dependencies.definitionRegistry;
-        this.logger = dependencies.logger;
-        
-        try {
-            // Synchronous configuration setup, relies on registry providing ID synchronously
-            this.canonicalConstraintId = this.definitionRegistry.getCanonicalConstraintId();
-        } catch (e) {
-            this.logger.error("Failed to retrieve canonical constraint ID during setup.", e);
-            throw e;
-        }
-    }
+    public static validate(rawConstraints: any): ConstraintValidationResult {
+        const errors: string[] = [];
 
-    public async initialize(): Promise<void> {
-        this.logger.info(`ConstraintValidatorKernel initialized. Targeting constraint ID: ${this.canonicalConstraintId}`);
-    }
+        if (!rawConstraints || typeof rawConstraints !== 'object') {
+            return { success: false, errors: ['Input is not a valid object.'] };
+        }
 
-    /**
-     * Validates the provided configuration data against the defined canonical constraint schema.
-     * Validation relies on the injected ISpecValidatorKernel and IConstraintDefinitionConfigRegistryKernel.
-     * @param data The data structure to validate.
-     * @returns A promise resolving to the validation result.
-     */
-    public async validate(data: any): Promise<{ isValid: boolean, errors: any[] }> {
-        this.logger.debug(`Starting validation for canonical constraint: ${this.canonicalConstraintId}`);
-        
-        try {
-            // Retrieve the constraint schema definition asynchronously
-            const schema = await this.definitionRegistry.getConstraintDefinitionSchema(this.canonicalConstraintId);
+        // Basic mandatory checks
+        if (typeof rawConstraints.schema_version !== 'number') {
+            errors.push('Missing or invalid schema_version (expected number).');
+        }
 
-            // Perform validation using the injected tool
-            const result = await this.validator.validate(schema, data);
-            
-            if (!result.isValid) {
-                this.logger.warn(`Canonical constraint validation failed for ID ${this.canonicalConstraintId}.`, { errors: result.errors });
-            } else {
-                this.logger.debug(`Canonical constraint validation passed for ID ${this.canonicalConstraintId}.`);
+        if (!rawConstraints.global_execution_limits) {
+            errors.push('Missing core global_execution_limits definition.');
+        } else {
+            // Check for critical sub-keys
+            const gasLimit = rawConstraints.global_execution_limits.max_gas_units_per_tx;
+            if (!gasLimit || typeof gasLimit.limit !== 'number' || !gasLimit.failure_mode) {
+                errors.push('Missing or malformed global_execution_limits.max_gas_units_per_tx.');
             }
-
-            return result;
-        } catch (error) {
-            this.logger.error(`Critical error during constraint validation for ${this.canonicalConstraintId}.`, error);
-            return { isValid: false, errors: [{ message: 'Internal validation failure', detail: error.message }] };
         }
+
+        if (!rawConstraints.system_governance_toggles || typeof rawConstraints.system_governance_toggles !== 'object') {
+             errors.push('Missing or invalid system_governance_toggles.');
+        }
+
+        if (errors.length > 0) {
+            return { success: false, errors };
+        }
+
+        return { success: true, errors: [] };
     }
 }
