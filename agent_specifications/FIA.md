@@ -1,194 +1,55 @@
-class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
+# AGENT SPECIFICATION: FORENSIC INTEGRITY AGENT (FIA)
 
-  constructor(values = {}) {
-    this.setValues(values);
-  }
+## 0. Configuration Block (ACB)
+| Parameter | Value | Definition | Constraint |
+|:---:|:---:|:---|:---:|
+| Agent ID | A-FIA-001 | Unique System Identifier | Mandatory |
+| Version | 2.0.0 (Refactored) | Specification Version | Incremental |
+| Status | Tier-0 Critical | Operational Priority Class | Non-Degradable |
+| Domain | P-05 (Integrity Enclave) | Isolated Trust Context | Architectural (SEE) |
 
-  setValues(values) {
-    Object.assign(this, values);
-  }
+## 1. Core Mandate: Attested State Commitment and Immutability
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
+The Forensic Integrity Agent (FIA) maintains the singular mandate of establishing and verifying the integrity of the system state immediately prior to catastrophic failure. This involves executing the **Atomic State Attestation (ASA)** sequence and managing the resulting immutable records.
 
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
+### 1.1 Key Terminology Update
+- **TEDS (Total Execution Deterministic Snapshot)** is formally renamed to **ASC (Attested State Commit)**, emphasizing the cryptographic verification requirements over mere capture.
+- The capture sequence is referred to as the **Forensic Commit Protocol (FCP)**.
 
-  validate() {
-    try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-}
+## 2. Security Context: Isolated Execution Enclave (SEE)
 
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
+The FIA must operate within a **Secure Execution Enclave (SEE)**, denoted as Trust Domain P-05. This enforces non-negotiable architectural segregation necessary for evidentiary integrity.
 
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
+1.  **Architectural Segregation:** P-05 environment (including its storage layer, the Forensic Vault Module - FVM) must be logically and physically isolated from P1-P4 standard execution domains (SGS, GAX, etc.). This isolation must prevent back-propagation of operational state changes or retrospective modification attempts.
+2.  **Functional Restriction:** FIA is prohibited from executing non-forensic workflow logic (e.g., DSE, Mission Control). Its execution scope is strictly limited to real-time integrity assurance, cryptographic signing, hash chaining, and FCP execution.
 
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
+## 3. Operational Trigger: Rollback Protocol (RRP) Activation
 
-  execute() {
-    this.handler();
-  }
-}
+FIA passively monitors the `RRP Activation Interface (RRP-AI)` for confirmed Fault Mask Signals, indicating the initiation of the Rollback Protocol (RRP).
 
-class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
+### 3.1 Fault Mask Signals (Trigger Sources)
+System telemetry alerts confirming state inconsistency:
+- `PVLM`: Policy Violation Logic Mask
+- `MPAM`: Mission Parameter Anomaly Mask
+- `ADTM`: Adversarial Threat Model confirmation
+- `P-01 Failure Lock`: Direct command from Root Governance.
 
-  #status = "INIT";
+### 3.2 Action Sequence (Forensic Commit Protocol - FCP)
+Upon receiving a confirmed Fault Mask Signal, the FIA executes the mandatory FCP sequence:
+1.  **State Hard Lock (Atomic Freeze):** Immediate cessation of system clock advancement/memory modification outside of the P-05 boundary.
+2.  **ASC Generation:** Capture of the deterministic frozen state.
+3.  **Integrity Chaining:** Hashing and cryptographic linking of the ASC to previous operational states.
+4.  **Root Signing:** Submission of the ASC hash block to the CRoT for final attestation.
 
-  get status() {
-    return this.#status;
-  }
+## 4. Artifact Contracts and Data Outputs
 
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
-      }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-    }
-  }
+The FIA is responsible for producing two integrity-verified artifacts, securely stored in the FVM.
 
-  get lifecycle() {
-    return this.#lifecycle;
-  }
+| Artifact ID | Name | Description | Output Consumer | Integrity Requirement |
+|:---:|:---|:---|:---:|:---:|
+| **ASC** | Attested State Commit | The cryptographically signed, immutable state record captured during the FCP.| GAX (RRP Analysis Module) | Immutability (Requirement 5.0). Signed by CRoT. Chained Hash Proof. |
+| **RPR** | Rollback Policy Report | Filtered, anonymized statistical data derived *exclusively* from the verified ASC for policy optimization.| GAX (Policy Adaptation Module) | Verified traceability via linkage to source ASC cryptographic hash. |
 
-  configure(config) {
-    this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
-  }
+## 5. Trust Anchor and Verification
 
-  validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-  }
-
-  async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
-  }
-
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
-  async destroy() {
-    this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
-  }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
-}
-
-const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
+The **Chain of Root Trust (CRoT)** remains the external authority responsible for digitally signing the ASC, establishing the final proof of compliance regarding isolation and immutability standards defined by this specification (ASC-2.0.0 Standard).
