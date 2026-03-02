@@ -1,37 +1,10 @@
-export interface RotationScheduleConfig {
-    /** The type of rotation policy (e.g., EPISODIC, TIME_BOUND). */
-    type: 'EPISODIC' | 'TIME_BOUND' | 'TIME_CEILING' | string;
-    /** Specific threshold for metric-based rotation (EPISODIC). */
-    metricThreshold?: number;
-    /** Duration in days/time units for time-based rotation (TIME_BOUND/TIME_CEILING). */
-    timeThreshold?: number;
-}
-
-export interface RotationOutcome {
-    /** True if rotation was triggered as a result of this metric report. */
-    triggered: boolean;
-    /** The reason code for triggering or not triggering the rotation. */
-    reason: 'THRESHOLD_MET' | 'TIME_ELAPSED' | 'POLICY_VIOLATED' | 'NO_ACTION' | string;
-    /** Optional identifier for the newly generated key version. */
-    newKeyVersion?: string;
-}
-
-export interface CheckSummary {
-    /** The number of domains checked during the time-bound run. */
-    totalDomainsChecked: number;
-    /** List of domainKeys for which rotation was successfully initiated. */
-    rotatedDomainKeys: string[];
-    /** List of errors encountered during the check. */
-    errors: string[];
-}
-
 /**
- * @interface KeyRotationTriggerInterfaceKernel
+ * @interface KeyRotationTriggerService
  * Handles monitoring key usage metrics against rotation schedules 
  * defined in config/key_rotation_schedule.json and triggering 
  * mandatory key updates via the IKLM (Key Lifecycle Management) service.
  */
-export interface KeyRotationTriggerInterfaceKernel {
+export interface KeyRotationTriggerService {
     
     /**
      * Registers a new key domain rotation policy for active monitoring.
