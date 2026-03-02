@@ -1,30 +1,33 @@
 {
   "dnaSignature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-  "evolutionRound": "1/5",
+  "evolutionRound": "2/5",
   "systemState": {
-    "phi": 0.85,
-    "lambda": 0.42,
+    "phi": 0.884,
+    "lambda": 0.452,
     "mode": "CONCURRENT_RECONCILIATION",
-    "milestoneStep": 50
+    "milestoneStep": 50,
+    "fiberBudgetMs": 50
   },
   "laneTopology": {
+    "NoLane": 0,
     "SyncLane": 1,
     "InputLane": 2,
-    "DefaultLane": 16,
-    "TransitionLane": 64,
-    "OffscreenLane": 1024,
+    "DefaultLane": 8,
+    "TransitionLane": 112,
+    "OffscreenLane": 1073741824,
     "SiphonLane": 4096
   },
   "analysisMap": {
     "root": {
-      "fiberTag": "HostRoot",
+      "fiberTag": "ProfileRoot",
       "priority": "Immediate",
       "ersLimit": 0.001,
-      "psrMode": "LOCKED"
+      "psrMode": "LOCKED",
+      "topologyType": "PNP_ISOLATED"
     },
     "dialNodes": {
       "semanticCoherence": {
-        "lane": 64,
+        "lane": 112,
         "workTag": "TransitionFiber",
         "memoizationDepth": 3,
         "huxleyLogic": [
@@ -33,8 +36,9 @@
           "L3_Critique"
         ],
         "v_vectors": {
-          "ersMax": 0.05,
-          "expertFactor": 0.99
+          "ersMax": 0.045,
+          "expertFactor": 0.992,
+          "lambdaLimit": 0.618
         }
       },
       "structuralIntegrity": {
@@ -43,25 +47,28 @@
         "memoizationDepth": 5,
         "huxleyLogic": [
           "L0_Raw",
-          "L1_Intuition"
+          "L1_Intuition",
+          "L3_Critique"
         ],
         "v_vectors": {
-          "ersMax": 0.01,
-          "expertFactor": 0.999
+          "ersMax": 0.008,
+          "expertFactor": 0.9995,
+          "pnpResolution": "STRICT"
         }
       },
       "logicSiphon": {
         "lane": 4096,
         "workTag": "SiphoningFiber",
-        "memoizationDepth": 10,
+        "memoizationDepth": 12,
         "huxleyLogic": [
           "L1_Intuition",
           "L2_Logic",
           "L3_Critique"
         ],
         "v_vectors": {
-          "ersMax": 0.15,
-          "expertFactor": 0.95
+          "ersMax": 0.12,
+          "expertFactor": 0.975,
+          "siphonSource": "Meta/React-Core"
         }
       }
     }
@@ -73,27 +80,35 @@
       "lesson": "GROG_LEARN",
       "success": false,
       "parameters": {
-        "complexity": 0.0,
-        "recursion": 0
+        "phi_at_failure": 0.0,
+        "lambda_drift": 0.0,
+        "psr_action": "RECOVERY_VOID"
       }
     },
     "binaryConstraints": [
       "NULL_INTEGRITY_REJECT",
       "LAMBDA_OVERFLOW_SHUTDOWN",
-      "PHI_DEFICIT_ROLLBACK"
+      "PHI_DEFICIT_ROLLBACK",
+      "ERS_GATE_KEEPER_VIOLATION",
+      "CCRR_SINGULARITY_FAILURE"
     ],
     "maxRecursion": 10,
-    "complexityCeiling": 0.8
+    "complexityCeiling": 0.78
   },
   "psrGovernance": {
     "integritySignature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
     "snapshotInterval": 50,
     "autoRollbackThreshold": 0.35,
-    "recoveryLogic": "safeJSONRecovery"
+    "recoveryLogic": "safeJSONRecovery",
+    "pnpTopology": {
+      "virtualStore": "/.nexus/pnp",
+      "fallbackRetry": true
+    }
   },
   "metadata": {
-    "sourceSiphon": "Meta/React-Core Fiber",
+    "sourceSiphon": "Meta/React-Core (Fiber) + Yarn (PnP)",
     "origin": "NEXUS_CORE",
-    "lastUpdated": "2026-03-02"
+    "lastUpdated": "2026-03-02T14:42:00Z",
+    "ccrrCommit": 0.9998
   }
 }
