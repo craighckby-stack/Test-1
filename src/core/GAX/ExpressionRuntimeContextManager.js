@@ -1,82 +1,56 @@
-import { IExecutionThrottlerToolKernel } from './interfaces/IExecutionThrottlerToolKernel';
-import { ICapacityLimitedCacheUtilityToolKernel } from './interfaces/ICapacityLimitedCacheUtilityToolKernel';
-import { IGAXEngineLimitsConfigRegistryKernel } from './interfaces/IGAXEngineLimitsConfigRegistryKernel';
-
 /**
- * AGI-KERNEL: GAX Expression Runtime Context Manager Kernel (V1.0)
- * Manages execution resource consumption and memoization via injected kernel dependencies.
- * Achieves high architectural separation by eliminating synchronous global state access and configuration coupling.
+ * GAX Expression Runtime Context Manager (V94.1)
+ * Manages execution resource consumption and ensures adherence to GAX_Expr_Core_v2 EngineLimits.
  */
-class ExpressionRuntimeContextManagerKernel {
-  /** @type {IExecutionThrottlerToolKernel} */
-  #throttlerKernel;
-  /** @type {ICapacityLimitedCacheUtilityToolKernel} */
-  #cacheUtilityKernel;
-  /** @type {IGAXEngineLimitsConfigRegistryKernel} */
-  #limitsRegistry;
-  /** @type {object} */
-  #memoCacheManager;
+class ExpressionRuntimeContextManager {
+  constructor(config) {
+    this.limits = config.EngineLimits;
+    this.complexity = 0;
+    this.depth = 0;
+    this.startTime = Date.now();
+    // Runtime cache for intermediate results to respect memoizationLimit
+    this.memoCache = new Map();
+  }
 
-  /**
-   * @param {IExecutionThrottlerToolKernel} throttlerKernel - Pre-configured execution throttler instance.
-   * @param {ICapacityLimitedCacheUtilityToolKernel} cacheUtilityKernel - Utility for cache management and memoization.
-   * @param {IGAXEngineLimitsConfigRegistryKernel} limitsRegistry - Configuration registry for GAX engine limits.
-   */
-  constructor(throttlerKernel, cacheUtilityKernel, limitsRegistry) {
-    if (!throttlerKernel || !cacheUtilityKernel || !limitsRegistry) {
-        throw new Error("Kernel Initialization Error: ExpressionRuntimeContextManagerKernel requires IExecutionThrottlerToolKernel, ICapacityLimitedCacheUtilityToolKernel, and IGAXEngineLimitsConfigRegistryKernel.");
+  checkResourceLimits(nodeType) {
+    if (this.complexity > this.limits.maxComplexityScore) {
+      throw new Error("GAX_EVAL_ERROR: Complexity limit exceeded.");
     }
-    
-    this.#throttlerKernel = throttlerKernel;
-    this.#cacheUtilityKernel = cacheUtilityKernel;
-    this.#limitsRegistry = limitsRegistry;
-    
-    this.#setupDependencies();
-  }
-
-  /**
-   * Isolates synchronous initialization logic, retrieving configuration and setting up internal state.
-   */
-  #setupDependencies() {
-    const limits = this.#limitsRegistry.getLimits();
-    
-    // Memoization cache initialization using injected utility and limits from the registry
-    this.#memoCacheManager = this.#cacheUtilityKernel.create(limits.memoizationLimit);
-    
-    // The throttler is assumed to be fully configured upon injection.
-  }
-
-  /**
-   * Delegates all limit checks (complexity, depth, timeout) to the injected throttler kernel.
-   */
-  checkResourceLimits() {
-    this.#throttlerKernel.check();
+    if (this.depth > this.limits.maxExecutionDepth) {
+      throw new Error("GAX_EVAL_ERROR: Maximum execution depth exceeded.");
+    }
+    if (Date.now() - this.startTime > this.limits.timeoutMs) {
+      throw new Error("GAX_EVAL_ERROR: Execution timeout exceeded.");
+    }
   }
 
   increaseComplexity(scoreIncrement) {
-    this.#throttlerKernel.increaseComplexity(scoreIncrement);
+    this.complexity += scoreIncrement;
   }
 
-  /**
-   * Function entry handles depth increment and immediate resource check.
-   */
   enterFunction() {
-    this.#throttlerKernel.enterScope();
+    this.depth++;
+    this.checkResourceLimits('DEPTH_CHECK');
   }
 
   exitFunction() {
-    this.#throttlerKernel.exitScope();
+    this.depth--;
   }
 
-  /**
-   * Method for safe lookup/storage with memoization limit enforcement, delegated to injected utility.
-   * @param {string} key
-   * @param {Function} computation
-   * @returns {any}
-   */
+  // Method for safe lookup/storage with memoization limit enforcement
   memoize(key, computation) {
-    return this.#cacheUtilityKernel.memoize(this.#memoCacheManager, key, computation);
+    if (this.memoCache.size >= this.limits.memoizationLimit) {
+        // Eviction strategy (e.g., LFU/LRU or simple FIFO for stability)
+        const oldestKey = this.memoCache.keys().next().value;
+        this.memoCache.delete(oldestKey);
+    }
+    if (!this.memoCache.has(key)) {
+      const result = computation();
+      this.memoCache.set(key, result);
+      return result;
+    }
+    return this.memoCache.get(key);
   }
 }
 
-module.exports = ExpressionRuntimeContextManagerKernel;
+module.exports = ExpressionRuntimeContextManager;
