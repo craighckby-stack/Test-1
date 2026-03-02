@@ -70,6 +70,16 @@
       "aggregation": "AVERAGE",
       "storage_policy": "HOT_30D",
       "optimize_goal": "STABILIZE"
+    },
+    "governance_violation_count": {
+      "type": "GOVERNANCE",
+      "source": "G0_Rules_Engine",
+      "unit": "COUNT",
+      "data_type": "INTEGER",
+      "aggregation": "SUM",
+      "storage_policy": "PERMANENT",
+      "is_critical": true,
+      "optimize_goal": "MINIMIZE"
     }
   },
   "metadata_dictionary": {
