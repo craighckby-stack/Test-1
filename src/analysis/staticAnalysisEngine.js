@@ -1,115 +1,76 @@
 /**
- * StaticAnalysisKernel handles configuration, parsing, caching,
- * and delegates efficient AST traversal to the injected AST Traversal Interface.
+ * Static Analysis Engine (SAE) - src/analysis/staticAnalysisEngine.js
+ * ID: SAE_V94.1
+ * Role: Deep Structural Analysis & Reporting
+ *
+ * Provides aggregated quantitative analysis of component structure (complexity, coupling, maintainability)
+ * utilizing pluggable CodeMetricProviders to support automated governance processes (CORE, RMS).
  */
-class StaticAnalysisKernel {
-    #rules;
-    #config;
-    #cache;
-    #astParser; 
-    #astTraverser;
 
+import { Logger } from '../utils/logger.js';
+
+const logger = new Logger('SAE');
+
+export class StaticAnalysisEngine {
     /**
-     * @param {Object} dependencies 
-     * @param {Array<Object>} dependencies.rules - A collection of analysis rule objects.
-     * @param {Object} [dependencies.config={}] - Configuration options.
-     * @param {ASTParserInterfaceKernel} dependencies.astParser - Tool for parsing source code (Injected).
-     * @param {ASTTraversalInterfaceKernel} dependencies.astTraverser - Tool for high-performance AST traversal (Injected).
+     * @param {Object} providers - Configuration object for pluggable analysis services.
+     * @param {Function} [providers.metricProvider] - A class/instance that calculates raw code metrics (e.g., CodeMetricProvider).
      */
-    constructor({ rules, config = {}, astParser, astTraverser }) {
-        this.#rules = rules;
-        this.#config = config;
-        this.#astParser = astParser;
-        this.#astTraverser = astTraverser;
-
-        this.#setupDependencies();
+    constructor(providers = {}) {
+        this.metricProvider = providers.metricProvider || this._getDefaultMetricProvider();
+        logger.debug('StaticAnalysisEngine initialized with analysis providers.');
     }
-
+    
     /**
-     * Rigorous validation and setup for dependencies and internal state.
-     * Extracts synchronous dependency configuration from the constructor.
-     * @private
+     * Internal default provider used for simulation when no actual provider is injected.
+     * @returns {Object} A mock metric provider.
      */
-    #setupDependencies() {
-        if (!this.#rules || !Array.isArray(this.#rules)) {
-            throw new Error("Rules array must be provided to StaticAnalysisKernel.");
-        }
-        if (!this.#astParser || typeof this.#astParser.parse !== 'function') {
-            throw new Error("ASTParserInterfaceKernel dependency missing or invalid.");
-        }
-        if (!this.#astTraverser || typeof this.#astTraverser.traverse !== 'function' || typeof this.#astTraverser.setNodeHandler !== 'function') {
-            // The traversal interface is required to accept a handler callback.
-            throw new Error("ASTTraversalInterfaceKernel dependency missing or invalid. Must expose traverse() and setNodeHandler().");
-        }
-
-        this.#cache = new Map();
-        
-        // Configure the traverser with the kernel's rule application logic, ensuring DI is maintained.
-        this.#astTraverser.setNodeHandler(this.#applyRules.bind(this));
-    }
-
-    /**
-     * Executes analysis rules on a specific node.
-     * This method is the callback handler for the injected #astTraverser.
-     * @private
-     */
-    #applyRules(node, context) {
-        let findings = [];
-        
-        for (const rule of this.#rules) {
-            // Interactions with external rule objects (I/O interaction)
-            if (rule.match && rule.match(node, context)) {
-                const violation = rule.execute(node, context);
-                if (violation) {
-                    findings.push(violation);
-                }
+    _getDefaultMetricProvider() {
+        return {
+            analyzeCodeStructure: (componentPath) => {
+                logger.warn(`Using simulated metric analysis for ${componentPath}. Inject a real provider for production.`);
+                // Highly complex calculation placeholder
+                const complexityScore = 0.8 * (1 - (Math.random() * 0.4)); // 0.48 to 0.8
+                const maintainabilityScore = 0.2 + (Math.sin(componentPath.length) * 0.15); 
+                
+                return Promise.resolve({
+                    cyclomaticComplexity: 15,
+                    maintainabilityIndex: maintainabilityScore,
+                    couplingDegree: 5,
+                    linesOfCode: 500
+                });
             }
-        }
-        return findings;
-    }
-    
-    /**
-     * I/O Proxy: Delegates source code parsing to the injected utility.
-     * @private
-     */
-    #delegateToParserParse(sourceCode, parserOptions) {
-        return this.#astParser.parse(sourceCode, parserOptions);
-    }
-    
-    /**
-     * I/O Proxy: Delegates the actual AST traversal to the injected utility.
-     * @private
-     */
-    #delegateToTraverserTraverse(ast, context) {
-        return this.#astTraverser.traverse(ast, context);
-    }
-
-
-    /**
-     * Analyzes the provided source code.
-     * @param {string} sourceCode
-     * @returns {Array} List of analysis violations/findings.
-     */
-    analyze(sourceCode) {
-        // Step 1: Cache check (Internal State Management)
-        if (this.#cache.has(sourceCode)) {
-            return this.#cache.get(sourceCode);
-        }
-
-        const analysisContext = { 
-            source: sourceCode, 
-            config: this.#config 
         };
-
-        // Step 2: Parse (Delegated I/O)
-        const ast = this.#delegateToParserParse(sourceCode, this.#config.parserOptions);
-        
-        // Step 3: Traverse (Delegated I/O)
-        const results = this.#delegateToTraverserTraverse(ast, analysisContext); 
-        
-        this.#cache.set(sourceCode, results);
-        return results;
     }
-}
 
-export default StaticAnalysisKernel;
+    /**
+     * Performs a comprehensive static analysis for a component based on its path/ID.
+     * This method orchestrates the raw metric gathering and translates them into normalized governance scores.
+     * 
+     * @param {string} componentPath - Path or ID pointing to the code location.
+     * @returns {Promise<{
+     *     maintainabilityScore: number,
+     *     complexityReductionEstimate: number,
+     *     rawMetrics: object 
+     * }>} A detailed analysis report.
+     */
+    async generateAnalysisReport(componentPath) {
+        logger.info(`Generating structural analysis report for: ${componentPath}`);
+
+        const rawMetrics = await this.metricProvider.analyzeCodeStructure(componentPath);
+
+        // SAE's core role: translating raw metrics (like CI, Coupling) into normalized governance scores (0.0 to 1.0)
+        const maintainabilityScore = rawMetrics.maintainabilityIndex;
+
+        // The benefit of removal is typically inversely proportional to maintainability score.
+        const complexityReductionEstimate = 1.0 - maintainabilityScore;
+        
+        return {
+            maintainabilityScore: maintainabilityScore,
+            complexityReductionEstimate: Math.min(1.0, Math.max(0.0, complexityReductionEstimate)),
+            rawMetrics: rawMetrics
+        };
+    }
+    
+    // Future methods: getDependencyStructureReport, calculateRetirementImpact
+}
