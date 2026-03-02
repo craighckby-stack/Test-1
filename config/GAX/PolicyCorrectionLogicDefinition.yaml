@@ -1,194 +1,58 @@
-class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
+# Policy Correction Logic Definition (PCLD) - GAX V96.5
 
-  constructor(values = {}) {
-    this.setValues(values);
-  }
+Protocol: PCSS (Policy Correction Analysis State)
+Input_Source: TEDS_TVCR (Traceability Event Registry)
+Target_Output: PRM (Policy Recalibration Manifest)
+Custodian: GAX Agent
 
-  setValues(values) {
-    Object.assign(this, values);
-  }
+# This logic defines the deterministic adjustments made by GAX following a mandatory
+# Rollback Protocol (RRP) trigger (P-01 ACV Failure).
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
+Recalibration_Matrix:
+  
+  # 1.0 UTILITY MAXIMIZATION (UMA I) Failure Logic
+  AXIOM_I_BREACH:
+    TRIGGER_CONDITION: P-01_FAILED_UMA_I
+    ANALYSIS_METRIC:
+      - Variable: 'TEMM'
+        Operator: '<'
+        Threshold_Formula: 'UFRM + CFTM'
+    RECALIBRATION_ACTIONS:
+      PRIORITY_1_MANDATE:
+        # Immediate tightening of the Conservative Finality Margin (CFTM).
+        - Component: ACVD
+          Target_Key: UMA.CFTM_Margin_Factor
+          Modification_Formula: 'TEMM_Difference / UFRM_Baseline * 1.05' # Dynamic tightening based on delta
+          Description: 'Adjust CFTM factor to account for utility maximization shortfall.'
 
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
+  # 2.0 AXIOMATIC INTEGRITY (AI III) Failure Logic - Policy Veto
+  AXIOM_III_PVLM_VETO:
+    TRIGGER_CONDITION: P-01_FAILED_AI_III_PVLM
+    ANALYSIS_METRIC:
+      - Variable: 'PVLM_Status'
+        Operator: '=='
+        Value: 'TRUE'
+    RECALIBRATION_ACTIONS:
+      PRIORITY_1_MANDATE:
+        # Registration requires human review of the Policy Violation Logic Manifest (PVLM).
+        - Component: PRM
+          Action: 'REGISTER_VETO_EVENT'
+          Description: 'Log non-compliant execution attempt. System must halt until PVLM status reset or manual PRM entry.'
+      PRIORITY_2_TEDS_CAPTURE:
+        - Component: TEDS_TVCR
+          Action: 'MANDATE_DEEPER_FORENSICS'
+          Description: 'Increase Traceability Event Capture Depth by 5 stages.'
 
-  validate() {
-    try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-}
-
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
-
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
-
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
-
-  execute() {
-    this.handler();
-  }
-}
-
-class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
-
-  #status = "INIT";
-
-  get status() {
-    return this.#status;
-  }
-
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
-      }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-    }
-  }
-
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  configure(config) {
-    this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
-  }
-
-  validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-  }
-
-  async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
-  }
-
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
-  async destroy() {
-    this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
-  }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
-}
-
-const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
+  # 3.0 CONTEXT ATTESTATION (CA II) Failure Logic
+  AXIOM_II_ECVM_FAILURE:
+    TRIGGER_CONDITION: P-01_FAILED_CA_II
+    ANALYSIS_METRIC:
+      - Variable: 'ECVM_Status'
+        Operator: '=='
+        Value: 'FALSE'
+    RECALIBRATION_ACTIONS:
+      PRIORITY_1_MANDATE:
+        - Component: SGS_Protocol
+          Target_Key: 'ECVM_Attestation_Retry_Budget'
+          Modification_Formula: '$CURRENT_VALUE + 3'
+          Description: 'Increase the allowed retries for ECVM verification on subsequent DSE cycles.'
