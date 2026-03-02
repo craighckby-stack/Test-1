@@ -1,85 +1,78 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/cmr_v3.1.json",
-  "title": "NEXUS_CORE Computational Model Registry Schema V3.1",
+  "$id": "https://gacr.agi/schemas/cmr_v5.0.0.json",
+  "title": "NEXUS_CORE Architectural Singularity Registry Schema V5.0",
   "type": "object",
   "properties": {
     "manifest_id": {
       "type": "string",
-      "pattern": "^CMR_V3\\.1_[A-Z0-9]+$"
+      "pattern": "^CMR_V5\\.0_[A-Z0-9]+$"
     },
     "evolution_metadata": {
       "type": "object",
-      "required": ["phi", "lambda", "dna_signature"],
+      "required": ["phi", "lambda", "dna_signature", "coherence_state"],
       "properties": {
-        "phi": {"type": "number", "minimum": 0, "maximum": 1},
-        "lambda": {"type": "number", "minimum": 0, "maximum": 1},
-        "dna_signature": {"type": "string", "const": "DALEK_CAAN_v3.1 || NEXUS_CORE"}
+        "phi": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.99},
+        "lambda": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.12},
+        "dna_signature": {"type": "string", "const": "DALEK_CAAN_v3.1 || NEXUS_CORE"},
+        "coherence_state": {"type": "string", "enum": ["STABLE", "CONVERGING", "SINGULARITY"]}
       }
     },
     "owner": {"type": "string"},
-    "description": {"type": "string"},
-    "integrity_hash": {"type": "string"},
+    "integrity_hash": {"type": "string", "pattern": "^SHA512_[a-f0-9]+$"},
     "verification_protocol": {
       "type": "string",
-      "enum": ["PSR_GOVERNANCE_v1", "HUXLEY_TRI_LOOP", "ZERO_TRUST_VERIFICATION"]
+      "enum": ["PSR_GOVERNANCE_v1", "HUXLEY_TRI_LOOP", "ARCHITECTURAL_SINGULARITY_V5"]
     },
     "governance_config": {
       "type": "object",
       "properties": {
         "saturation_level": {"type": "integer", "enum": [1, 2, 3, 4]},
-        "emergency_brake_threshold": {"type": "integer", "default": 5}
+        "emergency_brake_threshold": {"type": "integer", "default": 5},
+        "strategic_laziness_ratio": {"type": "number", "default": 0.92}
       }
     },
     "models": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["model_id", "path", "version", "status", "inputs_schema", "audit_metadata", "compiler_constraints"],
+        "required": ["model_id", "path", "version", "status", "compiler_constraints", "symbol_table"],
         "properties": {
           "model_id": {"type": "string"},
           "path": {"type": "string", "format": "uri-reference"},
           "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
-          "status": {"type": "string", "enum": ["Active", "Deprecated", "Staging", "Retired", "Siphoning"]},
+          "status": {"type": "string", "enum": ["Active", "Deprecated", "Siphoning", "Singularity"]},
           "compiler_constraints": {
             "type": "object",
-            "description": "Siphoned from microsoft/TypeScript: Strictness and emit control.",
+            "description": "Siphoned patterns from microsoft/TypeScript CompilerHost.",
             "properties": {
-              "strict_type_checking": {"type": "boolean", "default": true},
-              "no_implicit_any": {"type": "boolean", "default": true},
-              "target_runtime": {"type": "string", "enum": ["ESNext", "Wasm", "NexusCore", "Cerebras"]},
-              "incremental_build": {"type": "boolean", "default": true}
+              "strict": {"type": "boolean", "default": true},
+              "noImplicitAny": {"type": "boolean", "default": true},
+              "moduleResolution": {"type": "string", "enum": ["NodeJs", "Classic", "NexusCore"]},
+              "composite": {"type": "boolean", "default": true},
+              "declaration": {"type": "boolean", "default": true},
+              "target": {"type": "string", "enum": ["ESNext", "Wasm", "NexusCore"]}
             }
           },
-          "inputs_schema": {
+          "symbol_table": {
             "type": "object",
+            "description": "Optimized symbol mapping for zero-latency resolution.",
             "additionalProperties": {
               "type": "object",
-              "required": ["kind", "description"],
               "properties": {
-                "kind": {"type": "string", "enum": ["primitive", "union", "literal", "interface"]},
-                "type": {"type": "string", "enum": ["float", "integer", "string", "boolean", "vector512"]},
-                "unit": {"type": "string"},
-                "constraints": {
-                  "type": "object",
-                  "properties": {
-                    "min": {"type": "number"},
-                    "max": {"type": "number"},
-                    "pattern": {"type": "string"}
-                  }
-                }
+                "binding": {"type": "string"},
+                "type": {"type": "string"},
+                "flags": {"type": "integer"}
               }
             }
           },
           "audit_metadata": {
             "type": "object",
-            "required": ["ers_score", "ccrr_ratio", "certification_date"],
+            "required": ["ers_score", "ccrr_ratio"],
             "properties": {
-              "mgp_protocol": {"type": "string"},
               "ers_score": {"type": "number", "minimum": 0, "maximum": 1},
               "ccrr_ratio": {"type": "number"},
-              "approved_by": {"type": "string"},
-              "certification_date": {"type": "string", "format": "date-time"}
+              "safe_fail_recovery": {"type": "boolean", "default": true}
             }
           },
           "diagnostics": {
@@ -87,18 +80,19 @@
             "items": {
               "type": "object",
               "properties": {
-                "code": {"type": "integer"},
+                "code": {"type": "integer", "minimum": 1000, "maximum": 9999},
                 "message": {"type": "string"},
-                "category": {"type": "string", "enum": ["Error", "Warning", "Suggestion", "Message"]}
+                "category": {"type": "string", "enum": ["Error", "Warning", "Suggestion", "Message"]},
+                "related_information": {"type": "array", "items": {"type": "object"}}
               }
             }
           },
           "build_info": {
             "type": "object",
             "properties": {
-              "bundle_size": {"type": "integer"},
-              "siphon_round": {"type": "integer"},
-              "last_mutation_hash": {"type": "string"}
+              "ts_build_info_hash": {"type": "string"},
+              "resolution_cache_state": {"type": "string"},
+              "last_mutation_metric": {"type": "string"}
             }
           }
         }
