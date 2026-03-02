@@ -5,8 +5,8 @@
  * preventing modules from utilizing non-compliant or incorrectly sized cryptographic primitives.
  */
 
-import { PolicyDrivenCryptoTool } from '@plugins';
 const SecurityPolicy = require('../config/SecurityPolicy');
+const crypto = require('crypto');
 
 class CryptoPolicyEnforcer {
 
@@ -15,15 +15,18 @@ class CryptoPolicyEnforcer {
      * @param {number} length - The required length in bytes (e.g., SALT_LENGTH, IV_SIZE).
      * @returns {Buffer}
      */
-    static generateRandom(length: number): Buffer {
-        return PolicyDrivenCryptoTool.generateRandomBytes(length);
+    static generateRandom(length) {
+        if (!Number.isInteger(length) || length <= 0) {
+            throw new Error('Invalid length specified for secure random generation.');
+        }
+        return crypto.randomBytes(length);
     }
 
     /**
      * Creates a policy-compliant initialization vector (IV) for symmetric encryption.
      * @returns {Buffer}
      */
-    static generateIV(): Buffer {
+    static generateIV() {
         return this.generateRandom(SecurityPolicy.ENCRYPTION.IV_SIZE);
     }
 
@@ -32,15 +35,18 @@ class CryptoPolicyEnforcer {
      * @param {Buffer | string} data - The data to hash.
      * @returns {string} The hashed digest, encoded as per policy.
      */
-    static createIntegrityHash(data: Buffer | string): string {
-        return PolicyDrivenCryptoTool.hash(data, SecurityPolicy.INTEGRITY);
+    static createIntegrityHash(data) {
+        const policy = SecurityPolicy.INTEGRITY;
+        return crypto.createHash(policy.ALGORITHM)
+            .update(data)
+            .digest(policy.OUTPUT_ENCODING);
     }
 
     /**
      * Generates a policy-compliant salt for password hashing/KDF.
      * @returns {Buffer}
      */
-    static generateKDFSalt(): Buffer {
+    static generateKDFSalt() {
         return this.generateRandom(SecurityPolicy.KDF.SALT_LENGTH);
     }
 
@@ -50,9 +56,23 @@ class CryptoPolicyEnforcer {
      * @param {Buffer} salt - The salt buffer.
      * @returns {Promise<Buffer>} The derived key.
      */
-    static async deriveKeyFromKDF(secret: Buffer | string, salt: Buffer): Promise<Buffer> {
-        // The tool handles algorithm checking and scrypt execution using policy parameters.
-        return PolicyDrivenCryptoTool.deriveKey(secret, salt, SecurityPolicy.KDF);
+    static async deriveKeyFromKDF(secret, salt) {
+        const kdf = SecurityPolicy.KDF;
+        if (kdf.ALGORITHM !== 'scrypt') {
+            // Add support for Argon2 here if policy changes
+            throw new Error(`KDF algorithm ${kdf.ALGORITHM} not implemented by enforcer.`);
+        }
+
+        return new Promise((resolve, reject) => {
+            crypto.scrypt(secret, salt, kdf.KEY_LENGTH, {
+                N: kdf.COST_N,
+                r: kdf.COST_R,
+                p: kdf.COST_P
+            }, (err, derivedKey) => {
+                if (err) return reject(err);
+                resolve(derivedKey);
+            });
+        });
     }
 }
 
