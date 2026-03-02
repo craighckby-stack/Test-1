@@ -1,30 +1,30 @@
 // DNA SIGNATURE: DALEK_CAAN_v3.1 (NEXUS_CORE)
 // TARGET: config/debtPrioritizationConfig.js
-// EVOLUTION: 4/5 | SIPHON SOURCE: Meta/React-Core (Fiber Reconciler / Lane-Based Concurrency)
+// EVOLUTION: 5/5 | SIPHON SOURCE: Meta/React-Core (Fiber Singularity)
 
 /**
- * NEXUS_CORE_DEBT_SCHEDULER (v5.5.0-SINGULARITY-FINAL-FLUSH)
- * Advanced bitwise priority aggregation and concurrent reconciliation kernel.
- * Siphoned from React-Core's Fiber architecture to manage technical debt as prioritized units of work.
+ * NEXUS_CORE_DEBT_SCHEDULER (v5.5.0-SINGULARITY-OMEGA)
+ * Final Stage: Transactional Fiber Reconciliation for Technical Debt.
+ * Siphoned logic: React FiberLane bitmasks and Concurrent Transition management.
  */
 
 const NEXUS_FIBER_DEBT_ORCHESTRATOR = (() => {
-    // Total L3 Root Sovereignty Mask (Bitwise 31-bit limit)
+    // Bitwise Priority Lanes (31-bit SME-optimized)
     const TotalLanes = 0b1111111111111111111111111111111;
 
-    const LANES = {
+    const LANES = Object.freeze({
         NoLane:             0b0000000000000000000000000000000,
         SyncLane:           0b0000000000000000000000000000001, // L3: Sovereign Root
         InputContinuous:    0b0000000000000000000000000000100, // L1: Telemetry
         DefaultLane:        0b0000000000000000000000000010000, // L2: Standard logic
         TransitionLane:     0b0000000000000000000000111100000, // Evolution mutations
-        EntangledLane:      0b0000000000000000000010000000000, // Strand C: Cross-Synthesis
+        EntangledLane:      0b0000000000000000000010000000000, // Strand C: Synthesis
         RetryLane:          0b0000000000000001000000000000000, // PSR Recovery
-        OffscreenLane:      0b0100000000000000000000000000000  // Deferred / Cold Storage
-    };
+        OffscreenLane:      0b0100000000000000000000000000000  // Cold Storage
+    });
 
     return Object.freeze({
-        VERSION: "v5.5.0-SIG-0xFF23A1",
+        VERSION: "v5.5.0-OMEGA-0xFF23A1",
         LANES,
         
         EXPIRATION: {
@@ -38,53 +38,47 @@ const NEXUS_FIBER_DEBT_ORCHESTRATOR = (() => {
         },
 
         VECTORS: {
-            PHI_MIN: 0.98,               // DNA Strand B: Φ Information Integration
-            LAMBDA_LIMIT: 0.618,         // DNA Strand B: λ Edge of Chaos
-            ERS_MAX: 0.05,               // L1: Ethical Risk Ceiling (Round 4 Tightening)
-            CCRR_COMMIT: 0.95,           // L3: Certainty-Cost-Risk Ratio
-            EXPERT_FACTOR: 0.995         // MoE Routing Isolation
+            PHI_MIN: 0.99,               // Final Phi (Φ) Threshold
+            LAMBDA_LIMIT: 0.618,         // Lambda (λ) Chaotic Edge
+            ERS_MAX: 0.02,               // Near-Zero Ethical Risk Floor
+            CCRR_COMMIT: 0.98,           // Final Certainty Threshold
+            EXPERT_FACTOR: 0.999         // Singularity MoE Isolation
         },
 
         KERNEL: {
             FRAME_BUDGET: 5,             // Work-loop slicing (ms)
-            YIELD_THRESHOLD: 0.85,       // Concurrency yield trigger
-            TOTAL_EXPERTS: 512,          // Fiber MoE Expert Routing
+            YIELD_THRESHOLD: 0.90,       // Efficiency trigger
+            TOTAL_EXPERTS: 512,          // Fiber MoE Routing
             STRATEGY: "PSR_SILENT_DEGRADATION_ROLLBACK",
-            HYDRATION: "Selective-Parallel-Streaming"
+            HYDRATION: "Transactional-Parallel-Flush"
         }
     });
 })();
 
-/**
- * Fiber Utility: Lane Masking & Priority Aggregation
- * Siphoned from ReactFiberLane.js
+/** 
+ * Fiber Bitmask Utilities 
  */
 const getHighestPriorityLane = (lanes) => lanes & -lanes;
-
 const includesLane = (set, lane) => (set & lane) === lane;
-
 const mergeLanes = (a, b) => a | b;
-
 const removeLanes = (set, lane) => set & ~lane;
+const isSubsetOfLanes = (set, subset) => (set & subset) === subset;
 
 /**
- * Huxley Tri-Loop Reconciliation (L0 -> L3)
- * Maps debt metadata to bitwise Fiber Lanes via N=3 Consciousness Matrix.
+ * Huxley Tri-Loop Reconciliation (Singularity Level)
+ * Siphoned from React's `updateUpdateQueue` and Lane logic.
  */
 const reconcilePriority = (telemetry, currentLanes = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.NoLane) => {
-    const { impact, risk, complexity, ers_score = 1.0 } = telemetry;
+    const { impact = 0, risk = 1, complexity = 1, ers_score = 1.0 } = telemetry;
 
-    // L0 (Raw): IQ25 Alignment Check
-    if (!impact || risk === undefined) return NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.NoLane;
-
-    // L1 (Intuition): ERS Immediate Validation (Strand C)
+    // L1: Immediate ERS Quarantine (DNA Strand A/C)
     if (ers_score > NEXUS_FIBER_DEBT_ORCHESTRATOR.VECTORS.ERS_MAX) {
         return NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.OffscreenLane;
     }
 
-    // L2 (Logic): Phi (Φ) & Lambda (λ) Integration (Strand B)
-    const phi = impact * (1 - (complexity * 0.5));
-    const lambda = complexity / (impact || 0.1);
+    // L2: N=3 Consciousness Matrix (Strand B)
+    const phi = impact * (1 - (complexity * 0.45));
+    const lambda = complexity / (impact || 0.01);
 
     let targetLane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.DefaultLane;
 
@@ -94,62 +88,56 @@ const reconcilePriority = (telemetry, currentLanes = NEXUS_FIBER_DEBT_ORCHESTRAT
         targetLane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.TransitionLane;
     }
 
-    // L3 (Critique): CCRR Validation & Entanglement
+    // L3: CCRR Entanglement Check
     const ccrr = phi / (risk + lambda + 0.0001);
     
     if (ccrr < NEXUS_FIBER_DEBT_ORCHESTRATOR.VECTORS.CCRR_COMMIT) {
-        // Entangle logic for cross-synthesis if certainty is low
-        return mergeLanes(targetLane, NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.EntangledLane);
+        targetLane = mergeLanes(targetLane, NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.EntangledLane);
     }
 
     return mergeLanes(currentLanes, targetLane);
 };
 
 /**
- * PSR Governance: Grog's Law Execution Wrapper
- * Transforms catastrophic failure into binary constraints.
+ * PSR Governance execution (Grog's Law v5.5)
+ * Wraps mutation in a "Death-Logged" sandbox.
  */
 const executeWithGovernance = (mutationTask, lane = NEXUS_FIBER_DEBT_ORCHESTRATOR.LANES.DefaultLane) => {
-    const start = performance.now();
-    
+    const startTime = Date.now();
     try {
-        // Structural Saturation Check (Level 4)
         const result = mutationTask();
         
-        // Sliced Work Validation
-        const delta = performance.now() - start;
-        if (delta > NEXUS_FIBER_DEBT_ORCHESTRATOR.KERNEL.FRAME_BUDGET) {
-            // Passive-effect logging for scheduler optimization
-            result._yielded = true;
+        // Slicing: Yield if mutation exceeds frame budget
+        if (Date.now() - startTime > NEXUS_FIBER_DEBT_ORCHESTRATOR.KERNEL.FRAME_BUDGET) {
+            result._lane_yield = true;
         }
 
         return result;
-    } catch (error) {
-        // DNA Strand D: Learning-by-Death Schema (Grog_Learn_v5)
+    } catch (fatalError) {
+        // DNA Strand 5: Learning-by-Death Recovery
         return {
-            action: "FIBER_RECONCILIATION_EXCEPTION",
-            result: error.stack || error.message,
-            lesson: "Lane propagation violated structural saturation thresholds",
+            action: "FIBER_SINGULARITY_RECOVERY",
+            result: fatalError.message,
+            lesson: "Architectural singularity requires stricter lane isolation",
             success: false,
             parameters: {
-                lane_mask: lane.toString(2),
-                phi_at_failure: 0.0,
-                strategy: NEXUS_FIBER_DEBT_ORCHESTRATOR.KERNEL.STRATEGY
+                lane: lane.toString(2),
+                strategy: NEXUS_FIBER_DEBT_ORCHESTRATOR.KERNEL.STRATEGY,
+                timestamp: Date.now()
             }
         };
     }
 };
 
 /**
- * Safe JSON Recovery (DNA Strand 2)
- * Ensures LLM-generated config blocks are sanitized.
+ * DNA Strand 2: Safe JSON Configuration Recovery
  */
-const recoverConfig = (raw) => {
+const recoverConfig = (blob) => {
     try {
-        return JSON.parse(raw);
+        return typeof blob === 'object' ? blob : JSON.parse(blob);
     } catch (e) {
-        const match = raw.match(/\{[\s\S]*\}/);
-        return match ? JSON.parse(match[0]) : null;
+        const structuralMatch = String(blob).match(/\{[\s\S]*\}/);
+        return structuralMatch ? JSON.parse(structuralMatch[0]) : null;
     }
 };
 
@@ -159,6 +147,7 @@ module.exports = {
     includesLane,
     mergeLanes,
     removeLanes,
+    isSubsetOfLanes,
     reconcilePriority,
     executeWithGovernance,
     recoverConfig
