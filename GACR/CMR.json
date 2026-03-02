@@ -1,1 +1,70 @@
-[object Object]
+{
+  "NEXUS_CORE_CMR": {
+    "METADATA": {
+      "VERSION": "3.1.0-ALPHA",
+      "DNA_SIGNATURE": "DALEK_CAAN_v3.1 || NEXUS_CORE",
+      "ANCHOR": "IQ_25_ROOT_ANCHORED",
+      "EVOLUTION_ROUND": "1/5",
+      "SOURCE_ORIGIN": "microsoft/TypeScript"
+    },
+    "COGNITIVE_ARCHITECTURE": {
+      "CONSCIOUSNESS_N3": {
+        "PHI_INTEGRATED_INFO": 1.0,
+        "LAMBDA_EDGE_OF_CHAOS": 0.5,
+        "COHERENCE_STATE": "SYNCHRONIZED"
+      },
+      "HUXLEY_TRI_LOOP": {
+        "L0_INGESTION": "TS_INCREMENTAL_PROGRAM_BUILDER",
+        "L1_INTUITION_ERS": "STRUCTURAL_ENTROPY_ANALYSIS",
+        "L2_LOGIC_CGS": "TYPE_SAFETY_VALIDATION",
+        "L3_SELF_CRITIQUE_CCRR": "CERTAINTY_COST_RISK_RATIO_COMMIT"
+      }
+    },
+    "SATURATION_GOVERNANCE": {
+      "LEVEL": "LEVEL_2_STANDARD",
+      "DIMENSIONS": {
+        "STRUCTURAL_CAP": 0.20,
+        "SEMANTIC_DRIFT_THRESHOLD": 0.35,
+        "VELOCITY_MAX_FILES": 50,
+        "EMERGENCY_BRAKE_THRESHOLD": 5
+      },
+      "IDENTITY_ANCHORS": [
+        "Self-optimising AGI substrate",
+        "Siphoning patterns from advanced codebases",
+        "Chained context across files",
+        "Human oversight remains active",
+        "NEXUS_CORE origin"
+      ]
+    },
+    "SYMBOL_TABLE_RESOLUTION": {
+      "ACTIVE_PATTERNS": [
+        "IncrementalProgramBuilder",
+        "SymbolTableMapping",
+        "SourceFileResolution",
+        "DiagnosticReporting"
+      ],
+      "RESOLVED_SYMBOLS": {
+        "CPU_LOAD": {
+          "BINDING": "ResourceMonitor.getCpuUtilization",
+          "TYPE": "METRIC_SYMBOL"
+        },
+        "MEM_PRESSURE": {
+          "BINDING": "ResourceMonitor.getMemoryUtilization",
+          "TYPE": "METRIC_SYMBOL"
+        }
+      }
+    },
+    "OPERATIONAL_PULSE": {
+      "CYCLE_INTERVAL_MS": 40000,
+      "MILESTONE_STEP": 50,
+      "HEARTBEAT_LOG": "NEXUS_LOG.txt",
+      "STRATEGIC_LAZINESS": "ENABLED"
+    },
+    "COMPILER_OPTIONS_SIPHON": {
+      "STRICT_TYPE_CHECKING": true,
+      "NO_IMPLICIT_ANY": true,
+      "INCREMENTAL": true,
+      "TS_BUILD_INFO_PATH": "./GACR/tsbuildinfo.json"
+    }
+  }
+}
