@@ -1,52 +1,109 @@
-import { IRiskThresholdChecker, ComplianceResult } from '../../plugins/Compliance/RiskThresholdChecker';
-import { IRiskFloorConfigRegistryKernel } from '../../config/IRiskFloorConfigRegistryKernel';
+import { RiskFloorConfig } from '../../config/policy/risk_floor_config.json';
+import { TelemetrySnapshot } from '../telemetry/TelemetryService';
+import { TriggerProtocol } from './ProtocolExecutionService';
+// NOTE: Assuming existence of robust error handling utility.
+// import { AGIError, ErrorCode } from '../shared/AGIError';
+
+// Interface definition for detailed compliance results
+export interface FloorBreach {
+    floorName: string;
+    metricKey: keyof TelemetrySnapshot;
+    currentValue: number;
+    threshold: number;
+    protocolId: string;
+}
+
+export interface ComplianceResult {
+    isCompliant: boolean;
+    breaches: FloorBreach[];
+}
 
 /**
- * Manages specialized risk floor compliance checks using an abstracted evaluation mechanism.
- * Adheres to the Kernel pattern for dependency management and configuration separation.
+ * RiskFloorComplianceUtility.ts
+ * 
+ * Utility responsible for continuous monitoring and enforcement of defined risk floors.
+ * It utilizes a data-driven approach to evaluate system telemetry against configured
+ * safety standards and orchestrates corresponding emergency protocol triggers.
  */
-export class RiskFloorComplianceKernel {
-    private checker!: IRiskThresholdChecker;
-    private configRegistry!: IRiskFloorConfigRegistryKernel;
+export class RiskFloorComplianceUtility {
+    private config: RiskFloorConfig;
 
-    /**
-     * @param dependencies Dependencies required for initialization.
-     */
-    constructor(dependencies: {
-        checker: IRiskThresholdChecker;
-        configRegistry: IRiskFloorConfigRegistryKernel;
-    }) {
-        this.#setupDependencies(dependencies);
+    constructor(config: RiskFloorConfig) {
+        this.config = config;
+        // In a robust system, critical configuration would be validated here.
+        // this.validateConfig();
     }
 
     /**
-     * Isolates dependency assignment and validation to ensure synchronous setup extraction.
-     * @private
+     * Checks compliance against all defined risk floors and triggers protocols if breached.
+     * @param snapshot The current system telemetry snapshot.
+     * @returns A detailed compliance result object indicating overall status and specific breaches.
      */
-    #setupDependencies(dependencies: {
-        checker: IRiskThresholdChecker;
-        configRegistry: IRiskFloorConfigRegistryKernel;
-    }): void {
-        if (!dependencies.checker) {
-            throw new Error("IRiskThresholdChecker must be provided to RiskFloorComplianceKernel.");
+    public checkCompliance(snapshot: TelemetrySnapshot): ComplianceResult {
+        const breaches: FloorBreach[] = [];
+
+        // Define structured enforcement rules derived from configuration. 
+        // This maps specific telemetry fields to their configured thresholds and protocols.
+        const rules = [
+            {
+                name: 'Max Unsupervised Scaling Depth',
+                metric: 'scaling_depth' as keyof TelemetrySnapshot,
+                threshold: this.config.risk_floors.integrity_and_autonomy.max_unsupervised_scaling_depth.value,
+                // Assuming config supports specific protocols, or falling back to the generic one
+                protocol: (this.config.monitoring_protocols as any).integrity_breach_protocol || this.config.monitoring_protocols.floor_breach_response_protocol,
+            },
+            {
+                name: 'Max Unencrypted Data Flow (KBPS)',
+                metric: 'unencrypted_data_flow_kbps' as keyof TelemetrySnapshot,
+                threshold: this.config.risk_floors.data_privacy.max_unencrypted_data_flow_kbps.value,
+                protocol: (this.config.monitoring_protocols as any).data_privacy_protocol || this.config.monitoring_protocols.floor_breach_response_protocol,
+            },
+            // FUTURE: Add more rule structures here easily.
+        ];
+
+        // Core enforcement loop: Process rules dynamically.
+        for (const rule of rules) {
+            // Safe cast assuming telemetry fields match defined metrics and are numbers
+            const currentValue = (snapshot as any)[rule.metric] as number;
+            
+            if (currentValue > rule.threshold) {
+                breaches.push({
+                    floorName: rule.name,
+                    metricKey: rule.metric,
+                    currentValue: currentValue,
+                    threshold: rule.threshold,
+                    protocolId: rule.protocol,
+                });
+            }
         }
-        if (!dependencies.configRegistry) {
-            throw new Error("IRiskFloorConfigRegistryKernel must be provided to RiskFloorComplianceKernel.");
+        
+        const complianceResult: ComplianceResult = {
+            isCompliant: breaches.length === 0,
+            breaches: breaches,
+        };
+
+        if (!complianceResult.isCompliant) {
+            this.handleBreaches(complianceResult.breaches);
         }
-        this.checker = dependencies.checker;
-        this.configRegistry = dependencies.configRegistry;
+
+        return complianceResult;
     }
 
     /**
-     * Checks a set of critical operational metrics against predefined minimum thresholds (Risk Floors).
-     *
-     * @param currentOperationalMetrics Key/value pairs of current measured metrics.
-     * @returns The result of the compliance check.
+     * Executes necessary immediate actions (logging, protocol triggering) upon breaches.
+     * Ensures protocols are triggered only once, even if multiple rules link to the same protocol.
      */
-    public checkCoreOperationalRisk(currentOperationalMetrics: Record<string, number>): ComplianceResult {
-        // Retrieve configuration from the injected registry, eliminating hardcoded values.
-        const CORE_RISK_FLOORS = this.configRegistry.getCoreRiskFloors();
+    private handleBreaches(breaches: FloorBreach[]): void {
+        const triggeredProtocols = new Set<string>();
 
-        return this.checker.evaluate(currentOperationalMetrics, CORE_RISK_FLOORS);
+        breaches.forEach(breach => {
+            const message = `RISK FLOOR BREACH DETECTED: Floor=${breach.floorName}, Metric=${String(breach.metricKey)}, Current=${breach.currentValue}, Threshold=${breach.threshold}. Triggering protocol: ${breach.protocolId}`;
+            console.error(message); // Temporary logging; should route to ComplianceReportingService
+            
+            if (!triggeredProtocols.has(breach.protocolId)) {
+                TriggerProtocol(breach.protocolId);
+                triggeredProtocols.add(breach.protocolId);
+            }
+        });
     }
 }
