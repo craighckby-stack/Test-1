@@ -1,105 +1,63 @@
-import { KernelBase } from '../kernel/KernelBase';
-import { IConceptIdRegistryKernel } from '../registry/IConceptIdRegistryKernel';
-import { IContextResolutionMapperToolKernel } from '../../tools/IContextResolutionMapperToolKernel';
-import { IConceptualScopeMapperKernel } from './IConceptualScopeMapperKernel';
-
 /**
- * ConceptualScopeMapperKernel is responsible for mapping execution contexts, policies, or data
- * inputs to relevant conceptual scopes, ensuring integrity checks are applied correctly.
- * It utilizes an injected specialized tool for efficient, recursive mapping logic.
+ * @fileoverview Conceptual Scope Mapper (CSM).
+ * This utility pre-processes the Concept Registry to create efficient lookups,
+ * mapping file paths, path patterns, or mutation types directly to the list of
+ * concepts that must be evaluated. This avoids O(N*M) iteration (Concepts * Files)
+ * in the Conceptual Integrity Engine (CIE).
  */
-class ConceptualScopeMapperKernel extends KernelBase implements IConceptualScopeMapperKernel {
-    /** @type {IConceptIdRegistryKernel} */
-    #conceptIdRegistry;
-    /** @type {IContextResolutionMapperToolKernel} */
-    #resolutionMapperTool;
 
-    /**
-     * @param {object} dependencies
-     * @param {IConceptIdRegistryKernel} dependencies.conceptIdRegistry
-     * @param {IContextResolutionMapperToolKernel} dependencies.contextResolutionMapperTool
-     */
-    constructor(dependencies) {
-        super(dependencies);
-        this.name = 'ConceptualScopeMapperKernel';
-        this.#setupDependencies(dependencies);
+import { ConceptRegistry } from '../conceptRegistry.js';
+
+export class ConceptualScopeMapper {
+    constructor() {
+        this.artifactMap = new Map(); // Key: implementationPath, Value: Array<Concept>
+        this.systemicConcepts = [];    // Concepts without a specific path
+        this.initialized = false;
     }
 
     /**
-     * Rigorously sets up and validates required dependencies.
-     * @param {object} dependencies
+     * Initializes the mapper by indexing all concepts from the registry.
      */
-    #setupDependencies(dependencies) {
-        this.#conceptIdRegistry = this._resolveDependency(
-            dependencies,
-            'conceptIdRegistry',
-            'IConceptIdRegistryKernel'
-        );
-        // Note: Renamed dependency key to match IContextResolutionMapperToolKernel usage if available
-        this.#resolutionMapperTool = this._resolveDependency(
-            dependencies,
-            'contextResolutionMapperTool',
-            'IContextResolutionMapperToolKernel'
-        );
+    initialize() {
+        const allConcepts = ConceptRegistry.getAllConcepts();
+        this.artifactMap.clear();
+        this.systemicConcepts = [];
+
+        // Note: This initialization focuses on direct path mapping for maximum efficiency gain.
+        for (const concept of allConcepts) {
+            if (concept.implementationPath) {
+                // Index by specific path
+                const path = concept.implementationPath;
+                if (!this.artifactMap.has(path)) {
+                    this.artifactMap.set(path, []);
+                }
+                this.artifactMap.get(path).push(concept);
+            } else if (concept.scope === 'systemic' || !concept.implementationPath) {
+                // Concepts that apply globally or require proposal-level checks
+                this.systemicConcepts.push(concept);
+            }
+        }
+        this.initialized = true;
     }
 
     /**
-     * @override
+     * Retrieves concepts relevant to a specific file path.
+     * @param {string} filePath
+     * @returns {Array<Object>}
      */
-    async initialize() {
-        // Ensuring key dependencies are initialized
-        await Promise.all([
-            this.#conceptIdRegistry.initialize(),
-            this.#resolutionMapperTool.initialize()
-        ]);
-        this.isInitialized = true;
+    getArtifactConceptsByPath(filePath) {
+        if (!this.initialized) this.initialize();
+        return this.artifactMap.get(filePath) || [];
     }
 
     /**
-     * Maps a given resolution context to a list of relevant conceptual scopes (IDs).
-     * It uses the specialized resolution mapper tool and validates results against the Concept ID Registry.
-     * @param {ConceptualResolutionContext} context - The context object containing resolution criteria (e.g., policy ID, audit target).
-     * @returns {Promise<string[]>} A promise resolving to an array of validated conceptual scope IDs.
+     * Retrieves all concepts that require systemic (proposal-level) validation.
+     * @returns {Array<Object>}
      */
-    async mapContextToScopes(context) {
-        this._checkInitialization();
-        
-        if (!context) {
-            this.logger.warn('Received null context for scope mapping. Returning empty array.');
-            return [];
-        }
-
-        // 1. Delegate core recursive mapping logic to the injected tool
-        const potentialScopes = await this.#resolutionMapperTool.resolveContextMapping(context);
-        
-        if (!Array.isArray(potentialScopes) || potentialScopes.length === 0) {
-            return [];
-        }
-
-        // 2. Filter and validate potential scopes against the canonical registry
-        const validationPromises = potentialScopes.map(scopeId => 
-            this.#conceptIdRegistry.hasConceptId(scopeId).then(isValid => ({
-                scopeId,
-                isValid
-            }))
-        );
-
-        const validatedResults = await Promise.all(validationPromises);
-
-        const validScopes = validatedResults
-            .filter(res => res.isValid)
-            .map(res => res.scopeId);
-        
-        const invalidScopes = validatedResults
-            .filter(res => !res.isValid)
-            .map(res => res.scopeId);
-
-        if (invalidScopes.length > 0) {
-            this.logger.warn(`Filtered out invalid conceptual scope IDs: ${invalidScopes.join(', ')}`);
-        }
-
-        return validScopes;
+    getSystemicConcepts() {
+        if (!this.initialized) this.initialize();
+        return this.systemicConcepts;
     }
 }
 
-export default ConceptualScopeMapperKernel;
+export const ConceptualScopeMapperInstance = new ConceptualScopeMapper();
