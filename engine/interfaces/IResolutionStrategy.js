@@ -1,33 +1,39 @@
 /**
- * @interface IResolutionStrategy
- * Defines the contract for components responsible for resolving identifiers
- * (e.g., service keys, configuration tokens) into concrete instances or values.
- *
- * This interface promotes computational efficiency by enforcing `canResolve` checks
- * before attempting the potentially expensive `resolve` operation.
+ * IResolutionStrategy Interface Definition
+ * 
+ * Defines the structural contract that all dynamically loaded resolution strategies must adhere to.
+ * This ensures consistency across different constraint handling algorithms and facilitates testing.
  */
 class IResolutionStrategy {
     /**
-     * Determines if this strategy is capable of resolving the provided identifier.
-     * @param {string | symbol | object} identifier The key, token, or type to check.
-     * @returns {boolean} True if the strategy can handle this identifier.
+     * @param {object} initializationParameters - Parameters defined in the engine config for this strategy.
      */
-    canResolve(identifier) {
-        throw new Error("IResolutionStrategy::canResolve must be implemented by derived classes.");
+    constructor(initializationParameters = {}) {
+        if (new.target === IResolutionStrategy) {
+            throw new TypeError("Cannot instantiate abstract class IResolutionStrategy directly.");
+        }
+        this.params = initializationParameters;
     }
 
     /**
-     * Resolves the identifier into a concrete instance or value.
+     * Executes the core resolution logic based on the provided context and constraints.
      * 
-     * Must only be called if `canResolve(identifier)` returns true.
-     * 
-     * @param {string | symbol | object} identifier The key, token, or type to resolve.
-     * @param {Array<any>} [contextArgs=[]] Optional context arguments required for resolution (e.g., factory parameters).
-     * @returns {Promise<any> | any} The resolved instance or a Promise resolving to the instance.
+     * @param {object} resolutionContext - Data context relevant for the resolution (e.g., current state, conflicting values).
+     * @param {Array<object>} constraints - The set of constraints applicable to this resolution step.
+     * @returns {Promise<object>} The resolved state or value.
      */
-    resolve(identifier, contextArgs = []) {
-        throw new Error("IResolutionStrategy::resolve must be implemented by derived classes.");
+    async resolve(resolutionContext, constraints) {
+        throw new Error("Method 'resolve(resolutionContext, constraints)' must be implemented by the concrete strategy.");
+    }
+    
+    /**
+     * Optional method for post-instantiation setup or async resource loading.
+     * This method is automatically called by the ResolutionStrategyLoader after instantiation.
+     */
+    async initialize() {
+        // Concrete strategies can override this for complex setup
+        return true; 
     }
 }
 
-module.exports = IResolutionStrategy;
+export default IResolutionStrategy;
