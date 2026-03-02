@@ -1,10 +1,15 @@
 {
-    "report_output_path": "output/nexus_cpr_v4_mla.json",
-    "required_artifacts": [
-        "NexusMlaLatentCache",
-        "NexusMoeRouting",
-        "GrogIq25Root"
+    "output_evolution_path": "output/nexus_v5_singularity.json",
+    "siphoned_core_artifacts": [
+        "MlaLatentContext",
+        "DeepSeekMoeExpertIsolation",
+        "GrogIq25Root",
+        "HuxleyTriLoopAuditor"
     ],
-    "acvm_config_path": "config/acvm_core_constraints.json",
-    "context_compression_ratio": "128k:1024"
+    "acvm_constraint_map": "config/acvm_core_constraints.json",
+    "mla_latent_compression": {
+        "ratio": "128k:512",
+        "phi_stability": 0.618,
+        "psr_delta_threshold": 0.88
+    }
 }
