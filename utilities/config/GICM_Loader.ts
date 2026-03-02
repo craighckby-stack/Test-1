@@ -1,14 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-/**
- * Declaration for the external configuration validation tool.
- * This tool encapsulates the declarative schema definition and validation logic.
- */
-declare const GICMSchemaValidatorTool: {
-    execute: (configData: any) => { isValid: boolean, errors: string[] };
-};
-
 // Defines the strict structure and types for the Global Intelligent Configuration Model
 interface GICMConfig {
   version: string;
@@ -60,21 +52,12 @@ export class GICMLoader {
         return GICMLoader.instance;
     }
 
-    /**
-     * Validates the raw configuration data using the external GICMSchemaValidatorTool.
-     * @param data The raw data loaded from the configuration file.
-     * @returns The validated configuration object.
-     */
     private validate(data: any): GICMConfig {
-        // Delegate complex schema checking to the dedicated tool
-        const validationResult = GICMSchemaValidatorTool.execute(data);
-
-        if (!validationResult.isValid) {
-            const errorDetails = validationResult.errors.join('\n\t- ');
-            throw new Error(`GICM Validation Error: Configuration integrity failure detected.\nValidation details:\n\t- ${errorDetails}`);
+        // Basic structural checks for high-level safety and required fields
+        if (!data || !data.version || !data.modules || !data.runtime_optimization) {
+            throw new Error("GICM Validation Error: Missing core architectural segments (version, modules, or runtime_optimization).");
         }
-        
-        // Type assertion is safe now that the dedicated tool has verified the structure
+        // NOTE: In a production AGI environment, schema validation (e.g., Joi, Zod) would be integrated here.
         return data as GICMConfig;
     }
 
@@ -84,7 +67,6 @@ export class GICMLoader {
         }
 
         try {
-            // File I/O remains local due to platform dependency (Node.js FS)
             const fileContent = fs.readFileSync(GICM_FILE_PATH, 'utf8');
             const rawData = JSON.parse(fileContent);
             
