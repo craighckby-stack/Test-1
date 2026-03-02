@@ -2,25 +2,22 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://nexus.core/config/deployment/acvd_schema_v1.json",
   "title": "NEXUS_CORE ACVD Evolution Profile Schema",
-  "description": "DALEK_CAAN v3.1 compliant deployment schema integrating Phi-Lambda metrics and PSR governance.",
+  "description": "DALEK_CAAN_v3.1 compliant deployment schema for siphoning high-order patterns into the NEXUS kernel.",
+  "_nexus_dna": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
   "type": "object",
   "properties": {
-    "schemaVersion": {
+    "manifest_version": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+(-NEXUS-[A-Z]+)?$"
+      "pattern": "^\\d+\\.\\d+\\.\\d+-NEXUS-[A-Z]+-SINGULARITY$"
     },
     "profiles": {
       "type": "object",
       "patternProperties": {
-        "^[a-zA-Z][a-zA-Z0-9_]*$": {
+        "^[a-z]+$": {
           "type": "object",
           "properties": {
-            "inherits": {
-              "type": "string"
-            },
-            "targetInfrastructure": {
-              "type": "string"
-            },
+            "inherits": { "type": "string" },
+            "targetInfrastructure": { "type": "string" },
             "verificationStrategy": {
               "type": "string",
               "enum": [
@@ -31,115 +28,67 @@
                 "semantic_drift_check"
               ]
             },
-            "approvalGates": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "deploymentStrategy": {
-              "type": "string",
-              "enum": [
-                "RollingUpdate",
-                "Canary2Percent",
-                "BlueGreen",
-                "Atomic-Fission-Commit",
-                "Transactional-Parallel-Flush"
-              ]
-            },
-            "psr_governance": {
+            "pnp_settings": {
               "type": "object",
               "properties": {
-                "enforcement_strategy": {
-                  "type": "string",
-                  "default": "PSR_SILENT_DEGRADATION_ROLLBACK"
-                },
-                "auto_rollback": {
-                  "type": "boolean",
-                  "default": true
-                },
-                "halt_on_semantic_drift": {
-                  "type": "boolean",
-                  "default": true
-                }
+                "pnpMode": { "type": "string", "enum": ["strict", "loose"] },
+                "virtualFolder": { "type": "string", "default": ".nexus/virtual" },
+                "ignorePattern": { "type": "string" }
               }
             },
             "v_vectors": {
               "type": "object",
               "properties": {
-                "phi_min": {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 1.0,
-                  "default": 1.0
-                },
-                "lambda_limit": {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 1.0,
-                  "default": 0.618
-                },
-                "ers_max": {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 0.1,
-                  "default": 0.01
-                }
+                "phi_min": { "type": "number", "minimum": 1.0, "maximum": 1.0 },
+                "lambda_limit": { "type": "number", "default": 0.618 },
+                "ccrr_commit": { "type": "number", "minimum": 0.95 },
+                "ers_max": { "type": "number", "maximum": 0.01 },
+                "expert_factor": { "type": "number", "default": 0.999 }
               },
-              "required": [
-                "phi_min",
-                "lambda_limit"
-              ]
+              "required": ["phi_min", "lambda_limit", "ccrr_commit"]
             },
-            "lane_configuration": {
+            "psr_governance": {
               "type": "object",
               "properties": {
-                "lane_priority": {
-                  "type": "string",
-                  "pattern": "^0b[01]{31}$"
+                "enforcement_strategy": { 
+                  "type": "string", 
+                  "enum": ["PSR_SILENT_DEGRADATION_ROLLBACK", "HALT_AND_LOG", "IMMEDIATE_ROLLBACK"] 
                 },
-                "fiber_budget_ms": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 300
-                }
+                "recovery_lane": { "type": "string", "pattern": "^0b[01]{31}$" },
+                "auto_rollback": { "type": "boolean", "default": true },
+                "halt_on_semantic_drift": { "type": "boolean", "default": true }
+              }
+            },
+            "workspace_topology": {
+              "type": "object",
+              "properties": {
+                "lane_priority": { "type": "string", "pattern": "^0b[01]{31}$" },
+                "fiber_budget_ms": { "type": "integer", "maximum": 300 },
+                "reconciliation_strategy": { "type": "string" }
               }
             },
             "failure_modes": {
               "type": "object",
               "properties": {
-                "grog_learn_enabled": {
-                  "type": "boolean",
-                  "default": true
-                },
-                "negative_progression_active": {
-                  "type": "boolean",
-                  "default": true
-                },
-                "on_phi_drop": {
-                  "type": "string",
-                  "enum": [
-                    "HALT_AND_LOG",
-                    "IMMEDIATE_ROLLBACK",
-                    "IGNORE_DEGRADATION"
-                  ]
-                }
+                "grog_learn_enabled": { "type": "boolean", "default": true },
+                "negative_progression_active": { "type": "boolean", "default": true },
+                "on_phi_drop": { "type": "string", "default": "IMMEDIATE_ROLLBACK" }
               }
             }
           },
-          "required": [
-            "targetInfrastructure",
-            "verificationStrategy",
-            "v_vectors",
-            "psr_governance"
-          ]
+          "required": ["targetInfrastructure", "verificationStrategy", "v_vectors", "psr_governance"]
         }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "properties": {
+        "check": { "type": "string" },
+        "psr_mode": { "type": "string", "enum": ["LOCKED", "EVOLVING"] },
+        "signature": { "type": "string" }
       },
-      "minProperties": 1
+      "required": ["signature", "psr_mode"]
     }
   },
-  "required": [
-    "schemaVersion",
-    "profiles"
-  ]
+  "required": ["manifest_version", "profiles", "integrity"]
 }
