@@ -1,99 +1,76 @@
-export default class ComplianceSchemaRegistryKernel {
-    // Configuration constant (now encapsulated, accessed via public accessor)
-    static SCHEMA_ID_GOVERNANCE_PRIMARY = 'config/governanceSchema.json';
+import path from 'path';
 
-    #commonSchemaDefs = null;
-    #minimalFallbackSchema = null;
+// --- Configuration Constants ---
 
-    constructor() {
-        this.#setupDependencies();
+/**
+ * Path to the primary governance schema file, used by the configuration loader.
+ */
+export const DEFAULT_GOVERNANCE_SCHEMA_PATH = path.resolve('config/governanceSchema.json');
+
+/**
+ * Base configuration parameters for the AJV validator instance.
+ * Enables strict structural enforcement essential for compliance verification.
+ */
+export const AJV_BASE_CONFIG = {
+    // Report all structural discrepancies rather than failing fast on the first error.
+    allErrors: true,
+    // Enforce stricter JSON schema rules (e.g., prohibiting unknown format usages).
+    strict: true,
+    // Ensure types defined in schema are respected, even when input is derived from strings (e.g., env vars).
+    coerceTypes: true,
+};
+
+// --- Reusable Schema Fragments (Definitions) ---
+
+/**
+ * Standard reusable definitions ($defs) for common compliance properties,
+ * promoting consistency across larger governance schemas.
+ */
+export const COMMON_SCHEMA_DEFS = {
+    SeverityLevel: {
+        type: "string",
+        enum: ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL"],
+        description: "Standardized operational severity level."
+    },
+    VetoTriggerSource: {
+        type: "string",
+        enum: ["POLICY_BREACH", "RESOURCE_EXHAUSTION", "SECURITY_EVENT", "MANUAL_OVERRIDE", "ANOMALY_DETECTION"],
+        description: "The originating cause for a veto action."
     }
+};
 
-    /**
-     * @private
-     * Rigorously extracts all synchronous dependency assignment and configuration loading.
-     */
-    #setupDependencies() {
-        // --- Reusable Schema Fragments (Definitions) Initialization ---
-        this.#commonSchemaDefs = {
-            SeverityLevel: {
-                type: "string",
-                enum: ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL", "DEBUG"], 
-                description: "Standardized operational severity level indicating impact or urgency."
-            },
-            VetoTriggerSource: {
-                type: "string",
-                enum: ["POLICY_BREACH", "RESOURCE_EXHAUSTION", "SECURITY_EVENT", "MANUAL_OVERRIDE", "ANOMALY_DETECTION", "INIT_FAILURE"], 
-                description: "The originating cause for a veto action, leading to system halt."
-            },
-            EntityIdentifier: {
-                type: "string",
-                format: "uuid",
-                description: "A unique identifier for a monitored entity or resource."
-            },
-            VetoTrigger: {
+// --- Fallback Schema Definition ---
+
+/**
+ * Defines a minimal, operational schema ensuring system continuity
+ * if the primary configuration file is missing or inaccessible during initialization.
+ * Utilizes common definitions for internal standardization.
+ */
+export const MINIMAL_FALLBACK_SCHEMA = {
+    $id: "https://v94.1/schemas/minimal-compliance.json",
+    $defs: COMMON_SCHEMA_DEFS,
+    type: "object",
+    properties: {
+        compliance_level_mandate: {
+            // Uses standardized $defs reference for consistency and clarity
+            $ref: "#/$defs/SeverityLevel",
+            description: "The mandated baseline operational severity required (e.g., HIGH)."
+        },
+        veto_triggers: {
+            type: "array",
+            items: {
                 type: "object",
-                description: "Defines a single condition (source and description) that results in a system veto.",
                 properties: {
                     source: { $ref: "#/$defs/VetoTriggerSource" },
-                    description: { 
-                        type: "string", 
-                        minLength: 10, 
-                        pattern: "^[A-Z].*",
-                        description: "Detailed, standardized description of the specific veto condition. Must start with a capital letter."
-                    }
+                    description: { type: "string", minLength: 5 }
                 },
-                required: ["source", "description"],
+                required: ["source"],
                 additionalProperties: false
-            }
-        };
-
-        // --- Fallback Schema Initialization ---
-        this.#minimalFallbackSchema = {
-            $schema: "http://json-schema.org/draft-07/schema#",
-            $id: "https://v94.1/schemas/minimal-compliance.json",
-            $defs: this.#commonSchemaDefs,
-            type: "object",
-            description: "Minimal necessary compliance structure required for core operational continuity.",
-            properties: {
-                system_uuid: { $ref: "#/$defs/EntityIdentifier" },
-                compliance_level_mandate: {
-                    $ref: "#/$defs/SeverityLevel",
-                    description: "The mandated baseline operational severity required (e.g., HIGH)."
-                },
-                veto_triggers: {
-                    type: "array",
-                    items: { $ref: "#/$defs/VetoTrigger" },
-                    minItems: 0, 
-                    description: "List of system events or states that trigger an automatic veto or halt, indexed by source type."
-                }
             },
-            required: ["compliance_level_mandate", "veto_triggers"],
-            additionalProperties: false
-        };
-    }
-
-    /**
-     * Retrieves the canonical identifier for the primary governance configuration schema.
-     * @returns {string}
-     */
-    getPrimaryGovernanceSchemaIdentifier() {
-        return ComplianceSchemaRegistryKernel.SCHEMA_ID_GOVERNANCE_PRIMARY;
-    }
-
-    /**
-     * Retrieves the minimal operational fallback schema for compliance validation.
-     * @returns {object}
-     */
-    getMinimalFallbackSchema() {
-        return this.#minimalFallbackSchema;
-    }
-
-    /**
-     * Retrieves the standard reusable schema fragments ($defs).
-     * @returns {object}
-     */
-    getCommonSchemaDefinitions() {
-        return this.#commonSchemaDefs;
-    }
-}
+            minItems: 1,
+            description: "List of system events or states that trigger an automatic veto or halt, indexed by source type."
+        }
+    },
+    required: ["compliance_level_mandate", "veto_triggers"],
+    additionalProperties: false
+};
