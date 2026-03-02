@@ -1,126 +1,50 @@
-import { ICanonicalPathResolverToolKernel } from "../interfaces/ICanonicalPathResolverToolKernel.js";
-import { IEnvironmentAccessKernel } from "../interfaces/IEnvironmentAccessKernel.js";
-import { ILoggerKernel } from "../interfaces/ILoggerKernel.js";
-
-// Assuming interfaces for configuration tools are defined elsewhere
-// import { IConfigNormalizationToolKernel } from "../interfaces/IConfigNormalizationToolKernel.js";
-// import { ISecureValueTransformerToolKernel } from "../interfaces/ISecureValueTransformerToolKernel.js";
+import * as fs from 'fs';
+import * as path from 'path';
+import { SecureConfigProvider } from '../utils/secureConfigProvider.js';
 
 /**
- * Raw constants defined locally until extracted to a specific registry (e.g., ConfigDefaultsRegistryKernel).
- * Strategic Goal: Remove raw constants from component logic.
+ * Responsible for loading, decrypting, and providing the finalized application configuration.
+ * Assumes encrypted secrets are stored in a designated configuration file structure.
  */
-const CONFIG_CONSTANTS = Object.freeze({
-    DIR: 'config',
-    FILE_NAME: 'runtime.encrypted.json'
-});
+export class SystemConfigLoader {
 
-
-/**
- * A Kernel responsible for loading, decrypting, and providing the finalized application configuration.
- * Enforces Dependency Injection (DI) for path resolution, environment access, and core utilities.
- */
-export class SystemConfigLoaderKernel {
-
-    #configPath;
-    
-    // Injected Dependencies
-    #pathResolverKernel;
-    #environmentAccessKernel;
-    #configNormalizationToolKernel;
-    #secureValueTransformerToolKernel;
-    #loggerKernel;
+    static CONFIG_FILE_PATH = path.resolve(process.cwd(), 'config', 'runtime.encrypted.json');
 
     /**
-     * @param {ICanonicalPathResolverToolKernel} pathResolverKernel
-     * @param {IEnvironmentAccessKernel} environmentAccessKernel
-     * @param {IConfigNormalizationToolKernel} configNormalizationToolKernel
-     * @param {ISecureValueTransformerToolKernel} secureValueTransformerToolKernel
-     * @param {ILoggerKernel} loggerKernel
+     * Loads and decrypts the primary configuration file.
+     * @returns {Object} The fully configured and decrypted system configuration object.
      */
-    constructor(
-        pathResolverKernel,
-        environmentAccessKernel,
-        configNormalizationToolKernel,
-        secureValueTransformerToolKernel,
-        loggerKernel
-    ) {
-        this.#pathResolverKernel = pathResolverKernel;
-        this.#environmentAccessKernel = environmentAccessKernel;
-        this.#configNormalizationToolKernel = configNormalizationToolKernel;
-        this.#secureValueTransformerToolKernel = secureValueTransformerToolKernel;
-        this.#loggerKernel = loggerKernel;
-
-        this.#setupDependencies();
-    }
-
-    /**
-     * Synchronously resolves path dependencies, replacing direct usage of path.resolve() and process.cwd().
-     * Isolates synchronous initialization logic.
-     */
-    #setupDependencies() {
-        const CWD = this.#delegateToEnvironmentAccessCWD();
-        
-        // Calculate the static configuration file path using injected canonical resolver
-        this.#configPath = this.#delegateToPathResolution(
-            CWD, 
-            CONFIG_CONSTANTS.DIR, 
-            CONFIG_CONSTANTS.FILE_NAME
-        );
-    }
-
-    /**
-     * I/O Proxy: Delegates path resolution to the injected tool.
-     */
-    #delegateToPathResolution(...segments) {
-        // ICanonicalPathResolverToolKernel.resolve replaces path.resolve
-        return this.#pathResolverKernel.resolve(...segments);
-    }
-
-    /**
-     * I/O Proxy: Delegates retrieval of Current Working Directory.
-     */
-    #delegateToEnvironmentAccessCWD() {
-        // IEnvironmentAccessKernel.getCWD() replaces process.cwd()
-        return this.#environmentAccessKernel.getCWD();
-    }
-    
-    /**
-     * I/O Proxy: Delegates the core configuration loading and transformation process.
-     * @param {string} filePath 
-     * @param {Function} transformerFn - The secure value transformation function (ISecureValueTransformerToolKernel.transform).
-     * @returns {Promise<Object>}
-     */
-    #delegateToConfigLoadAndTransform(filePath, transformerFn) {
-        // IConfigNormalizationToolKernel.execute replaces ConfigNormalizationAndTransformationUtility.execute
-        // We assume the new Kernel interface enforces async loading for robust I/O handling
-        return this.#configNormalizationToolKernel.execute({
-            filePath: filePath,
-            transformer: transformerFn
-        });
-    }
-
-    /**
-     * Loads and decrypts the primary configuration file using the transformation utility.
-     * @returns {Promise<Object>} The fully configured and decrypted system configuration object.
-     */
-    async loadConfig() {
-        this.#loggerKernel.info(`Attempting to load configuration from ${this.#configPath}`);
-
-        try {
-            // Utilize the injected normalization tool, passing the injected transformer function.
-            const config = await this.#delegateToConfigLoadAndTransform(
-                this.#configPath,
-                this.#secureValueTransformerToolKernel.transform
-            );
-            
-            this.#loggerKernel.info('System configuration loaded and secrets successfully decrypted.');
-            return config;
-
-        } catch (e) {
-            // Replace direct console interaction with injected logger
-            this.#loggerKernel.error(`Configuration loading failed: ${e.message}`, { error: e, path: this.#configPath });
-            throw e; 
+    static async loadConfig() {
+        if (!fs.existsSync(SystemConfigLoader.CONFIG_FILE_PATH)) {
+            throw new Error(`FATAL: Configuration file not found at ${SystemConfigLoader.CONFIG_FILE_PATH}`);
         }
+        
+        const rawConfig = JSON.parse(fs.readFileSync(SystemConfigLoader.CONFIG_FILE_PATH, 'utf-8'));
+        const config = {};
+
+        // Iteratively process raw configuration fields
+        for (const [key, value] of Object.entries(rawConfig)) {
+            // Assumption: Any field that follows a convention (e.g., suffix '_ENCRYPTED') 
+            // or is determined to be a secret placeholder should be decrypted.
+            
+            // Simple decryption logic: If the value is a string and not obviously plain JSON, attempt decryption.
+            // A more complex implementation would use metadata or dedicated 'secrets' object.
+            
+            if (typeof value === 'string' && value.includes(':')) {
+                // SecureConfigProvider handles decryption and automatic JSON parsing if content is JSON
+                try {
+                    config[key] = SecureConfigProvider.getSecret(value);
+                } catch (e) {
+                    console.error(`Error decrypting configuration field: ${key}`);
+                    throw e; // Halt initialization on critical config failure
+                }
+            } else {
+                // Non-secret or pre-parsed value
+                config[key] = value;
+            }
+        }
+
+        console.log('System configuration loaded and secrets successfully decrypted.');
+        return Object.freeze(config);
     }
 }
