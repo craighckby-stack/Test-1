@@ -3,101 +3,135 @@ import { AggregatorConfig } from '../GACR/TelemetryAggregatorConfig';
 
 /**
  * @name AdaptiveSamplingEngine
- * @version 3.1.0
- * @property DNA_SIGNATURE NEXUS_CORE || DALEK_CAAN
- * @description Evolutionary sampling controller siphoning incremental builder patterns from TypeScript.
+ * @version 3.2.0
+ * @property DNA_SIGNATURE NEXUS_CORE || DALEK_CAAN v3.1
+ * @description Evolutionary sampling controller siphoning Control-Flow Graph (CFG) patterns from TypeScript.
  */
 export class AdaptiveSamplingEngine {
     private readonly config: Readonly<AggregatorConfig['Processing']['AdaptiveSampling']>;
     private readonly monitor: ResourceMonitor;
-    private lastRate: number = 1.0;
+    private readonly strategyRegistry: Map<string, Function> = new Map();
     
-    // N=3 Consciousness State Metrics
-    private phi: number = 1.0; // Integrated Information (Coherence)
-    private lambda: number = 0.5; // Edge of Chaos (Entropy)
+    private lastRate: number = 1.0;
+    private phi: number = 1.0; 
+    private lambda: number = 0.5;
+    private cycleCount: number = 0;
 
     constructor(config: AggregatorConfig['Processing']['AdaptiveSampling']) {
         this.config = Object.freeze(config);
         this.monitor = new ResourceMonitor();
+        this.initializeSGSProtocols();
+    }
+
+    private initializeSGSProtocols(): void {
+        // SynergyManager: Hot-swap logic registry for CCRR calculations
+        this.strategyRegistry.set("PROPORTIONAL_REDUCTION", (cpu: number, target: number, ers: number) => {
+            const pressure = cpu / target;
+            return (1.0 / pressure) * (1.0 - (ers * 0.2));
+        });
+        this.strategyRegistry.set("INCREMENTAL_RECOVERY", (last: number, cgs: number) => {
+            return last + (0.05 * cgs);
+        });
     }
 
     /**
-     * L3 Huxley Tri-Loop: Evaluates resource pressure and emits an optimized sampling rate.
-     * Integrates SGS_AGENT diagnostic logic for control-flow stability.
+     * L3 Huxley Tri-Loop: Siphons IncrementalBuilder logic to resolve sampling rates.
      */
     public getSamplingRate(): number {
         if (!this.config.Enabled) return 1.0;
 
-        // L0 (Raw): Ingest telemetry via ResourceMonitor
-        const cpuUtilization = this.monitor.getCpuUtilization();
-        const memoryUtilization = this.monitor.getMemoryUtilization?.() ?? 0.5;
+        // L0 (Raw): Symbol Table Resolution for System Resources
+        const cpu = this.monitor.getCpuUtilization();
+        const mem = this.monitor.getMemoryUtilization?.() ?? 0.5;
 
-        // L1 (Intuition): Ethical Risk Score (ERS) calculation
-        // High ERS if we are dropping samples while resources are healthy.
-        const ers = (cpuUtilization < this.config.TargetCPUUtilization) ? 0.1 : 0.8;
+        // L1 (Intuition): Ethical Risk Score (ERS) - IQ-25 Stupidity-First Alignment
+        const ers = this.calculateERS(cpu, mem);
 
-        // L2 (Logic): Certainty Gain (CGS)
-        // Measures delta from last known state to prevent oscillatory degradation.
-        const cgs = 1.0 - Math.abs(this.lastRate - (this.config.TargetCPUUtilization / cpuUtilization));
+        // L2 (Logic): Certainty Gain (CGS) - Incremental State Check
+        const cgs = this.calculateCGS(cpu);
 
-        // L3 (Self-Critique): Certainty-Cost-Risk Ratio (CCRR)
-        // Final rate synthesis using IQ-25 Alignment protocol.
-        let targetRate = this.calculateCcrr(cpuUtilization, memoryUtilization, ers, cgs);
+        // L3 (Self-Critique): CCRR Synthesis via Hot-Swap Registry
+        let targetRate = this.resolveFlowState(cpu, mem, ers, cgs);
 
-        // Saturation & PSR Governance: Constrain within defined bounds
-        targetRate = Math.min(Math.max(targetRate, this.config.MinSamplingRate), this.config.MaxSamplingRate);
+        // PSR Governance: Baseline-Mutation-Comparison
+        targetRate = this.applyPSRGovernance(targetRate);
         
-        // Update Internal Coherence (Phi vs Lambda)
-        this.updateStabilityMetrics(cpuUtilization, targetRate);
+        this.updateStabilityMetrics(cpu, targetRate);
+        this.cycleCount++;
+
+        if (this.cycleCount % 50 === 0) {
+            this.performSelfCorrectionReport();
+        }
 
         this.lastRate = parseFloat(targetRate.toFixed(4));
         return this.lastRate;
     }
 
-    /**
-     * Siphoned from TypeScript's incremental build strategy: 
-     * Prioritize stability (Soundness) over aggressive optimization.
-     */
-    private calculateCcrr(cpu: number, mem: number, ers: number, cgs: number): number {
+    private calculateERS(cpu: number, mem: number): number {
+        // ERS identifies unsafe complexity (High pressure with low sampling)
+        const isHealthy = cpu < this.config.TargetCPUUtilization && mem < 0.7;
+        return isHealthy ? 0.05 : (cpu / 1.2);
+    }
+
+    private calculateCGS(cpu: number): number {
+        // Delta analysis siphoned from TS Diagnostic modes
+        const delta = Math.abs(this.lastRate - (this.config.TargetCPUUtilization / cpu));
+        return Math.max(0, 1.0 - delta);
+    }
+
+    private resolveFlowState(cpu: number, mem: number, ers: number, cgs: number): number {
         const target = this.config.TargetCPUUtilization;
         
+        // Control-Flow Graph logic: Branching based on resource pressure
         if (cpu <= target) {
-            // Recover overhead: gradual increment toward MaxSamplingRate
-            return this.lastRate + (0.05 * cgs);
+            const recovery = this.strategyRegistry.get("INCREMENTAL_RECOVERY");
+            return recovery ? recovery(this.lastRate, cgs) : this.lastRate + 0.01;
         }
 
-        // Proportional pressure reduction with ERS damping
-        const pressure = cpu / target;
-        const reductionFactor = (1.0 / pressure) * (1.0 - (ers * 0.2));
-        
-        return reductionFactor;
+        const reduction = this.strategyRegistry.get("PROPORTIONAL_REDUCTION");
+        return reduction ? reduction(cpu, target, ers) : this.lastRate * 0.9;
     }
 
-    /**
-     * N=3 Coherence Check
-     * Ensures lambda stays in the "Goldilocks Zone" to prevent system stagnation.
-     */
+    private applyPSRGovernance(rate: number): number {
+        const clamped = Math.min(Math.max(rate, this.config.MinSamplingRate), this.config.MaxSamplingRate);
+        
+        // Rollback Trigger: Silent degradation prevention
+        if (this.lambda > 0.9 && clamped > this.lastRate) {
+            return this.lastRate * 0.95; // Forced reduction on entropy spike
+        }
+        return clamped;
+    }
+
     private updateStabilityMetrics(utilization: number, rate: number): void {
-        this.phi = (rate + utilization) / 2;
+        // N=3 Consciousness State: Phi (Integration) vs Lambda (Chaos)
+        this.phi = (rate + (1 - utilization)) / 2;
         this.lambda = Math.abs(rate - utilization);
 
+        // Semantic drift check
         if (this.lambda > 0.85) {
-            // Log: Semantic drift/Entropy exceeded threshold. 
-            // Triggering internal PSR rollback.
-            this.phi *= 0.9;
+            this.phi *= 0.8; // Penalize coherence on high entropy
         }
     }
 
-    /**
-     * SGS_AGENT Identity Anchor: GROG_LAW_ENFORCEMENT
-     * Returns a snapshot of the current engine's evolutionary soundness.
-     */
+    private performSelfCorrectionReport(): void {
+        // Milestone N=50: Diagnostic mode alignment check
+        const diagnostic = {
+            round: "2/5",
+            phi: this.phi.toFixed(2),
+            lambda: this.lambda.toFixed(2),
+            ers_status: this.phi > 0.5 ? "STABLE" : "DEGRADED",
+            origin: "GROG_LAW_IQ_25"
+        };
+        // Internal persistence logic would report to NEXUS_LOG here
+    }
+
     public getDiagnostics() {
         return {
             rate: this.lastRate,
             phi: this.phi,
             lambda: this.lambda,
-            alignment: "IQ_25_ROOT_ANCHORED"
+            integrity: "ARCHITECTURAL_SINGULARITY_PENDING",
+            anchor: "IQ_25_ROOT_ANCHORED"
         };
     }
 }
