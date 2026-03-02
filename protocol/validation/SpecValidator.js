@@ -1,116 +1,148 @@
-class SpecValidatorKernel {
-    // Strategic Optimization 3: Minimize error handling overhead by reusing static error objects.
-    static ERROR_CACHE = {
-        SCHEMA_NOT_FOUND: Object.freeze({ success: false, code: 404, message: "Schema specification not found or cached." }),
-        VALIDATION_FAILURE: Object.freeze({ success: false, code: 400, message: "Validation failed against specification rules." })
-    };
-
-    #specs; // Raw specification source definitions.
-    #schemaCache; // Map for fast schema lookups.
-    #customRules; // Map of custom validation functions.
-
+/**
+ * Protocol Specification Validator (Sovereign AGI v94.1)
+ * Ensures CHR generation specs comply with architectural standards and constraints.
+ */
+class SpecValidator {
     /**
-     * @param {Object} specs - Raw specification source definitions.
-     * @param {Object<string, Function>} customRules - Map of custom validation functions.
+     * @param {Object} schemaRegistry - Service providing schema access (e.g., AJV instance wrapper).
+     * @param {Object} versionResolver - Utility for checking component version compatibility.
      */
-    constructor(specs, customRules = {}) {
-        this.#setupDependencies(specs, customRules);
+    constructor(schemaRegistry, versionResolver) {
+        if (!schemaRegistry || !versionResolver) {
+            throw new Error("SpecValidator requires both a schemaRegistry and a versionResolver.");
+        }
+        this.schemas = schemaRegistry;
+        this.versionResolver = versionResolver;
+
+        // Standardized structure for custom validation rules execution
+        this._customValidationRules = [
+            {
+                name: 'CONSTRAINT_COHERENCE',
+                validator: this._checkConstraintCoherence.bind(this)
+            },
+            {
+                name: 'DEPENDENCY_RESOLUTION',
+                validator: this._checkDependencyResolution.bind(this)
+            }
+        ];
     }
 
     /**
-     * Rigorously extracts synchronous setup logic, validation, and field assignment.
-     * @param {Object} specs
-     * @param {Object} customRules
+     * Executes all registered custom validation rules against the spec.
+     * @param {Object} spec The specification object.
+     * @param {Array<Object>} errors The collected errors array (mutable).
+     * @private
      */
-    #setupDependencies(specs, customRules) {
-        if (!specs || typeof specs !== 'object') {
-            throw this.#throwSetupError("SpecValidator requires a valid specs object.");
-        }
-        this.#specs = specs;
-        
-        // Strategic Optimization 1: Implement schema caching using Map for fast lookups.
-        this.#schemaCache = new Map(); 
-
-        // Strategic Optimization 2: Use Map for custom rules for O(1) average lookup time.
-        const rulesMap = new Map();
-        if (customRules && typeof customRules === 'object') {
-            Object.entries(customRules).forEach(([key, value]) => {
-                if (typeof value === 'function') {
-                    rulesMap.set(key, value);
-                }
-            });
-        }
-        this.#customRules = rulesMap;
-    }
-
-    /**
-     * I/O Proxy: Retrieves a schema from cache, falling back to raw storage if necessary, and performs caching.
-     * @param {string} specName
-     * @returns {Object|null}
-     */
-    #delegateToSchemaLookupAndCache(specName) {
-        if (this.#schemaCache.has(specName)) {
-            return this.#schemaCache.get(specName);
-        }
-
-        const schema = this.#specs[specName];
-        if (schema) {
-            this.#schemaCache.set(specName, schema);
-            return schema;
-        }
-        return null;
-    }
-
-    /**
-     * I/O Proxy: Executes a custom validation rule via direct O(1) lookup.
-     * @param {string} ruleName
-     * @param {*} data
-     * @returns {boolean} - true if validation passed or rule was missing, false otherwise.
-     */
-    #delegateToCustomRuleExecution(ruleName, data) {
-        const ruleFn = this.#customRules.get(ruleName);
-        if (ruleFn) {
-            // Delegation of execution
-            return ruleFn(data);
-        }
-        // If rule doesn't exist, treat as success to avoid breaking validation flow
-        return true; 
-    }
-
-    /**
-     * I/O Proxy: Throws a configuration error during setup.
-     * @param {string} message
-     */
-    #throwSetupError(message) {
-        return new Error(`[SpecValidator Setup Error] ${message}`);
-    }
-
-    /**
-     * Validates input data against a cached or retrieved specification.
-     * @param {*} data - The input data structure.
-     * @param {string} specName - The name of the specification to use.
-     * @returns {Object} - Validation result.
-     */
-    validate(data, specName) {
-        const schema = this.#delegateToSchemaLookupAndCache(specName);
-
-        if (!schema) {
-            // Uses static error object
-            return SpecValidatorKernel.ERROR_CACHE.SCHEMA_NOT_FOUND;
-        }
-
-        // --- Placeholder for intensive recursive validation logic ---
-
-        // Example of using custom rule lookup via I/O Proxy
-        if (schema.requiredCustomCheck) {
-            const result = this.#delegateToCustomRuleExecution(schema.requiredCustomCheck, data);
-            if (result === false) {
-                // Uses static error object
-                return SpecValidatorKernel.ERROR_CACHE.VALIDATION_FAILURE; 
+    _runCustomValidations(spec, errors) {
+        for (const rule of this._customValidationRules) {
+            try {
+                // Custom validators collect errors directly into the 'errors' array
+                rule.validator(spec, errors);
+            } catch (e) {
+                 // Handles unexpected runtime errors within a specific custom validation rule
+                 errors.push({
+                    type: `RULE_EXECUTION_FAILURE:${rule.name}`,
+                    code: 'INTERNAL',
+                    message: `Custom rule execution failed unexpectedly.`,
+                    details: e.message
+                });
             }
         }
+    }
 
-        // If validation succeeds
-        return { success: true };
+
+    /**
+     * Validates a generation specification object, collecting all errors.
+     * @param {Object} spec The specification object conforming to protocol/chr_generation_spec.json.
+     * @returns {true} True if valid.
+     * @throws {Error} Consolidated validation error detailing all failures.
+     */
+    validate(spec) {
+        const validationErrors = [];
+        const specName = 'chr_generation_spec';
+
+        // 1. Structural Schema Validation
+        const schema = this.schemas.getSchema(specName);
+        
+        if (!schema) {
+             throw new Error(`Critical: Required schema '${specName}' is missing from the registry.`);
+        }
+        
+        // Execute structural validation
+        if (!schema.validate(spec)) {
+            const schemaErrors = schema.errors || "Validation failure occurred, but schema errors object was not provided.";
+            
+            validationErrors.push({ 
+                type: 'SCHEMA_VIOLATION', 
+                code: 'STRUCTURAL',
+                message: 'Specification failed to meet the baseline JSON schema.',
+                details: schemaErrors
+            });
+        }
+
+        // 2. Custom Business Logic and Coherence Checks
+        // Only run if structural validation provides a reliable base object
+        if (validationErrors.length === 0) {
+            this._runCustomValidations(spec, validationErrors);
+        }
+
+        // 3. Consolidated Failure Handling
+        if (validationErrors.length > 0) {
+            const errorSummary = validationErrors.map(err => {
+                // Enhance error presentation for complex details
+                const detailsStr = typeof err.details === 'string' ? err.details : JSON.stringify(err.details, null, 2);
+                return `[${err.type}] (${err.code || 'N/A'}): ${err.message}\n${detailsStr}`;
+            }).join('\n---\n');
+            
+            throw new Error(`CHR Spec Validation Failed (${validationErrors.length} errors):\n---\n${errorSummary}`);
+        }
+
+        return true;
+    }
+
+    /** 
+     * Ensures logic limits (e.g., hard > soft) are obeyed. 
+     * @private
+     */
+    _checkConstraintCoherence(spec, errors) {
+        // Use optional chaining for safe access (assuming modern JS environment)
+        const memLimits = spec?.generation_parameters?.runtime_constraints?.memory_footprint_mb;
+
+        if (memLimits) {
+            const hard = memLimits.hard_limit;
+            const soft = memLimits.soft_limit;
+
+            if (hard < soft) {
+                errors.push({
+                    type: 'CONSTRAINT_COHERENCE',
+                    code: 'LIMIT_INVERSION',
+                    message: "Hard memory limit cannot be less than soft limit.",
+                    details: `Hard: ${hard} MB, Soft: ${soft} MB`
+                });
+            }
+        } 
+    }
+
+    /** 
+     * Ensures all required component versions are compatible with the protocol runtime. 
+     * @private
+     */
+    _checkDependencyResolution(spec, errors) {
+        const dependencies = spec?.component_dependencies || {};
+
+        for (const [component, details] of Object.entries(dependencies)) {
+            if (details?.required && details?.version_lock) {
+                if (!this.versionResolver.isCompatible(component, details.version_lock)) {
+                    errors.push({
+                        type: 'DEPENDENCY_CONFLICT',
+                        code: 'VERSION_INCOMPATIBILITY',
+                        message: `Required dependency version lock failed against current protocol runtime.`,
+                        details: `Component: ${component}, Lock: ${details.version_lock}`
+                    });
+                }
+            }
+        }
     }
 }
+
+module.exports = SpecValidator;
