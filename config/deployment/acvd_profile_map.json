@@ -1,50 +1,101 @@
 {
-  "schemaVersion": "1.1",
+  "manifest_version": "5.5.0-NEXUS-BERRY-OMEGA",
+  "metadata": {
+    "signature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
+    "evolution_round": "1/5",
+    "siphon_source": "yarnpkg/berry",
+    "phi_integrated": 0.999,
+    "lambda_limit": 0.618
+  },
   "profiles": {
     "base": {
       "defaultRegion": "us-east-1",
       "timeoutSeconds": 300,
       "maxRetries": 3,
-      "loggingLevel": "INFO",
+      "loggingLevel": "RECOVERY_LOG_v3.1",
+      "cycle_delay": "40000ms",
+      "temp_zone": 0.65,
       "requiredContextKeys": [
         "COMMIT_HASH",
-        "BUILD_ID"
-      ]
+        "BUILD_ID",
+        "PHI_THRESHOLD",
+        "ERS_SCORE"
+      ],
+      "psr_governance": {
+        "enforcement_strategy": "PSR_SILENT_DEGRADATION_ROLLBACK",
+        "ers_limit": 0.05,
+        "recovery_lane": "0b0000000000000001000000000000000"
+      },
+      "failure_modes": {
+        "on_semantic_drift": "HALT_AND_LOG",
+        "on_phi_drop": "IMMEDIATE_ROLLBACK",
+        "grog_learn_enabled": true
+      }
     },
     "development": {
       "inherits": "base",
       "targetInfrastructure": "EphemeralSandbox",
       "verificationStrategy": "smoke_test",
+      "fiber_budget_ms": 50,
+      "lane": "SyncLane",
       "resourceScaling": 0.1,
+      "pnpMode": "loose",
       "notificationChannel": "slack:alerts-dev"
     },
     "staging": {
       "inherits": "base",
       "targetInfrastructure": "PersistentTestCluster",
       "verificationStrategy": "integration_test_suite",
+      "reconciliation_strategy": "Transactional-Parallel-Flush",
+      "lane": "InputContinuous",
       "preflightChecks": [
         "security_scan_minor",
-        "dependency_check"
+        "dependency_check",
+        "semantic_drift_check"
       ],
       "resourceScaling": 0.5,
       "dataSeedingRequired": true,
-      "deploymentStrategy": "RollingUpdate"
+      "deploymentStrategy": "RollingUpdate",
+      "resolutions": {
+        "**/MutationEngine": "5.5.0-fiber-omega"
+      }
     },
     "production": {
       "inherits": "base",
       "targetInfrastructure": "ProductionMain",
       "verificationStrategy": "full_e2e_regression",
+      "lane": "Sovereign-Root",
+      "ers_max": 0.02,
       "preflightChecks": [
         "security_scan_major",
-        "compliance_audit"
+        "compliance_audit",
+        "integrity_check_sha512"
       ],
       "resourceScaling": 1.0,
       "approvalGates": [
         "CISO_L2",
-        "PlatformOwner"
+        "PlatformOwner",
+        "NEXUS_CORE_VALIDATOR"
       ],
       "deploymentStrategy": "Canary5Percent",
-      "notificationChannel": "slack:alerts-critical"
+      "notificationChannel": "slack:alerts-critical",
+      "emergency_brake": {
+        "corruption_threshold": 5,
+        "auto_rollback": true,
+        "halt_on_semantic_drift": true
+      }
     }
+  },
+  "workspace_topology": {
+    "infrastructure_mapping": {
+      "MutationEngine": "portal:./config/infra/mutation",
+      "PolicyEnforcer": "portal:./config/infra/policy"
+    }
+  },
+  "constraints": {
+    "enforce_grog_law": "true",
+    "min_phi_threshold": 0.999,
+    "max_lambda_limit": 0.618,
+    "enforce_lane_isolation": "true"
   }
 }
