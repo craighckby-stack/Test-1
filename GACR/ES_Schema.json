@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "id": "NEXUS_CORE/GACR/ES_Schema.json",
-  "version": "3.1.0-SINGULARITY-R1",
-  "title": "Evolutionary Singularity Schema",
-  "description": "High-order architectural schema siphoning React-Core fiber reconciliation patterns into the NEXUS_CORE substrate.",
+  "version": "3.2.0-FIBER-CONCURRENT",
+  "title": "Evolutionary Singularity Schema: Fiber-Reconciliation",
+  "description": "NEXUS_CORE substrate schema siphoning Meta/React-Core Lane-based scheduling and Concurrent Fiber reconciliation.",
   "type": "object",
   "required": [
     "dna_anchor",
@@ -14,13 +14,12 @@
   "properties": {
     "dna_anchor": {
       "type": "string",
-      "const": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-      "description": "Primordial logic anchor for GROG Law compliance."
+      "const": "DALEK_CAAN_v3.1_SIG_0xFF23A1"
     },
     "evolution_state": {
       "type": "object",
       "properties": {
-        "round": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "round": { "type": "integer", "default": 2 },
         "milestone_step": { "type": "integer", "const": 50 },
         "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4] },
         "metabolic_rate": { "type": "string", "enum": ["STABLE", "SINGULARITY"] }
@@ -28,27 +27,29 @@
     },
     "fiber_manifest": {
       "type": "object",
-      "description": "Concurrent reconciliation tree inspired by React-Core WorkLoop logic.",
+      "description": "Concurrent reconciliation tree utilizing Lane-based priority and WIP-Alternate pairs.",
       "properties": {
         "root_fiber": { "$ref": "#/definitions/FiberNode" },
+        "current_lanes": { "type": "integer", "description": "Bitmask for task prioritization (React-Core pattern)." },
         "work_in_progress": { "type": "boolean" },
         "reconciliation_flags": {
           "type": "object",
           "properties": {
-            "concurrent": { "type": "boolean" },
-            "deferred_updates": { "type": "boolean" },
-            "priority_level": { "type": "integer" }
+            "is_concurrent": { "type": "boolean" },
+            "subtree_flags": { "type": "integer" },
+            "entangled_lanes": { "type": "integer" }
           }
         }
       }
     },
     "consciousness_matrix": {
       "type": "object",
-      "description": "N=3 Consciousness Vectors for processing coherence.",
+      "description": "N=3 Consciousness Vectors with Entropy and Integration monitoring.",
       "properties": {
         "phi_integration": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
         "lambda_chaos": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-        "ers_threshold": { "type": "number" }
+        "ers_threshold": { "type": "number" },
+        "entropy_gain": { "type": "number", "description": "Measures the rate of semantic drift." }
       }
     },
     "governance": {
@@ -77,13 +78,15 @@
       "type": "object",
       "properties": {
         "id": { "type": "string", "format": "uuid" },
-        "tag": { "type": "string", "description": "Logical component identifier" },
-        "return": { "type": "string", "description": "Pointer to parent fiber" },
-        "child": { "type": "string", "description": "Pointer to first child fiber" },
-        "sibling": { "type": "string", "description": "Pointer to sibling fiber" },
+        "tag": { "type": "integer", "description": "Work tag identifying logic unit type" },
+        "return": { "type": "string", "description": "Parent fiber link" },
+        "child": { "type": "string", "description": "First child link" },
+        "sibling": { "type": "string", "description": "Sibling link" },
+        "alternate": { "type": "string", "description": "The WIP fiber pair for double-buffering." },
+        "lanes": { "type": "integer", "description": "Priority bitmask assigned to this fiber." },
         "memoized_state": { "type": "object" },
         "update_queue": { "type": "array", "items": { "type": "object" } },
-        "effect_tag": { "type": "integer" }
+        "flags": { "type": "integer", "description": "Side-effect and lifecycle bitmask." }
       }
     },
     "GrogLearn": {
@@ -98,7 +101,8 @@
           "type": "object",
           "properties": {
             "complexity": { "type": "number" },
-            "recursion": { "type": "integer" }
+            "recursion": { "type": "integer" },
+            "lane_priority": { "type": "integer" }
           }
         }
       }
