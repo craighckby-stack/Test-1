@@ -1,92 +1,40 @@
+import * as CFTM_CONFIG from '../../config/security/cftm_v3.json';
+
 /**
- * CFTMValidatorKernel is responsible for asynchronously loading, validating, 
- * and providing typed access to critical Governance Axiom (GAX) constants
- * required for Core Faith and Trust Model (CFTM) calculations.
- * 
- * This kernel replaces synchronous configuration loading and global state access
- * with dependency injection and asynchronous initialization.
+ * Validates and provides typed access to Governance Axiom (GAX) constants.
+ * This is critical for ensuring numerical integrity within the COF calculations.
  */
-export class CFTMValidatorKernel {
-    private readonly configRegistry: ICFTMConfigRegistryKernel;
-    private readonly rulesRegistry: ICFTMValidationRulesRegistryKernel;
-    private readonly specValidator: ISpecValidatorKernel;
-    private readonly logger: ILoggerToolKernel;
-    
-    // Stores validated and immutable constants
-    private constants: ReadonlyMap<string, number>;
+export class CftmValidator {
+    private constants: Map<string, number> = new Map();
 
-    /**
-     * Rigorous formalization and injection of dependencies.
-     * Dependencies: ICFTMConfigRegistryKernel, ICFTMValidationRulesRegistryKernel,
-     * ISpecValidatorKernel (replacing INumericalConfigValidator), ILoggerToolKernel.
-     */
-    constructor(
-        configRegistry: ICFTMConfigRegistryKernel,
-        rulesRegistry: ICFTMValidationRulesRegistryKernel,
-        specValidator: ISpecValidatorKernel,
-        logger: ILoggerToolKernel
-    ) {
-        this.#setupDependencies({ configRegistry, rulesRegistry, specValidator, logger });
-        this.constants = new Map();
+    constructor() {
+        this.loadAndValidate();
     }
 
-    /** Isolates synchronous dependency validation and assignment. */
-    #setupDependencies(deps: any): void {
-        if (!deps.configRegistry || !deps.rulesRegistry || !deps.specValidator || !deps.logger) {
-            throw new Error("CFTMValidatorKernel: Missing required dependencies.");
+    private loadAndValidate(): void {
+        const axioms = (CFTM_CONFIG as any).axioms;
+
+        // Type and existence checks for key constants (DENOMINATOR_STABILITY_TAU)
+        const TAU = axioms.COF_Stability_Model.value;
+        if (typeof TAU !== 'number' || TAU <= 0) {
+            throw new Error('[CFTM] TAU constant validation failed.');
         }
-        this.configRegistry = deps.configRegistry;
-        this.rulesRegistry = deps.rulesRegistry;
-        this.specValidator = deps.specValidator;
-        this.logger = deps.logger;
-    }
 
-    /**
-     * Initializes the kernel by asynchronously loading the configuration,
-     * fetching validation rules, executing validation, and freezing the state.
-     */
-    public async initialize(): Promise<void> {
-        this.constants = await this.#loadAndValidate();
-        // Ensure state is immutable after initialization
-        Object.freeze(this.constants);
-    }
-
-    private async #loadAndValidate(): Promise<Map<string, number>> {
-        this.logger.debug("Attempting to load CFTM configuration and rules asynchronously.");
-        
-        // 1. Asynchronously retrieve configuration and rules
-        const [configObject, rules] = await Promise.all([
-            this.configRegistry.getCFTMConfig(),
-            this.rulesRegistry.getValidationRules()
-        ]);
-        
-        // 2. Execute validation using the generalized Spec Validator Tool Kernel
-        // Note: Assumes ISpecValidatorKernel has a method that performs validation and constant extraction.
-        const result: ValidationResult = await this.specValidator.validateConfigRules({
-            configObject,
-            rules
-        });
-
-        if (!result.isValid) {
-            const errorDetails = result.errors.join('; ');
-            this.logger.error(`[CFTM] Configuration validation failed: ${errorDetails}`);
-            // Throw a structured PolicyError upon critical validation failure
-            throw new PolicyError({ 
-                message: `Critical CFTM configuration validation failed.`,
-                details: errorDetails
-            });
+        // Type and range checks for epsilon (MINIMUM_EFFICACY_SAFETY_MARGIN_EPSILON)
+        const EPSILON = axioms.P01_Finality_Model.value;
+        if (typeof EPSILON !== 'number' || EPSILON <= 0 || EPSILON >= 1) {
+            throw new Error('[CFTM] EPSILON constant validation failed.');
         }
-        
-        this.logger.debug("CFTM configuration validated successfully. Constants extracted.");
-        return result.constants;
+
+        this.constants.set(axioms.COF_Stability_Model.constant_key, TAU);
+        this.constants.set(axioms.P01_Finality_Model.constant_key, EPSILON);
     }
 
     /** Retrieves a constant value by its defined key (e.g., 'DENOMINATOR_STABILITY_TAU') */
     public getConstant(key: string): number {
         const value = this.constants.get(key);
         if (value === undefined) {
-            this.logger.warn(`[CFTM] Attempted to retrieve unknown constant: ${key}`);
-            throw new ReferenceError(`[CFTM] Requested unknown or uninitialized constant: ${key}`);
+            throw new Error(`[CFTM] Requested unknown or uninitialized constant: ${key}`);
         }
         return value;
     }
