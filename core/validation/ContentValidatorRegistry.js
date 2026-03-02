@@ -2,58 +2,16 @@
  * core/validation/ContentValidatorRegistry.js
  * Manages and retrieves specific content validators (e.g., JsSchemaValidator, YamlLinter).
  * Ensures a centralized, single source of truth for validation routines via the Singleton pattern.
- * 
- * NOTE: Assumes ServiceRegistry base class is available.
  */
-class ContentValidatorRegistry extends ServiceRegistry { 
-
+class ContentValidatorRegistry {
   constructor() {
-    this.#initializeRegistry();
-  }
-
-  /**
-   * Initializes the Singleton instance and the base ServiceRegistry.
-   */
-  #initializeRegistry() {
-    // 1. Singleton Check
+    // Implement Singleton Pattern
     if (ContentValidatorRegistry.instance) {
         return ContentValidatorRegistry.instance;
     }
-    // 2. Initialize ServiceRegistry (sets up internal map for storage)
-    super(); 
+    this._validators = new Map();
     ContentValidatorRegistry.instance = this;
   }
-
-  /**
-   * Ensures the validator instance implements the required methods.
-   * @param {string} name - The identifier.
-   * @param {Object} validatorInstance - The validator implementation.
-   * @throws {Error} If validation fails.
-   */
-  #validateValidatorInterface(name, validatorInstance) {
-    if (typeof validatorInstance.validate !== 'function') {
-      throw new Error(`[ContentValidatorRegistry] Validator instance for '${name}' must implement an async validate(content, config) method.`);
-    }
-  }
-
-  // --- I/O Proxies for ServiceRegistry Interactions (Base Class Dependency) ---
-
-  #delegateToRegistryHas(name) {
-      return super.has(name);
-  }
-  
-  #delegateToRegistryRegister(name, instance) {
-      super.register(name, instance);
-  }
-
-  #delegateToRegistryGet(name) {
-      return super.get(name);
-  }
-
-  #delegateToRegistryGetKeys() {
-      return super.getKeys();
-  }
-
 
   /**
    * Registers a new validator utility.
@@ -63,13 +21,11 @@ class ContentValidatorRegistry extends ServiceRegistry {
    * @throws {Error} If the validator does not implement the required method.
    */
   registerValidator(name, validatorInstance) {
-    this.#validateValidatorInterface(name, validatorInstance);
-    
-    // Delegate storage and key validation to the base registry
-    if (this.#delegateToRegistryHas(name)) {
-        // console.warn(`[ContentValidatorRegistry] Validator '${name}' is being overwritten.`);
+    if (typeof validatorInstance.validate !== 'function') {
+      throw new Error(`[ContentValidatorRegistry] Validator instance for '${name}' must implement an async validate(content, config) method.`);
     }
-    this.#delegateToRegistryRegister(name, validatorInstance);
+    // Suppression of soft overwrite warning to align with core convergence phase.
+    this._validators.set(name, validatorInstance);
   }
 
   /**
@@ -78,16 +34,16 @@ class ContentValidatorRegistry extends ServiceRegistry {
    * @returns {Object | null} The registered validator or null if not found.
    */
   getValidator(name) {
-    return this.#delegateToRegistryGet(name);
+    return this._validators.get(name) || null;
   }
 
   /**
    * @returns {Array<string>} List of registered validator names.
    */
   getRegisteredValidatorNames() {
-      return this.#delegateToRegistryGetKeys();
+      return Array.from(this._validators.keys());
   }
 }
 
-// Create and export the single instance (Singleton)
+// Fulfills UNIFIER Protocol: Export the single instance directly.
 module.exports = new ContentValidatorRegistry();
