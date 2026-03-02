@@ -3,10 +3,6 @@
  * to enforce consistency, locking, and traceable error handling in critical sections.
  */
 
-/**
- * NOTE: CriticalSectionLockUtility is assumed to be injected and available in the execution context.
- */
-
 export class GovernanceError extends Error {
     /**
      * @param {string} message - Descriptive error message.
@@ -21,11 +17,13 @@ export class GovernanceError extends Error {
 
 /**
  * Abstracted Global Lock Mechanism.
- * This class now serves as a stable interface, delegating the actual locking and state
- * management (isLocked, currentHolder) to the CriticalSectionLockUtility plugin
- * for better modularity and potential integration with external consensus mechanisms.
+ * In a mature system, this class would interface with hardware/secure configuration
+ * systems (like MCR or consensus layers) to enforce atomic, single-threaded access
+ * to high-integrity state components (like ActiveStateContextManager).
  */
 export class GovernanceLock {
+    static isLocked = false;
+    static currentHolder = null;
 
     /**
      * Attempts to acquire the lock. Throws if already held.
@@ -33,12 +31,12 @@ export class GovernanceLock {
      * @returns {boolean}
      */
     static acquire(holderIdentifier) {
-        // Delegate to the CriticalSectionLockUtility plugin
-        // The plugin handles state and throws GovernanceError compatible errors (GOV_L001)
-        if (typeof CriticalSectionLockUtility === 'undefined' || !CriticalSectionLockUtility.acquire) {
-            throw new GovernanceError("CriticalSectionLockUtility is unavailable.", "GOV_L003");
+        if (this.isLocked) {
+            throw new GovernanceError(`Critical resource lock currently held by ${this.currentHolder}.`, "GOV_L001");
         }
-        return CriticalSectionLockUtility.acquire(holderIdentifier);
+        this.isLocked = true;
+        this.currentHolder = holderIdentifier;
+        return true;
     }
 
     /**
@@ -46,23 +44,12 @@ export class GovernanceLock {
      * @param {string} holderIdentifier - Component ID releasing the lock.
      */
     static release(holderIdentifier) {
-        // Delegate to the CriticalSectionLockUtility plugin
-        // The plugin handles validation and throws GovernanceError compatible errors (GOV_L002)
-        if (typeof CriticalSectionLockUtility === 'undefined' || !CriticalSectionLockUtility.release) {
-            // Cannot release if utility is missing, but if already unlocked, this is often fine.
-            return;
-        }
-        CriticalSectionLockUtility.release(holderIdentifier);
-    }
+        if (!this.isLocked) return; // Ignore if already unlocked
 
-    /**
-     * Retrieves the current lock status for inspection.
-     * @returns {{isLocked: boolean, currentHolder: string | null}}
-     */
-    static getStatus() {
-        if (typeof CriticalSectionLockUtility === 'undefined' || !CriticalSectionLockUtility.getStatus) {
-            return { isLocked: false, currentHolder: null };
+        if (this.currentHolder !== holderIdentifier) {
+            throw new GovernanceError("Unauthorized attempt to release governance lock.", "GOV_L002");
         }
-        return CriticalSectionLockUtility.getStatus();
+        this.isLocked = false;
+        this.currentHolder = null;
     }
 }
