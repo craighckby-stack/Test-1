@@ -6,27 +6,24 @@
 
 import { createHash } from 'crypto';
 
-// --- AGI Kernel Plugin Interface Proxy ---
-// Helper to invoke the extracted utility tool.
-// NOTE: In the AGI-KERNEL runtime, this function is mapped to the compiled plugin execution.
-function runCanonicalIntegrityHasher(data, createHashFn) {
-  // Simulate access to the CanonicalIntegrityHasher tool
-  const HashingTool = AGI_KERNEL.getPlugin('CanonicalIntegrityHasher');
-  
-  return HashingTool.execute({ data: data, createHashFn: createHashFn });
-}
-// ------------------------------------------
-
 /**
- * Generates a standard SHA-256 hash for an input artifact or data structure using
- * the CanonicalIntegrityHasher tool, ensuring canonical serialization for objects.
- * 
+ * Generates a standard SHA-256 hash for an input artifact or data structure.
  * @param {string|Buffer|object} data - The data payload to hash.
  * @returns {string} The SHA-256 hash in lowercase hex format.
  */
 export function calculateArtifactHash(data) {
-  // Delegation to the CanonicalIntegrityHasher plugin, passing 'createHash' as a required dependency.
-  return runCanonicalIntegrityHasher(data, createHash);
+  const hasher = createHash('sha256');
+  let input;
+
+  if (typeof data === 'object' && data !== null && !Buffer.isBuffer(data)) {
+    // Ensure consistent hashing for objects (canonical JSON serialization)
+    input = JSON.stringify(data, Object.keys(data).sort());
+  } else {
+    input = data;
+  }
+
+  hasher.update(input);
+  return hasher.digest('hex');
 }
 
 /**
@@ -36,26 +33,11 @@ export function calculateArtifactHash(data) {
  * @returns {boolean} True if hashes match, false otherwise.
  */
 export function validateTedsIntegrity(recordedHash, artifact) {
-  // Hash calculation is assumed to produce the canonical (lowercase) form.
-  const canonicalCalculatedHash = calculateArtifactHash(artifact);
-  
-  // Normalize the potentially mixed-case recorded hash for robust, case-insensitive comparison.
-  const normalizedRecordedHash = recordedHash.toLowerCase();
-  
-  return normalizedRecordedHash === canonicalCalculatedHash;
+  const calculatedHash = calculateArtifactHash(artifact);
+  return recordedHash.toLowerCase() === calculatedHash;
 }
 
-/**
- * Compares two artifact hashes from different stages, ensuring case insensitivity.
- * @param {string} hashA 
- * @param {string} hashB 
- * @returns {boolean} True if hashes match.
- */
+// Placeholder export for cross-stage comparison logic (S03 Input vs S05 Output)
 export function compareStageArtifacts(hashA, hashB) {
-  // Normalize both hashes to the canonical (lowercase) standard before comparison
-  // to guarantee cross-stage integrity check reliability.
-  const canonicalA = hashA.toLowerCase();
-  const canonicalB = hashB.toLowerCase();
-  
-  return canonicalA === canonicalB;
+  return hashA.toLowerCase() === hashB.toLowerCase();
 }
