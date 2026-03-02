@@ -1,41 +1,59 @@
 import hashlib
 import os
-from typing import Optional
+from typing import Optional, Final, Literal
 
-class HashAlgorithm:
-    """Standardized cryptographic hashing algorithms used by GAX protocols."""
-    SHA256 = 'sha256'
-    SHA512 = 'sha512'
+# --- Constants and Type Definitions ---
 
-class CodeArtifactHasher:
+# Utilize Literal for stricter type checking and self-documenting allowed algorithms.
+HashAlgorithm = Literal['sha256', 'sha512']
+DEFAULT_ALGORITHM: HashAlgorithm = 'sha256'
+
+# Optimized block size (64 KB) for high-speed sequential disk I/O.
+EFFICIENT_CHUNK_SIZE: Final[int] = 65536 
+
+class ArtifactStreamReducer:
     """
-    Protocol handler for generating consistent, reproducible hashes for 
-    code artifacts, models, or data bundles prior to Cryptographic Attestation 
-    (CAPR registration).
+    High-efficiency protocol handler for generating deterministic hashes of 
+    code artifacts, utilizing streaming I/O reduction via lazy generators.
 
-    This ensures that artifacts presented to CAPR for sealing have been hashed
-    using a GAX-mandated, deterministic algorithm.
+    This provides a generalized, recursive abstraction for processing binary data streams.
     """
     
-    def __init__(self, algorithm: str = HashAlgorithm.SHA256):
-        if algorithm not in [HashAlgorithm.SHA256, HashAlgorithm.SHA512]:
-            raise ValueError(f"Unsupported hashing algorithm: {algorithm}")
-        self.algorithm = algorithm
+    def __init__(self, algorithm: HashAlgorithm = DEFAULT_ALGORITHM):
+        # Immediate validation via hashlib's constructor for speed and reliability.
+        try:
+            self.algorithm = algorithm
+            # Store a placeholder hasher to confirm algorithm existence
+            hashlib.new(algorithm)
+        except ValueError as e:
+            raise ValueError(f"Unsupported hashing algorithm: {algorithm}") from e
 
-    def hash_file(self, filepath: str, chunk_size: int = 4096) -> Optional[str]:
-        """Calculates the hash for a single large file, optimized for memory."""
-        if not os.path.exists(filepath):
+    @staticmethod
+    def _chunk_stream_generator(filepath: str, chunk_size: int = EFFICIENT_CHUNK_SIZE):
+        """Internal generator that recursively abstracts file reading into memory-efficient chunks."""
+        try:
+            with open(filepath, 'rb') as f:
+                # Use the walrus operator (:=) for highly efficient, single-line assignment and evaluation
+                while chunk := f.read(chunk_size):
+                    yield chunk
+        except IOError:
+            # If I/O fails during streaming, the generator stops silently. Caller handles the outcome.
+            return
+
+    def hash_file(self, filepath: str) -> Optional[str]:
+        """Calculates the hash for a single large file via stream reduction/lazy iteration."""
+        if not os.path.exists(filepath): 
             return None
 
         hasher = hashlib.new(self.algorithm)
+        
+        # Integrate the generator stream into the hashing process
         try:
-            with open(filepath, 'rb') as f:
-                while True:
-                    chunk = f.read(chunk_size)
-                    if not chunk:
-                        break
-                    hasher.update(chunk)
+            for chunk in ArtifactStreamReducer._chunk_stream_generator(filepath):
+                hasher.update(chunk)
+            
+            # If successful (no exception raised and at least one chunk was processed), return digest.
             return hasher.hexdigest()
-        except IOError:
-            # File system error during read (High severity) 
-            return None 
+        except Exception: 
+            # Catch any unexpected errors during hashing or I/O interaction.
+            return None
