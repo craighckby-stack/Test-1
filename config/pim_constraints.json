@@ -8,7 +8,7 @@
     "Required": {"type": "Presence", "value": true},
     "Unique": {"type": "Uniqueness"},
     "PositiveOrZero": {"type": "Range", "min": 0},
-    "AlphanumericDash": {"type": "Format", "pattern": "^[a-zA-Z0-9\\-]+$"}
+    "AlphanumericDash": {"type": "Format", "pattern": "^[a-zA-Z0-9\\-]+"}
   },
   "entities": {
     "Product": {
