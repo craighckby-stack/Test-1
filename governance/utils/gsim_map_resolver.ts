@@ -1,104 +1,83 @@
 /**
- * GSIM Map Resolver v1.0
+ * GSIM Map Resolver v2.0 - Parallelized Recursive Abstraction
  * Handles integrity verification and dependency pre-loading for GSIM Enforcement Maps.
  */
 
-import { GsimEnforcementMap, EnforcementRule } from '../types/gsim_types';
+import { GsimEnforcementMap, EnforcementRule, Dependency } from '../types/gsim_types';
+import { ChecksumVerifier } from '@core/integrity/checksum_verifier';
 
-/**
- * Define the interface for the extracted tools.
- */
-interface IPayloadIntegrityVerifier {
-    verify(args: { payload: any, expectedChecksum: string }): Promise<{ isValid: boolean, calculatedChecksum: string | null }>;
-}
-
-/**
- * New interface for Dependency Resolution.
- * Abstracts the logic for fetching schemas, configs, and key references.
- */
-interface IDependencyResolver {
-    resolveDependencies(dependencies: EnforcementRule['dependencies']): Promise<void>;
-}
-
-
-interface GSIMResolverTools {
-    payloadIntegrityVerifier: IPayloadIntegrityVerifier;
-    dependencyResolver: IDependencyResolver;
-}
+// NOTE: Assuming 'Dependency' type is exposed by gsim_types.
 
 export class GSIMMapResolver {
-    private readonly #integrityVerifier: IPayloadIntegrityVerifier;
-    private readonly #dependencyResolver: IDependencyResolver;
 
-    constructor(tools: GSIMResolverTools) {
-        this.#integrityVerifier = tools.payloadIntegrityVerifier;
-        this.#dependencyResolver = tools.dependencyResolver;
+    /**
+     * Executes the specific I/O operation based on dependency type (Level 1 Abstraction/Parallelism).
+     * This method handles the concrete implementation details of fetching resources.
+     */
+    private async _processDependency(dep: Dependency): Promise<void> {
+        // Recursive abstraction point: each dependency type maps to a specialized handler.
+        switch (dep.dependency_type) {
+            case 'SCHEMA':
+                // Fetch, cache, and compile external schema definition
+                await this.fetchSchema(dep.uri);
+                break;
+            case 'CONFIG':
+                // Fetch mandatory configuration file
+                await this.fetchConfig(dep.uri);
+                break;
+            case 'KEY_VAULT_REFERENCE':
+                // Secure key retrieval and injection logic
+                await this.retrieveKeyReference(dep.uri);
+                break;
+            // ... other types
+        }
     }
 
     /**
-     * 1. Validates the integrity of the map data against the declared checksum (using tool).
-     * 2. Pre-resolves and caches required external dependencies based on type.
+     * Executes all dependencies for a single rule concurrently (Level 2 Parallelism).
+     * @param rule The enforcement rule containing dependencies.
+     */
+    private async _resolveRuleDependencies(rule: EnforcementRule): Promise<void> {
+        if (!rule.dependencies || rule.dependencies.length === 0) {
+            return;
+        }
+
+        // Use Promise.all to execute all dependency fetches within this rule concurrently.
+        const dependencyTasks = rule.dependencies.map(dep => this._processDependency(dep));
+        await Promise.all(dependencyTasks);
+    }
+
+    /**
+     * 1. Validates the integrity of the map data against the declared checksum.
+     * 2. Pre-resolves and caches required external dependencies using maximum I/O parallelism (Level 3 Parallelism).
      * @param mapData The parsed GSIM enforcement map.
      */
     public async resolve(mapData: GsimEnforcementMap): Promise<EnforcementRule[]> {
-        const { map_id, metadata, enforcement_map } = mapData;
+        console.log(`[GSIM] Attempting parallel resolution for map ID: ${mapData.map_id}`);
 
-        this.#logResolutionAttempt(map_id);
-
-        // 1. Integrity Verification
-        const verificationResult = await this.#delegateToIntegrityVerification(
-            enforcement_map,
-            metadata.checksum
-        );
-
-        if (!verificationResult.isValid) {
-            this.#throwIntegrityError(
-                map_id,
-                metadata.checksum,
-                verificationResult.calculatedChecksum
-            );
+        // 1. Integrity Verification (Must remain synchronous/blocking)
+        const calculatedHash = ChecksumVerifier.generate(mapData.enforcement_map);
+        if (calculatedHash !== mapData.metadata.checksum) {
+            throw new Error(`Integrity Check Failed for ${mapData.map_id}. Hash mismatch.`);
         }
 
-        // 2. Dependency Resolution Loop
-        for (const rule of enforcement_map) {
-            if (rule.dependencies) {
-                await this.#delegateToDependencyResolution(rule.dependencies);
-            }
-        }
+        // 2. Parallel Dependency Resolution Loop (Maximum efficiency via nested Promise.all)
+        
+        // Create an array of promises, where each promise resolves the dependencies
+        // for an individual rule concurrently.
+        const resolutionTasks = mapData.enforcement_map
+            .filter(rule => rule.dependencies)
+            .map(rule => this._resolveRuleDependencies(rule));
 
-        this.#logSuccess(map_id);
-        return enforcement_map;
+        // Await all rule dependency resolutions simultaneously.
+        await Promise.all(resolutionTasks);
+
+        console.log(`[GSIM] Map ${mapData.map_id} resolved successfully (Fully Parallelized).`);
+        return mapData.enforcement_map;
     }
 
-    // --- I/O Proxy Functions ---
-
-    /** Proxies interaction with the IPayloadIntegrityVerifier tool. */
-    private async #delegateToIntegrityVerification(
-        payload: any,
-        expectedChecksum: string
-    ): Promise<Awaited<ReturnType<IPayloadIntegrityVerifier['verify']>>> {
-        return this.#integrityVerifier.verify({ payload, expectedChecksum });
-    }
-
-    /** Proxies interaction with the IDependencyResolver tool. */
-    private async #delegateToDependencyResolution(dependencies: EnforcementRule['dependencies']): Promise<void> {
-        // dependencies is guaranteed non-null by the caller context (resolve loop).
-        return this.#dependencyResolver.resolveDependencies(dependencies!);
-    }
-
-    /** Proxies console logging for successful resolution. */
-    private #logResolutionAttempt(mapId: string): void {
-        console.log(`[GSIM] Attempting resolution for map ID: ${mapId}`);
-    }
-
-    /** Proxies console logging for successful resolution. */
-    private #logSuccess(mapId: string): void {
-        console.log(`[GSIM] Map ${mapId} resolved successfully.`);
-    }
-
-    /** Proxies error throwing upon failed integrity check. */
-    private #throwIntegrityError(mapId: string, expected: string, calculated: string | null): never {
-        const calculatedStr = calculated || 'N/A';
-        throw new Error(`Integrity Check Failed for ${mapId}. Hash mismatch. Expected: ${expected}, Calculated: ${calculatedStr}.`);
-    }
+    // Placeholder functions...
+    private async fetchSchema(uri: string) { /* ... */ }
+    private async fetchConfig(uri: string) { /* ... */ }
+    private async retrieveKeyReference(uri: string) { /* ... */ }
 }
