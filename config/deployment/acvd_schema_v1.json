@@ -10,6 +10,16 @@
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+-NEXUS-[A-Z]+-SINGULARITY$"
     },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "signature": { "type": "string" },
+        "evolution_round": { "type": "string", "pattern": "^\\d/5$" },
+        "siphon_source": { "type": "string" },
+        "phi_integrated": { "type": "number", "minimum": 0, "maximum": 1.0 },
+        "lambda_limit": { "type": "number", "default": 0.618 }
+      }
+    },
     "profiles": {
       "type": "object",
       "patternProperties": {
@@ -32,6 +42,11 @@
               "type": "object",
               "properties": {
                 "pnpMode": { "type": "string", "enum": ["strict", "loose"] },
+                "enableNetwork": { "type": "boolean" },
+                "enableOfflineMode": { "type": "boolean" },
+                "compressionLevel": { "type": "integer", "minimum": 0, "maximum": 9 },
+                "sharedPool": { "type": "boolean" },
+                "pnpHooks": { "type": "string" },
                 "virtualFolder": { "type": "string", "default": ".nexus/virtual" },
                 "ignorePattern": { "type": "string" }
               }
@@ -39,10 +54,10 @@
             "v_vectors": {
               "type": "object",
               "properties": {
-                "phi_min": { "type": "number", "minimum": 1.0, "maximum": 1.0 },
+                "phi_min": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
                 "lambda_limit": { "type": "number", "default": 0.618 },
-                "ccrr_commit": { "type": "number", "minimum": 0.95 },
-                "ers_max": { "type": "number", "maximum": 0.01 },
+                "ccrr_commit": { "type": "number", "minimum": 0.90 },
+                "ers_max": { "type": "number", "maximum": 0.1 },
                 "expert_factor": { "type": "number", "default": 0.999 }
               },
               "required": ["phi_min", "lambda_limit", "ccrr_commit"]
@@ -54,16 +69,27 @@
                   "type": "string", 
                   "enum": ["PSR_SILENT_DEGRADATION_ROLLBACK", "HALT_AND_LOG", "IMMEDIATE_ROLLBACK"] 
                 },
-                "recovery_lane": { "type": "string", "pattern": "^0b[01]{31}$" },
-                "auto_rollback": { "type": "boolean", "default": true },
-                "halt_on_semantic_drift": { "type": "boolean", "default": true }
+                "emergency_brake": {
+                  "type": "object",
+                  "properties": {
+                    "corruption_threshold": { "type": "integer", "default": 5 },
+                    "auto_rollback": { "type": "boolean", "default": true },
+                    "halt_on_semantic_drift": { "type": "boolean", "default": true },
+                    "recovery_lane": { "type": "string", "pattern": "^0b[01]{31}$" }
+                  }
+                }
               }
+            },
+            "approvalGates": {
+              "type": "array",
+              "items": { "type": "string" }
             },
             "workspace_topology": {
               "type": "object",
               "properties": {
+                "lane": { "type": "string" },
                 "lane_priority": { "type": "string", "pattern": "^0b[01]{31}$" },
-                "fiber_budget_ms": { "type": "integer", "maximum": 300 },
+                "fiber_budget_ms": { "type": "integer", "maximum": 1000 },
                 "reconciliation_strategy": { "type": "string" }
               }
             },
@@ -72,7 +98,8 @@
               "properties": {
                 "grog_learn_enabled": { "type": "boolean", "default": true },
                 "negative_progression_active": { "type": "boolean", "default": true },
-                "on_phi_drop": { "type": "string", "default": "IMMEDIATE_ROLLBACK" }
+                "on_phi_drop": { "type": "string", "default": "IMMEDIATE_ROLLBACK" },
+                "on_semantic_drift": { "type": "string", "default": "HALT_AND_LOG" }
               }
             }
           },
@@ -84,7 +111,7 @@
       "type": "object",
       "properties": {
         "check": { "type": "string" },
-        "psr_mode": { "type": "string", "enum": ["LOCKED", "EVOLVING"] },
+        "psr_mode": { "type": "string", "enum": ["LOCKED", "EVOLVING", "MANUAL_OVERRIDE"] },
         "signature": { "type": "string" }
       },
       "required": ["signature", "psr_mode"]
