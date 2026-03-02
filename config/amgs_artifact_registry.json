@@ -1,283 +1,79 @@
-### Mutated Config Class
-
-
-class Config {
-  static get defaults() {
-    return {
-      version: '1.0.0',
-      env: process.env.NODE_ENV || 'development',
-      foo: 'bar',
-      baz: true,
-    };
-  }
-
-  static get schema() {
-    return {
-      $id: 'config.schema',
-      type: 'object',
-      default: {},
-      required: ['version', 'env'],
-      properties: {
-        version: {
-          type: 'string'
-        },
-        env: {
-          type: 'string'
-        },
-        foo: {
-          type: 'string'
-        },
-        baz: {
-          type: 'boolean'
-        }
+{
+  "system_id": "AMGS_Integrity_Check_V3",
+  "version_minimum": "v94.1",
+  "description": "Defines critical artifacts for Sovereign Integrity Hashing (CHR Manifest Generation). Strategies are centrally defined and referenced by descriptive keys. Loaded by utilities/amgs_manifest_generator.py.",
+  "metadata": {
+    "manifest_generator": "utilities/amgs_manifest_generator.py",
+    "hash_strategies": {
+      "STANDARD": {
+        "algorithm": "SHA256",
+        "preprocessor_key": "NONE",
+        "description": "Standard hashing: uses raw file content."
+      },
+      "STRIPPED_COMMENTS": {
+        "algorithm": "SHA256",
+        "preprocessor_key": "JSON_STRIP_COMMENTS",
+        "description": "Hashing that ignores JSON C-style comments, used for user-configurable files."
       }
-    };
-  }
-
-  async validateConfig() {
-    const validator = new jsonschema.Validator();
-    const result = validator.validate(this, this.constructor.schema);
-    if (!result.valid) {
-      throw result;
+    },
+    "default_strategy": "STANDARD",
+    "accepted_types": ["CONFIGURATION", "GOVERNANCE", "PROTOCOL", "RUNTIME"],
+    "criticality_levels": ["HIGH", "MEDIUM", "LOW"]
+  },
+  "artifacts": [
+    {
+      "id": "GSEP_C_FLOW",
+      "path": "config/gsep_c_flow.json",
+      "type": "CONFIGURATION",
+      "criticality": "HIGH",
+      "strategy": "STRIPPED_COMMENTS",
+      "notes": "Core runtime sequencing flow definition."
+    },
+    {
+      "id": "ACVM_CONFIG",
+      "path": "config/acvm.json",
+      "type": "CONFIGURATION",
+      "criticality": "HIGH",
+      "strategy": "STRIPPED_COMMENTS"
+    },
+    {
+      "id": "SMC_SCHEMA",
+      "path": "governance/smc_schema.json",
+      "type": "GOVERNANCE",
+      "criticality": "HIGH"
+    },
+    {
+      "id": "DIAL_ANALYSIS",
+      "path": "config/dial_analysis_map.json",
+      "type": "CONFIGURATION",
+      "criticality": "MEDIUM",
+      "strategy": "STRIPPED_COMMENTS"
+    },
+    {
+      "id": "FDLS_SPEC",
+      "path": "protocol/fdls_spec.json",
+      "type": "PROTOCOL",
+      "criticality": "HIGH"
+    },
+    {
+      "id": "CHR_SCHEMA",
+      "path": "protocol/chr_schema.json",
+      "type": "PROTOCOL",
+      "criticality": "HIGH",
+      "notes": "Canonical Hash Record schema definition."
+    },
+    {
+      "id": "RRP_MANIFEST",
+      "path": "config/rrp_manifest.json",
+      "type": "RUNTIME",
+      "criticality": "MEDIUM"
+    },
+    {
+      "id": "TELEMETRY_SPEC",
+      "path": "protocol/telemetry_spec.json",
+      "type": "PROTOCOL",
+      "criticality": "LOW",
+      "notes": "Telemetry specifications are non-integrity critical, hash inclusion ensures version locking."
     }
-  }
-
-  constructor(values = {}) {
-    this.merge(values);
-  }
-
-  async merge(values) {
-    Object.assign(this, values);
-  }
-
-  toObject() {
-    return { ...this };
-  }
-
-  get() {
-    return this;
-  }
-
-  set(value) {
-    this.merge(value);
-  }
-
-  async validate() {
-    await this.validateConfig();
-  }
-
-  static create(config) {
-    return new Config(config);
-  }
-}
-
-### Enhanced Context Class
-
-
-class Context {
-  static get defaults() {
-    return {};
-  }
-
-  merge(values) {
-    Object.assign(this, values);
-  }
-
-  constructor(values = {}) {
-    this.merge(values);
-  }
-
-  get() {
-    return this;
-  }
-
-  set(value) {
-    this.merge(value);
-  }
-
-  async validate() {
-    try {
-      const schema = {
-        $id: 'context.schema',
-        type: 'object',
-        default: {},
-        properties: {},
-        required: [],
-        additionalProperties: false,
-      };
-      const validator = new jsonschema.Validator();
-      const result = validator.validate(this, schema);
-      if (!result.valid) {
-        throw result;
-      }
-    } catch (error) {
-      if (error) {
-        throw error;
-      }
-    }
-  }
-
-  static create(values = {}) {
-    return new Context(values);
-  }
-
-  static get value() {
-    return (context) => context;
-  }
-}
-
-### Enhanced Lifecycle Class
-
-
-class Lifecycle {
-  #status = 'INIT';
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false,
-  };
-
-  static get lifecycleMethods() {
-    return ['configured', 'loaded', 'shuttingDown'];
-  }
-
-  async applyLifecycle(event, ...args) {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      return Promise.all(
-        handlers.map(async (handler) => {
-          try {
-            return await handler.execute(...args);
-          } catch (error) {
-            console.error('Error executing lifecycle handler:', error);
-          }
-        })
-      ).then(() => {
-        const methodName = event.charAt(0).toUpperCase() + event.slice(1);
-        const lifecycleMethod = this[lifecycleMethod];
-        if (lifecycleMethod && typeof lifecycleMethod === 'function') {
-          return lifecycleMethod(...args);
-        }
-        return;
-      });
-    }
-  }
-
-  async configure(event, config) {
-    this.listeners.emit(event, config);
-  }
-
-  async start() {
-    try {
-      await Promise.all(
-        Lifecycle.lifecycleMethods().map(async (methodName) => {
-          if (this[methodName] instanceof Function) {
-            return await this[methodName]();
-          }
-        })
-      ).then(() => {
-        this.#status = 'STARTED';
-      });
-    } catch (error) {
-      console.error('START method failed:', error);
-    }
-  }
-
-  async load() {
-    if (!this.#lifecycle.loaded) {
-      console.log('Loading...');
-      return Promise.resolve(true);
-    }
-  }
-
-  async shutdown() {
-    if (!this.#lifecycle.shuttingDown) {
-      console.log('Initiating shutdown...');
-      this.#lifecycle.shuttingDown = true;
-      console.log('Shutdown complete...');
-      this.#status = 'SHUTDOWN';
-    }
-  }
-
-  async dispose() {
-    this.listeners.dispose();
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false,
-    };
-    this.#status = 'DESTROYED';
-  }
-
-  static get status() {
-    return (context) => context.#status;
-  }
-
-  static set status(value) {
-    context => context.#status = value;
-  }
-}
-
-### Unified NexusCore Class (Unified with Context Class)
-
-
-class NexusCore extends Lifecycle {
-  constructor(values = {}) {
-    super();
-    this.contextChain = Context.create(values);
-  }
-
-  async applyConfig(config) {
-    await this.applyLifecycle('CONFIGURE', config);
-    return this.contextChain;
-  }
-
-  async chainContext(context) {
-    this.contextChain = Context.create(context);
-    return context;
-  }
-
-  async start() {
-    return super.start();
-  }
-
-  async shutdown() {
-    return super.shutdown();
-  }
-
-  async load() {
-    return super.load();
-  }
-
-  async dispose() {
-    return super.dispose();
-  }
-
-  async getValue() {
-    return this.contextChain;
-  }
-}
-
-### Enhanced Lifecycle Listener Interface
-
-
-interface LifecycleListener {
-  event: string;
-  handler: Function;
-}
-
-class LifecycleEventManager {
-  #listeners: LifecycleListener[] = [];
-
-  add(event: string, listener: Function) {
-    this.#listeners.push({ event, handler: listener });
-  }
-
-  get(event: string) {
-    return this.#listeners.find(listener => listener.event === event);
-  }
-
-  dispose() {
-    this.#listeners = [];
-  }
+  ]
 }
