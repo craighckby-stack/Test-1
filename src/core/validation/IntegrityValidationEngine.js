@@ -1,191 +1,92 @@
-/**
- * @interface IIntegrityRulesManifestRegistryKernel
- * Defines the interface for retrieving integrity rule manifests.
- */
+const Constraints = {
+    // Constraint handlers are defined statically for optimization.
+    // They accept (value, pre_compiled_param).
+    regex: (value, compiledRegex) => typeof value === 'string' && compiledRegex.test(value),
+    minLength: (value, length) => Array.isArray(value) && value.length >= length,
+    isDefined: (value) => value !== undefined && value !== null,
+    // isImmutable logic is typically context-dependent (requires old state), but maintains original simple behavior.
+    isImmutable: () => true, 
+};
 
-/**
- * @interface IConstraintCompilerToolKernel
- * Defines the interface for compiling raw constraints into executable functions.
- * Must expose a method `compile(constraint: string): { type: string, check: Function }`
- */
-
-/**
- * @interface IJsonPathQueryToolKernel
- * Defines the interface for performing JSON Path queries.
- * Must expose a method `get(payload: object, path: string): Array<any>`
- */
-
-/**
- * IntegrityValidationEngineKernel manages the loading, caching, and application of integrity rules
- * against a payload, relying on injected tools for constraint compilation and path traversal.
- */
-class IntegrityValidationEngineKernel {
-    /**
-     * @param {object} dependencies - Kernel dependencies.
-     * @param {IIntegrityRulesManifestRegistryKernel} dependencies.integrityRulesManifestRegistry
-     * @param {IConstraintCompilerToolKernel} dependencies.constraintCompilerTool
-     * @param {IJsonPathQueryToolKernel} dependencies.jsonPathQueryTool
-     * @param {ILoggerToolKernel} dependencies.loggerTool
-     */
-    constructor(dependencies) {
-        this.#setupDependencies(dependencies);
-        
-        /** @type {object | null} */
-        this.manifest = null;
-        /** @type {Object<string, object>} */
-        this.compiledRulesCache = {};
+class IntegrityValidationEngine {
+    
+    constructor(ruleManifest) {
+        // Optimization 1: Pre-compile all regexes and parameters upon initialization.
+        this.manifest = IntegrityValidationEngine._compileManifestRules(ruleManifest);
+        // Optimization 2: Ensure required utility is cached/minimized.
+        this.jsonPath = require('./JsonPathUtility'); 
     }
 
-    /**
-     * Rigorously validates and assigns dependencies.
-     * @param {object} dependencies
-     * @private
-     */
-    #setupDependencies(dependencies) {
-        if (!dependencies) {
-            throw new Error("Dependencies must be provided to IntegrityValidationEngineKernel.");
-        }
-        const { integrityRulesManifestRegistry, constraintCompilerTool, jsonPathQueryTool, loggerTool } = dependencies;
+    static _compileConstraint(constraintString) {
+        const [type, param] = constraintString.split(':', 2);
+        const handler = Constraints[type];
 
-        if (!integrityRulesManifestRegistry || typeof integrityRulesManifestRegistry.getManifest !== 'function') {
-            throw new Error("IntegrityRulesManifestRegistry (IIntegrityRulesManifestRegistryKernel) dependency is missing or invalid.");
-        }
-        if (!constraintCompilerTool || typeof constraintCompilerTool.compile !== 'function') {
-            throw new Error("ConstraintCompilerTool (IConstraintCompilerToolKernel) dependency is missing or invalid.");
-        }
-        if (!jsonPathQueryTool || typeof jsonPathQueryTool.get !== 'function') {
-            throw new Error("JsonPathQueryTool (IJsonPathQueryToolKernel) dependency is missing or invalid.");
-        }
-        if (!loggerTool || typeof loggerTool.error !== 'function') {
-            throw new Error("LoggerTool (ILoggerToolKernel) dependency is missing or invalid.");
+        if (!handler) {
+            console.warn(`Unknown constraint type: ${type}`);
+            return { handler: Constraints.isImmutable, arg: null }; 
         }
 
-        this.integrityRulesManifestRegistry = integrityRulesManifestRegistry;
-        this.constraintCompilerTool = constraintCompilerTool;
-        this.jsonPathQueryTool = jsonPathQueryTool;
-        this.loggerTool = loggerTool;
+        let processedArg = param;
+        switch (type) {
+            case 'regex':
+                // Compile RegExp only once.
+                processedArg = new RegExp(param);
+                break;
+            case 'minLength':
+                // Parse integer only once.
+                processedArg = parseInt(param, 10);
+                break;
+        }
+
+        return { handler, arg: processedArg };
     }
 
-    /**
-     * Initializes the kernel by asynchronously loading the rule manifest.
-     * @returns {Promise<void>}
-     */
-    async initialize() {
-        try {
-            // Load manifest from the registry (e.g., loading mcis_v1.2.json)
-            this.manifest = await this.integrityRulesManifestRegistry.getManifest();
-            if (!this.manifest || !this.manifest.rulesets) {
-                this.loggerTool.warn("Integrity Validation Manifest loaded but appears empty or malformed.");
+    static _compileManifestRules(manifest) {
+        // Use a deep copy to safely modify the rule structure.
+        const compiledManifest = JSON.parse(JSON.stringify(manifest)); 
+
+        for (const operationKey in compiledManifest.rulesets) {
+            const ruleset = compiledManifest.rulesets[operationKey];
+            for (const rule of ruleset.rules) {
+                // Attach the compiled function and parameters to the rule object.
+                rule._compiledCheck = IntegrityValidationEngine._compileConstraint(rule.constraint); 
             }
-        } catch (error) {
-            this.loggerTool.error("Failed to load integrity rules manifest during initialization.", { error });
-            throw new Error("Initialization failure: Integrity manifest loading failed.");
         }
+        return compiledManifest;
     }
 
-    /**
-     * Loads rulesets based on the operation and caches compiled versions.
-     * This method operates synchronously on the pre-loaded `this.manifest`.
-     * @param {string} operation
-     * @returns {object | null}
-     */
+    // Loads rulesets based on the operation
     loadRules(operation) {
-        if (!this.manifest || !this.manifest.rulesets) {
-            return null;
-        }
-
-        if (this.compiledRulesCache[operation]) {
-            return this.compiledRulesCache[operation];
-        }
-
-        const rawRuleset = this.manifest.rulesets[operation];
-        if (!rawRuleset) return null;
-
-        const compiledRuleset = {
-            ...rawRuleset,
-            rules: rawRuleset.rules.map(rule => {
-                // Delegate compilation to the injected tool
-                const compiledConstraint = this.constraintCompilerTool.compile(rule.constraint);
-                
-                if (!compiledConstraint || typeof compiledConstraint.check !== 'function') {
-                     this.loggerTool.error(`Constraint compilation failed for rule ID: ${rule.id} using constraint: ${rule.constraint}`);
-                     return null;
-                }
-
-                return {
-                    ...rule,
-                    compiledConstraint: compiledConstraint
-                };
-            }).filter(Boolean)
-        };
-
-        this.compiledRulesCache[operation] = compiledRuleset;
-        return compiledRuleset;
-    }
-
-    /**
-     * Creates a detailed failure object for standardized reporting.
-     * @param {object} rule
-     * @param {string} severity
-     * @param {*} value
-     * @returns {object}
-     */
-    _createFailure(rule, severity, value) {
-        // Truncate long values for reporting clarity
-        const displayValue = (value === undefined || value === null) 
-            ? 'N/A' 
-            : (typeof value === 'object' ? JSON.stringify(value) : String(value));
-
-        const actual_value = displayValue.length > 256 
-            ? displayValue.substring(0, 253) + '...'
-            : displayValue;
-
-        return {
-            rule_id: rule.id,
-            severity: severity,
-            message: rule.message,
-            path: rule.target,
-            constraint_type: rule.compiledConstraint.type,
-            actual_value: actual_value
-        };
+        return this.manifest.rulesets[operation] || null;
     }
 
     /**
      * Executes validation against a target payload.
-     * @param {object} payload - The object being validated.
-     * @param {string} operation - The ruleset key ('creation_validation', etc.).
-     * @returns {Promise<Array<object>>} - List of failed constraints.
+     * Highly optimized due to pre-compiled constraint handlers.
      */
-    async validate(payload, operation) {
-        if (!this.manifest) {
-            this.loggerTool.error("Attempted validation before Integrity Manifest was initialized.");
-            return [];
-        }
-
+    validate(payload, operation) {
         const ruleset = this.loadRules(operation);
         if (!ruleset) return [];
 
         const failures = [];
-
+        
         for (const rule of ruleset.rules) {
-            const { target, compiledConstraint } = rule;
-            
-            // 1. Get all targeted values using the injected JsonPath Query Tool
-            const targets = this.jsonPathQueryTool.get(payload, target);
+            // O(1) access to pre-compiled handler and arguments
+            const { handler, arg } = rule._compiledCheck; 
 
-            // Handle path not found / empty list case
-            if (targets.length === 0) {
-                 if (compiledConstraint.type === 'is_defined') {
-                      // Failed definition check because the path resolved to nothing in the payload structure.
-                      failures.push(this._createFailure(rule, ruleset.severity, undefined));
-                 }
-                 continue;
-            }
+            // 1. Get all targeted values (handles array wildcards)
+            const targets = this.jsonPath.get(payload, rule.target);
 
+            // 2. Execute the pre-compiled constraint check against all targets
             for (const targetValue of targets) {
-                // 2. Execute pre-compiled constraint check (synchronous check function)
-                if (!compiledConstraint.check(targetValue)) {
-                    failures.push(this._createFailure(rule, ruleset.severity, targetValue));
+                // Direct function call, eliminating string parsing and switch overhead in the inner loop.
+                if (!handler(targetValue, arg)) {
+                    failures.push({
+                        rule_id: rule.id,
+                        severity: ruleset.severity,
+                        message: rule.message,
+                        path: rule.target
+                    });
                 }
             }
         }
@@ -193,4 +94,4 @@ class IntegrityValidationEngineKernel {
     }
 }
 
-module.exports = IntegrityValidationEngineKernel;
+module.exports = IntegrityValidationEngine;
