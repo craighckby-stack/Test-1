@@ -1,45 +1,63 @@
 {
-  "manifest_version": "3.1.0-NEXUS-BERRY",
+  "manifest_version": "3.2.0-NEXUS-BERRY-SINGULARITY",
   "metadata": {
     "signature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-    "evolution_round": "2/5",
-    "siphon_source": "yarnpkg/berry"
+    "evolution_round": "3/5",
+    "siphon_source": "yarnpkg/berry",
+    "fiber_state": "SINGULARITY_RECONCILIATION"
   },
-  "external_dependencies": [
-    {
-      "name": "QuantumCompute_v94",
-      "version_range": "^1.5.0",
-      "pnp_mode": "strict",
+  "pnp_settings": {
+    "pnpMode": "strict",
+    "enableNetwork": false,
+    "fallbackExclusionList": [],
+    "ignorePattern": "^(?!@nexus).*"
+  },
+  "dependencies": {
+    "QuantumCompute_v94": "^1.5.0",
+    "SecurityValidator_v12": "~12.3.1",
+    "DebtPrioritization": "link:./config/debtPrioritizationConfig.js"
+  },
+  "dependenciesMeta": {
+    "QuantumCompute_v94": {
+      "built": true,
       "lane_priority": "0b0000000000000000000000000000001",
-      "integrity": "sha512-nexus-qc-v94-core-sig",
       "status": "Mandatory"
     },
-    {
-      "name": "SecurityValidator_v12",
-      "version_range": "~12.3.1",
-      "pnp_mode": "loose",
+    "SecurityValidator_v12": {
+      "optional": true,
       "lane_priority": "0b0000000000000000000000000000100",
-      "peerDependenciesMeta": {
-        "GovernanceEngine": { "optional": true }
-      },
-      "status": "Optional"
+      "unplugged": true
     }
-  ],
-  "resolution_overrides": {
-    "**/MutationEngine": "3.0.1-fiber-optimized",
-    "**/PolicyEnforcer": "1.1.0-psr-governed"
   },
+  "resolutions": {
+    "**/MutationEngine": "3.0.1-fiber-optimized",
+    "**/PolicyEnforcer": "1.1.0-psr-governed",
+    "**/NEXUS_CORE": "portal:./core"
+  },
+  "workspaces": [
+    "packages/*",
+    "governance/*",
+    "config/*"
+  ],
   "workspace_topology": {
     "ACVD_Core_Modules": {
-      "MutationEngine": { "required_api": "3.0.1", "phi_threshold": 0.99 },
-      "PolicyEnforcer": { "required_api": "1.1.0", "ers_limit": 0.02 }
+      "MutationEngine": { "phi_threshold": 0.99, "lane": "SyncLane", "strategy": "Transactional-Parallel-Flush" },
+      "PolicyEnforcer": { "ers_limit": 0.02, "lane": "InputContinuous", "recovery": "Grog_Law_v5.5" }
     }
   },
   "psr_governance": {
-    "dependency_update_cycle_days": 7,
-    "allow_unverified_deps": false,
+    "v_vectors": {
+      "phi_min": 0.99,
+      "lambda_limit": 0.618,
+      "ccrr_commit": 0.98,
+      "ers_max": 0.02
+    },
     "enforcement_strategy": "PSR_SILENT_DEGRADATION_ROLLBACK",
-    "emergency_brake_ers_threshold": 0.02,
-    "recovery_logic": "Grog_Law_v5.5"
+    "emergency_brake": {
+      "corruption_threshold": 5,
+      "auto_rollback": true,
+      "log_mechanism": "NEXUS_LOG_v3.1"
+    },
+    "integrity_check": "sha512-nexus-qc-v94-core-sig-reconciled"
   }
 }
