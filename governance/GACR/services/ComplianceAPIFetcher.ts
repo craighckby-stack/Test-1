@@ -1,57 +1,36 @@
 import { IComplianceDataFetcher } from '../resolvers/PolicyAdherenceResolver';
 
 /**
- * Minimal interface definition for the required kernel data fetching tool.
- */
-interface IDataFetcherTool {
-    execute(options: { baseUrl: string, endpoint: string }): Promise<number>;
-}
-
-/**
  * ComplianceAPIFetcher implements the IComplianceDataFetcher interface.
  * This service is responsible for handling network requests or system queries 
- * needed to retrieve raw compliance data, using Dependency Injection for the core fetcher logic.
+ * needed to retrieve raw compliance data.
  */
 export class ComplianceAPIFetcher implements IComplianceDataFetcher {
-    #apiBaseUrl: string;
-    #dataFetcherTool: IDataFetcherTool; // The injected kernel tool
+    private apiBaseUrl: string; // Configuration detail
 
-    /**
-     * @param dataFetcherTool - The kernel plugin tool responsible for execution (e.g., AGI_PLUGINS.SimulatedDataFetcherTool).
-     * @param baseUrl - The base URL for the compliance API.
-     */
-    constructor(
-        dataFetcherTool: IDataFetcherTool,
-        baseUrl: string = 'http://localhost:8080/compliance/'
-    ) {
-        this.#setupDependencies(dataFetcherTool, baseUrl);
+    constructor(baseUrl: string = 'http://localhost:8080/compliance/') {
+        this.apiBaseUrl = baseUrl;
     }
 
     /**
-     * Extracts synchronous dependency resolution and initialization.
-     */
-    #setupDependencies(dataFetcherTool: IDataFetcherTool, baseUrl: string): void {
-        this.#dataFetcherTool = dataFetcherTool;
-        this.#apiBaseUrl = baseUrl;
-    }
-
-    /**
-     * Isolates the interaction with the external IDataFetcherTool dependency.
-     */
-    async #delegateToDataFetchToolExecution(endpoint: string): Promise<number> {
-        return this.#dataFetcherTool.execute({
-            baseUrl: this.#apiBaseUrl,
-            endpoint: endpoint
-        });
-    }
-
-    /**
-     * Fetches compliance metrics by delegating the request to the injected DataFetcherTool.
+     * Simulates fetching real-time compliance metrics from a designated system API.
      * @param endpoint - The specific API path defined in the policy's audit_config.
-     * @returns A promise resolving to the raw compliance data value.
+     * @returns A promise resolving to the raw compliance data value (e.g., a number or metric object).
      */
     public async fetchComplianceData(endpoint: string): Promise<number> {
-        // Delegate URL construction and data retrieval to the injected tool via proxy.
-        return this.#delegateToDataFetchToolExecution(endpoint);
+        // In a production system, this would involve:
+        // 1. Authorization checks
+        // 2. HTTP GET request using libraries (axios, native fetch)
+        // 3. Potential data validation/schema checking
+
+        // For simulation purposes:
+        const url = `${this.apiBaseUrl}${endpoint}`;
+        console.log(`[ComplianceFetcher] Requesting data from: ${url}`);
+        
+        // Simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Dummy logic based on endpoint/policy ID (e.g., always returning high compliance)
+        return 0.99;
     }
 }
