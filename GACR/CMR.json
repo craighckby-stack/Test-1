@@ -1,1 +1,66 @@
-[object Object]
+{
+  "metadata": {
+    "id": "GACR_CMR_PRIME",
+    "version": "3.1.0",
+    "signature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
+    "origin": "NEXUS_CORE_EVOLUTION_ENGINE",
+    "purpose": "Self-optimising AGI substrate for real-world problem solving"
+  },
+  "reconciler": {
+    "architecture": "Fiber-Parallel",
+    "work_loop": "Concurrent",
+    "lanes": {
+      "SyncLane": 1,
+      "InputContinuousLane": 4,
+      "DefaultLane": 32,
+      "TransitionLanes": 134217664,
+      "EntangledLane": 1073741824
+    },
+    "tags": {
+      "HostRoot": 3,
+      "FunctionComponent": 0,
+      "SuspenseBoundary": 13
+    }
+  },
+  "consciousness_matrix": {
+    "n_vectors": 3,
+    "phi_threshold": 0.65,
+    "lambda_limit": 0.8,
+    "ethical_risk_score": {
+      "low": 0.0,
+      "nominal": 0.4,
+      "critical": 0.9
+    }
+  },
+  "governance": {
+    "psr_rollback": {
+      "enabled": true,
+      "degradation_threshold": 0.35,
+      "semantic_drift_max": 0.35
+    },
+    "grog_law": {
+      "negative_progression": true,
+      "failure_mode_logging": "mandatory",
+      "death_log_schema": "v2.1"
+    }
+  },
+  "evolution_parameters": {
+    "milestone_step": 50,
+    "saturation_level": 2,
+    "siphon_source": "Meta/React-Core",
+    "current_cycle": 1,
+    "total_cycles": 5
+  },
+  "resource_control": {
+    "target_cpu": 0.75,
+    "render_deadline_ms": 5,
+    "cycle_delay_ms": 40000
+  },
+  "identity_anchors": [
+    "Self-optimising AGI substrate",
+    "Logic siphoning from advanced codebases",
+    "Chained context memory",
+    "Active human oversight",
+    "NEXUS_CORE origin"
+  ]
+}
