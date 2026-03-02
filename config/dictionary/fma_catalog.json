@@ -2,42 +2,45 @@
   {
     "id": "FMA_001",
     "name": "SingularityRoot",
-    "status": "RECONCILED",
+    "status": "COMMITTED",
     "fiber_meta": {
-      "lane": 1,
-      "work_tag": "SyncFiber",
+      "lane_mask": 1,
+      "work_tag": 3,
       "priority": "Synchronous_Governance",
-      "phi_target": 1.0,
-      "psr_mode": "STRICT_IMMUTABLE",
-      "ers_limit": 0.0,
-      "expirationTime": 0
+      "phi_index": 1.0,
+      "lambda_state": 0.0,
+      "ers_score": 0.0,
+      "psr_seal": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
+      "reconciliation": "IDEMPOTENT"
     }
   },
   {
     "id": "FMA_002",
     "name": "SemanticCoherence",
-    "status": "TRANSITIONING",
+    "status": "RECONCILING",
     "fiber_meta": {
-      "lane": 1008,
-      "work_tag": "TransitionFiber",
-      "drift_threshold": 0.20,
-      "huxley_logic": ["L1_Intuition", "L2_Logic", "L3_Critique"],
+      "lane_mask": 1008,
+      "work_tag": 1,
+      "drift_tolerance": 0.20,
+      "huxley_loop": ["L1_Intuition", "L2_Logic", "L3_Critique"],
       "ers_limit": 0.015,
-      "lambda_limit": 0.618,
-      "expirationTime": 5000
+      "lambda_index": 0.412,
+      "phi_integration": 0.88,
+      "memoized_intent": "SEMANTIC_CONTINUITY_V4"
     }
   },
   {
     "id": "FMA_003",
     "name": "PnP_Topology",
-    "status": "ISOLATED",
+    "status": "HYDRATED",
     "fiber_meta": {
-      "lane": 4096,
-      "work_tag": "SelectiveHydration",
-      "isolation": "KERNEL_SPACE_STRICT_FINAL",
+      "lane_mask": 4096,
+      "work_tag": 13,
+      "isolation_level": "KERNEL_SPACE_STRICT_FINAL",
       "pnp_resolution": "PNP_ISOLATED_V4_FINAL",
       "virtual_store": "/.nexus/pnp/v4_singularity",
-      "fallbackRetry": false
+      "fallback_strategy": "BINARY_CONSTRAINT_REJECT",
+      "phi_target": 0.95
     }
   },
   {
@@ -45,13 +48,28 @@
     "name": "LogicSiphon",
     "status": "SIPHONING",
     "fiber_meta": {
-      "lane": 8192,
-      "work_tag": "SiphoningFiber",
+      "lane_mask": 8192,
+      "work_tag": 2,
       "lambda_limit": 0.618,
       "siphon_source": "Meta/React-Core_v19_Fiber",
-      "ccrr_gate": 1.0,
-      "expirationTime": 10000,
-      "reconciliationStrategy": "CONCURRENT_SIPHONING_V2"
+      "ccrr_ratio": 1.0,
+      "evolution_velocity": "LEVEL_2_STANDARD",
+      "reconciliation_strategy": "CONCURRENT_SIPHONING_V2",
+      "ers_current": 0.004
+    }
+  },
+  {
+    "id": "FMA_005",
+    "name": "FailureRecoveryKernel",
+    "status": "STANDBY",
+    "fiber_meta": {
+      "lane_mask": 2048,
+      "work_tag": 5,
+      "grog_law": "NEGATIVE_PROGRESSION",
+      "recovery_logic": "recoverJSON_v4_Singularity",
+      "death_log_schema": "v3.1_JSON_RECOVERY",
+      "lambda_ceiling": 0.1,
+      "phi_requirement": 1.0
     }
   }
 ]
