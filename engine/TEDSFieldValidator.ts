@@ -1,45 +1,35 @@
 import { Logger } from './Logger';
 import TEDS_SCHEMA from '../schema/teds_field_definitions.json';
-import { ZodSchema, z } from 'zod';
-import { executeValidation, ValidationResult } from './plugins/ValidationExecutionUtility';
+import { ZodSchema, ZodError, z } from 'zod';
+
+interface ValidationResult<T> {
+  isValid: boolean;
+  data: T | null;
+  errors: string[];
+}
 
 /**
  * TEDSFieldValidator: Runtime engine consuming teds_field_definitions.json
  * to generate validation and normalization pipelines (using Zod internally).
  */
 export class TEDSFieldValidator {
-  #compiledSchema: ZodSchema<any>;
+  private compiledSchema: ZodSchema;
 
   constructor() {
-    this.#initializeEngine();
-  }
-
-  // --- Initialization and Setup ---
-
-  /**
-   * Extracts synchronous initialization logic from the constructor.
-   */
-  #initializeEngine(): void {
-    // TEDS_SCHEMA consumption and schema compilation logic delegated to private methods.
-    this.#compiledSchema = this.#compileTedsSchema(TEDS_SCHEMA.domains) as ZodSchema<any>;
-    this.#logInfo('TEDS Schema compiled successfully.');
-  }
-
-  // --- Private Proxies (I/O & Internal Logic) ---
-
-  /** 
-   * Proxy for Logger.info, strictly isolating logging operations.
-   */
-  #logInfo(message: string): void {
-    Logger.info(message);
+    this.compiledSchema = this.compileSchema(TEDS_SCHEMA.domains);
+    Logger.info('TEDS Schema compiled successfully.');
   }
 
   /**
-   * Proxy for Zod Schema compilation logic, using external Zod dependency.
-   * (Requires extensive domain mapping logic not fully detailed here).
+   * Iteratively compiles the JSON definitions into a robust Zod validation schema.
+   * (Requires extensive domain mapping logic not fully detailed here, e.g., mapping
+   * 'TEDS_UUID' shared type to Zod's .uuid()).
    */
-  #compileTedsSchema(domains: any): ZodSchema {
+  private compileSchema(domains: any): ZodSchema {
     let primaryDomainSchema: { [key: string]: ZodSchema } = {};
+
+    // Conceptual Compilation Loop: iterates through domains and fields
+    // Example: primaryDomainSchema['TEDS_ID'] = z.string().uuid().required();
 
     // For demonstration, return a basic, conceptual compilation wrapper:
     return z.object({ 
@@ -49,27 +39,29 @@ export class TEDSFieldValidator {
   }
 
   /**
-   * Proxy for external ValidationExecutionUtility tool, strictly isolating
-   * the delegation to the external execution environment.
-   */
-  #delegateToValidationExecution(validatorFn: (data: unknown) => unknown, rawData: unknown): ValidationResult<any> {
-    // Note: The Logger dependency is passed through this proxy.
-    return executeValidation(validatorFn, rawData, Logger);
-  }
-
-  /**
    * Validates and attempts to normalize raw input data against the TEDS standard.
    */
   public processAndValidate(rawData: unknown): ValidationResult<any> {
-    
-    // 1. Define the specific validation function (Zod parsing logic).
-    const zodValidatorFunction = (data: unknown) => {
-        // The validator must throw the exception (ZodError) for the utility to catch and parse.
-        return this.#compiledSchema.parse(data);
-    };
+    try {
+      const validatedData = this.compiledSchema.parse(rawData);
 
-    // 2. Delegate execution, standardized error handling, and result formatting
-    // using the I/O proxy.
-    return this.#delegateToValidationExecution(zodValidatorFunction, rawData);
+      // Additional steps: Apply explicit 'normalization' array operations
+      
+      return {
+        isValid: true,
+        data: validatedData,
+        errors: []
+      };
+    } catch (e) {
+      if (e instanceof ZodError) {
+        return {
+          isValid: false,
+          data: null,
+          errors: e.errors.map(err => `${err.path.join('.')}: ${err.message}`)
+        };
+      }
+      Logger.error('Schema validation failed non-Zod error:', e);
+      return { isValid: false, data: null, errors: ['Internal validation error.'] };
+    }
   }
 }
