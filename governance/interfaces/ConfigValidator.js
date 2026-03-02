@@ -1,25 +1,27 @@
-import { AbstractValidator, ValidationError, ValidationResult } from "@/plugins/ValidatorInterface";
-
 /**
  * @fileoverview Defines the abstract interface and standard types for Configuration Validation
  * within the Governance Subsystem (GOV).
  */
 
-// --- Standard Interface Types (Aliased for GOV domain specificity) ---
+// --- Standard Interface Types ---
 
 /**
  * Standard Interface Type: GOV_ValidationError
  * Represents a specific failure point discovered during configuration validation.
- * (Alias for core ValidationError type.)
+ * @typedef {Object} GOV_ValidationError
+ * @property {string} ruleId - Identifier of the rule that failed (e.g., 'GRS-001', 'SchemaCheck').
+ * @property {string} message - Human-readable, actionable description of the failure.
+ * @property {string} [path] - Optional JSON path to the failed configuration element (e.g., 'rules[3].threshold').
+ * @property {*} [value] - Optional failing value for detailed debugging.
  */
-export type GOV_ValidationError = ValidationError;
 
 /**
  * Standard Interface Type: GOV_ValidationResult
  * The aggregated result of a configuration validation operation.
- * (Alias for core ValidationResult type.)
+ * @typedef {Object} GOV_ValidationResult
+ * @property {boolean} isValid - True if the configuration passed all checks.
+ * @property {GOV_ValidationError[]} errors - Array of detailed errors if validation failed (empty array if isValid is true).
  */
-export type GOV_ValidationResult = ValidationResult;
 
 // --- Abstract Base Interface ---
 
@@ -29,18 +31,18 @@ export type GOV_ValidationResult = ValidationResult;
  * Scope: Standardized, Asynchronous Interface for Configuration Integrity Checks.
  *
  * Purpose: Defines the required contract for all concrete governance configuration validation modules (GRCMs).
- * Extends AbstractValidator to inherit standard validation contract capabilities.
+ * Enforces async validation capability.
  */
-export abstract class ConfigValidator extends AbstractValidator {
+class ConfigValidator {
     /**
      * Static unique identifier for introspection and registry management. Version bumped to v2
      * to indicate adherence to modern standardized types (GOV_ prefix).
+     * @type {string}
      */
-    public static readonly INTERFACE_ID = 'GOV_IFACE_VLDTR_v2';
+    static INTERFACE_ID = 'GOV_IFACE_VLDTR_v2';
 
     constructor() {
-        super();
-        // Enforce abstract nature specific to the governance interface.
+        // Enforce abstract nature
         if (new.target === ConfigValidator) {
             throw new TypeError("Cannot instantiate abstract class ConfigValidator. Use concrete implementations (GRCMs).");
         }
@@ -52,16 +54,24 @@ export abstract class ConfigValidator extends AbstractValidator {
      * Rationale: Operation must be asynchronous to accommodate complex checks requiring I/O,
      * state lookups, dependency analysis, or cryptographic state verification.
      *
-     * @param config - The configuration object (e.g., policy update payload) to validate.
-     * @returns A promise resolving to a detailed validation result object.
+     * @param {Object} config - The configuration object (e.g., policy update payload) to validate.
+     * @returns {Promise<GOV_ValidationResult>} A promise resolving to a detailed validation result object.
+     * @abstract
      */
-    public abstract validate(config: unknown): Promise<GOV_ValidationResult>;
+    async validate(config) {
+        // Must be implemented by concrete subclasses.
+        throw new Error(`Abstract method 'validate(config)' not implemented in ${this.constructor.name}.`);
+    }
 }
 
 /**
- * Exports the ConfigValidator abstract class and associated standard types.
+ * Exports the ConfigValidator interface and associated standard types.
  */
-export {
-    GOV_ValidationError as ValidationError,
-    GOV_ValidationResult as ValidationResult
+module.exports = {
+    ConfigValidator,
+    // Export standard types for JSDoc/TS consumers
+    /** @typedef {GOV_ValidationError} */
+    ValidationError: {}, // JSDoc placeholder
+    /** @typedef {GOV_ValidationResult} */
+    ValidationResult: {}, // JSDoc placeholder
 };
