@@ -1,105 +1,84 @@
-const HALT_LOG_SCHEMA = Object.freeze({
-    $id: 'IntegrityHaltLog',
-    type: 'object',
-    required: ['timestamp', 'reasonCode', 'details', 'attestationSource', 'signatureHash'],
-    properties: {
-        timestamp: {
-            type: 'number',
-            description: 'Unix timestamp in milliseconds.',
-            minimum: 1600000000000
-        },
-        reasonCode: {
-            type: 'string',
-            description: 'Specific code identifying the halt cause.',
-            pattern: '^[A-Z0-9_]{3,64}$'
-        },
-        details: {
-            type: 'object',
-            required: ['message', 'stackHash'],
-            properties: {
-                message: { type: 'string' },
-                stackHash: { type: 'string', pattern: '^[0-9a-fA-F]{64}$' }
-            }
-        },
-        attestationSource: {
-            type: 'string',
-            enum: ['KERNEL', 'HW_WATCHDOG', 'SEC_MODULE', 'TRUSTED_ENV']
-        },
-        signatureHash: {
-             type: 'string',
-             pattern: '^[0-9a-fA-F]{128}$',
-             description: 'Cryptographic hash of the log content for signing pre-check.'
-        }
-    },
-    additionalProperties: false
-});
-
 /**
- * IntegrityHaltValidator: Ensures critical halt logs conform strictly
- * to the defined integrity schema before signing/finalizing.
- * 
- * Optimization: Uses explicit Dependency Injection and private fields
- * to replace reliance on global scope access for the core validator utility.
+ * core/security/IntegrityHaltValidator.js
+ *
+ * Strict, static utility for validating critical Integrity Halt logs against
+ * the defined structural schema *before* cryptographic signing.
+ * Failures here mandate an immediate system halt and indicate a core breach
+ * in logging/attestation mechanisms.
  */
-class IntegrityHaltValidator {
-    
-    #validator;
-    #schema;
-    #schemaId;
 
-    /**
-     * @param {object} validator An instance of the StrictSchemaValidator utility.
-     *                          Must implement a validate(payload, schema, schemaId) method.
-     */
-    constructor(validator) {
-        this.#setupDependencies(validator);
-        this.#initializeConfiguration();
-    }
+import { SchemaValidator } from '../utility/SchemaValidator';
+import INTEGRITY_HALT_SCHEMA from '../../config/security/integrity_halt_schema.json';
+import { SystemLogger } from '../system/SystemLogger';
+import { IsolatedFailureReporter } from '../system/IsolatedFailureReporter';
 
-    /**
-     * Handles dependency validation and assignment.
-     */
-    #setupDependencies(validator) {
-        if (!validator || typeof validator.validate !== 'function') {
-            throw new Error('Dependency Error: A valid StrictSchemaValidator instance is required.');
-        }
-        this.#validator = validator;
-    }
+const CLASS_NAME = 'IntegrityHaltValidator';
+const LOG_SOURCE = 'IH_VALIDATOR';
 
-    /**
-     * Handles synchronous configuration setup.
-     */
-    #initializeConfiguration() {
-        this.#schema = HALT_LOG_SCHEMA;
-        this.#schemaId = this.#schema.$id;
-    }
+// --- Configuration and Dependency Initialization ---
 
-    /**
-     * Validates a critical halt log entry, delegating the operation to the
-     * injected, strictly encapsulated validator utility.
-     * @param {object} logEntry The log entry object to validate.
-     * @returns {boolean} True if validation passes.
-     */
-    validate(logEntry) {
-        return this.#delegateToValidatorValidation(logEntry);
-    }
-
-    /**
-     * Isolates interaction with the external StrictSchemaValidator dependency.
-     * @param {object} logEntry The log entry object to validate.
-     */
-    #delegateToValidatorValidation(logEntry) {
-        // Delegation to the abstracted strict validation logic
-        return this.#validator.validate(logEntry, this.#schema, this.#schemaId);
-    }
-
-    /**
-     * Retrieves the current validation schema.
-     * @returns {object}
-     */
-    static getSchema() {
-        return HALT_LOG_SCHEMA;
-    }
+// Critical Check: Ensure the schema definition loaded successfully. If configuration is missing,
+// we cannot guarantee validation security and must halt immediately during bootstrap.
+if (!INTEGRITY_HALT_SCHEMA || Object.keys(INTEGRITY_HALT_SCHEMA).length === 0) {
+    throw new Error(`${CLASS_NAME}: Failed to load necessary Integrity Halt Schema from disk/config path.`);
 }
 
-module.exports = IntegrityHaltValidator;
+const schemaValidatorInstance = new SchemaValidator(INTEGRITY_HALT_SCHEMA);
+const logger = new SystemLogger(LOG_SOURCE);
+
+/**
+ * Executes schema validation for high-security integrity logs.
+ */
+export class IntegrityHaltValidator {
+
+    /** Prevent instantiation, as this is a static utility class. */
+    constructor() {
+        throw new Error(`${CLASS_NAME} is a static utility class and should not be instantiated.`);
+    }
+
+    /**
+     * Executes strict validation against the mandated Integrity Halt Schema.
+     *
+     * @param {object} logPayload - The generated Integrity Halt log object.
+     * @returns {void} Throws an error if invalid.
+     */
+    static validate(logPayload) {
+        if (typeof logPayload !== 'object' || logPayload === null) {
+            throw new Error(`[${CLASS_NAME} HALT]: Input must be a valid object payload.`);
+        }
+
+        const validationResult = schemaValidatorInstance.validate(logPayload);
+
+        if (!validationResult.isValid) {
+            const identifier = logPayload.IH_Identifier || 'UNSPECIFIED_ID';
+
+            // Prepare detailed error context for high fidelity logging/reporting
+            const errorsDetail = validationResult.errors.map(err => ({
+                path: err.instancePath,
+                message: err.message
+            }));
+
+            const logContext = {
+                validation_errors: errorsDetail,
+                payload_id: identifier,
+                schema_name: INTEGRITY_HALT_SCHEMA.title || 'IntegrityHaltSchema'
+            };
+
+            // 1. Log the failure critically.
+            logger.critical(`INTEGRITY BREACH: Halt Log (ID: ${identifier}) failed CRITICAL structural validation.`, logContext);
+
+            // 2. Report the failure through the isolated mechanism.
+            if (IsolatedFailureReporter && IsolatedFailureReporter.report) {
+                IsolatedFailureReporter.report({
+                    source: LOG_SOURCE,
+                    severity: 'CRITICAL_HALT',
+                    message: 'Integrity Halt Log Schema Violation detected.',
+                    context: logContext
+                });
+            }
+
+            // 3. Halt execution immediately.
+            throw new Error(`[${CLASS_NAME} HALT] SCHEMA VIOLATION. First Error: ${validationResult.errors[0].message}`);
+        }
+    }
+}
