@@ -1,162 +1,80 @@
-import { IKernel } from '@kernel/IKernel';
-
 /**
- * @typedef {object} ValidationResult
- * @property {boolean} isValid
- * @property {string} [error]
+ * P-01 Trust Calculus Schema & Definition (TC-SCHEMA)
+ * ID: TC-SCHEMA
+ * Role: Defines immutable standards, weighting, and metric factors.
+ * 
+ * Optimized for maximum initialization efficiency using a single-pass validation IIFE.
  */
 
-/**
- * Interface for a utility kernel that validates schemas based on weighted summation.
- * Replaces the synchronous import and usage of `WeightedSchemaValidator`.
- */
-export class IWeightedSchemaValidatorToolKernel {
-    /**
-     * Executes weighted schema validation.
-     * @param {object} params
-     * @param {object} params.schema - The schema to validate.
-     * @param {string} params.weightKey - The key holding the weight value.
-     * @param {number} params.targetSum - The expected sum of weights (e.g., 1.0).
-     * @param {number} [params.tolerance] - Floating point tolerance.
-     * @returns {ValidationResult}
-     */
-    execute(params) {
-        throw new Error("IWeightedSchemaValidatorToolKernel: Method 'execute' must be implemented.");
-    }
-}
+// --- Constants and Types ---
 
-/** @typedef {1 | -1} TrustPolarityValue */
-/**
- * @typedef {Object} TrustMetricSchemaItem
- * @property {number} weight
- * @property {TrustPolarityValue} polarity
- * @property {string} description
- */
+/** @typedef {1 | -1} TrustPolarityValue - 1: Positive, -1: Negative */
+
+export const TRUST_POLARITY = Object.freeze(/** @type {{POSITIVE: TrustPolarityValue, NEGATIVE: TrustPolarityValue}} */ ({
+    POSITIVE: 1, // Higher Metric -> Higher Trust Score (Direct Correlation)
+    NEGATIVE: -1, // Higher Metric -> Lower Trust Score (Inverse Correlation)
+}));
+
+const P = TRUST_POLARITY.POSITIVE;
+const N = TRUST_POLARITY.NEGATIVE;
+const WEIGHT_TOLERANCE = 1e-9; // Floating point precision threshold
+
 
 /**
- * ID: TC-SCHEMA-REGISTRY
- * Role: Stores and validates the immutable Trust Calculus (TC) schema definitions and constants.
- * Eliminates the static configuration file `src/config/trustCalculusSchema.js`.
+ * Uses an Immediately Invoked Function Expression (IIFE) to define, validate,
+ * and freeze the schema in a single, efficient pass during module load.
+ * This guarantees purity, immutability, and fails fast if configuration is invalid.
  */
-export class TrustCalculusSchemaRegistryKernel extends IKernel {
-    /**
-     * @param {object} dependencies
-     * @param {IWeightedSchemaValidatorToolKernel} dependencies.weightedSchemaValidatorToolKernel
-     */
-    constructor(dependencies) {
-        super();
-        this.#weightedSchemaValidator = dependencies.weightedSchemaValidatorToolKernel;
-        this.#polarity = {};
-        this.#schemaDefinition = {};
-        this.#metricNames = [];
-
-        this.#setupDependencies();
-    }
-
-    #weightedSchemaValidator;
-    #polarity;
-    #schemaDefinition;
-    #metricNames;
-
-    /**
-     * Defines, validates, and freezes the immutable configuration constants synchronously.
-     * This isolates synchronous setup logic and enforces immutability.
-     */
-    #setupDependencies() {
-        // --- 1. Constants Definition ---
-        const TRUST_POLARITY = {
-            POSITIVE: 1, 
-            NEGATIVE: -1,
-        };
-
-        const { POSITIVE, NEGATIVE } = TRUST_POLARITY;
-
-        /** @type {{[metricName: string]: TrustMetricSchemaItem}} */
-        const SCHEMA_DEFINITION = {
-            redundancyScore: {
-                weight: 0.40,
-                polarity: POSITIVE,
-                description: "Reflects fallback safety net availability (resilience metric)."
-            },
-            criticalDependencyExposure: {
-                weight: 0.35,
-                polarity: NEGATIVE,
-                description: "Reflects direct risk impact from potential failure cascade."
-            },
-            usageRate: {
-                weight: 0.15,
-                polarity: NEGATIVE,
-                description: "Reflects current component necessity (Inverted: Lower usage increases retirement safety margin)."
-            },
-            complexityReductionEstimate: {
-                weight: 0.10,
-                polarity: POSITIVE,
-                description: "Reflects technical debt reduction value upon retirement/removal."
-            }
-        };
-
-        // --- 2. Validation using Dependency Injection ---
-        this.#validateSchema(SCHEMA_DEFINITION, TRUST_POLARITY);
-        
-        // --- 3. Immutability Enforcement ---
-        this.#polarity = Object.freeze(TRUST_POLARITY);
-        this.#schemaDefinition = Object.freeze(SCHEMA_DEFINITION);
-        this.#metricNames = Object.freeze(Object.keys(SCHEMA_DEFINITION));
-    }
-
-    /**
-     * Executes validation logic using the injected tool.
-     * @param {object} schema 
-     * @param {object} polarities 
-     */
-    #validateSchema(schema, polarities) {
-        const WEIGHT_TOLERANCE = 1e-9; 
-
-        // 1. Validate Weight Summation
-        const validationResult = this.#weightedSchemaValidator.execute({
-            schema: schema,
-            weightKey: 'weight',
-            targetSum: 1.0,
-            tolerance: WEIGHT_TOLERANCE,
-        });
-
-        if (!validationResult.isValid) {
-            throw new Error(`[TC-SCHEMA ERROR] TrustCalculusSchemaRegistryKernel Initialization Failure (Weight Sum): ${validationResult.error}`);
+const { TRUST_METRICS_SCHEMA, METRIC_NAMES } = (() => {
+    // 1. Schema Definition (Declarative Source of Truth)
+    const definition = {
+        redundancyScore: {
+            weight: 0.40,
+            polarity: P,
+            description: "Reflects fallback safety net availability (resilience metric)."
+        },
+        criticalDependencyExposure: {
+            weight: 0.35,
+            polarity: N,
+            description: "Reflects direct risk impact from potential failure cascade."
+        },
+        usageRate: {
+            weight: 0.15,
+            polarity: N,
+            description: "Reflects current component necessity (Inverted: Lower usage increases retirement safety margin)."
+        },
+        complexityReductionEstimate: {
+            weight: 0.10,
+            polarity: P,
+            description: "Reflects technical debt reduction value upon retirement/removal."
         }
-        
-        // 2. Validate Polarity against defined constants
-        const validPolarities = new Set(Object.values(polarities));
-        for (const key in schema) {
-            if (Object.prototype.hasOwnProperty.call(schema, key)) {
-                const item = schema[key];
-                if (!validPolarities.has(item.polarity)) {
-                     throw new Error(`[TC-SCHEMA ERROR] Invalid polarity value for metric '${key}': ${item.polarity}`);
-                }
-            }
+    };
+
+    const keys = Object.keys(definition);
+    let totalWeight = 0;
+
+    // 2. Validation Phase (Single Iteration for Sum and Polarity Checks)
+    for (const key of keys) {
+        const item = definition[key];
+        totalWeight += item.weight;
+
+        if (item.polarity !== P && item.polarity !== N) {
+             throw new Error(`[TC-SCHEMA ERROR] Invalid polarity value for metric '${key}': ${item.polarity}`);
         }
     }
-
-    /**
-     * Retrieves the defined trust polarity constants.
-     * @returns {Object}
-     */
-    getTrustPolarity() {
-        return this.#polarity;
+    
+    // Check Total Weight (Abstraction of numerical validation)
+    if (Math.abs(totalWeight - 1.0) > WEIGHT_TOLERANCE) {
+        throw new Error(
+            `[TC-SCHEMA ERROR] Initialization Failure: Metric weights must sum exactly to 1.0. Current sum: ${totalWeight}`
+        );
     }
+    
+    // 3. Immutability Phase
+    return {
+        TRUST_METRICS_SCHEMA: Object.freeze(definition),
+        METRIC_NAMES: Object.freeze(keys) // Ensure metric names array is also immutable
+    };
+})();
 
-    /**
-     * Retrieves the validated and frozen metric schema definition.
-     * @returns {{[metricName: string]: TrustMetricSchemaItem}}
-     */
-    getSchemaDefinition() {
-        return this.#schemaDefinition;
-    }
-
-    /**
-     * Retrieves the list of metric names defined in the schema.
-     * @returns {string[]}
-     */
-    getMetricNames() {
-        return this.#metricNames;
-    }
-}
+export { TRUST_METRICS_SCHEMA, METRIC_NAMES };
