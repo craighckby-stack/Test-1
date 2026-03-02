@@ -1,32 +1,28 @@
 // src/utils/cryptoUtils.js
+const crypto = require('crypto');
 
-// Assuming CanonicalIntegrityHasher is available via the AGI-KERNEL runtime environment
-declare const CanonicalIntegrityHasher: {
-    /**
-     * Computes a SHA-512 hash of the content, formatted as 'sha512-hashvalue'.
-     * @param {string} content - The data content to hash.
-     * @returns {string} The computed hash.
-     */
-    sha512: (content: string) => string;
-};
+/**
+ * Utility class for common cryptographic operations required by core governance modules.
+ */
+
+const ALGORITHM = 'sha512';
+const ENCODING = 'hex';
 
 /**
  * Computes the SHA-512 hash of the given content string, formatted as 'sha512-hashvalue'.
- * Delegates hashing responsibility to the CanonicalIntegrityHasher tool.
  * @param {string} content - The data content to hash.
  * @returns {string} The computed hash prefixed by the algorithm name.
  */
-const sha512 = (content: string): string => {
+const sha512 = (content) => {
     if (typeof content !== 'string') {
         throw new Error("Hash input must be a string.");
     }
-    
     try {
-        // Delegate the cryptographic operation to the standardized plugin
-        return CanonicalIntegrityHasher.sha512(content);
+        const hash = crypto.createHash(ALGORITHM);
+        hash.update(content, 'utf8');
+        return `${ALGORITHM}-${hash.digest(ENCODING)}`;
     } catch (e) {
-        console.error("Cryptographic operation failure during SHA-512 calculation:", e);
-        // Standardized error message for module integration
+        console.error(`Crypto Utility Failure: Failed to compute ${ALGORITHM} hash.`, e);
         throw new Error("Cryptographic hash generation failed.");
     }
 };
