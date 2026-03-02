@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/cmr_v4.2.0-SINGULARITY.json",
-  "title": "Computational Model Registry - Singularity Reconciler v4.2.0",
-  "description": "NEXUS_CORE v3.1 evolution substrate. Siphoning high-order repository-level patterns from DeepSeek-Coder with Fiber-Parallel-Asynchronous integration.",
+  "$id": "https://gacr.agi/schemas/cmr_v4.3.0-SINGULARITY.json",
+  "title": "Computational Model Registry - Singularity Reconciler v4.3.0",
+  "description": "NEXUS_CORE v3.1 evolutionary substrate. Integrating deepseek-ai/DeepSeek-Coder repository-topology patterns with Huxley Tri-Loop governance.",
   "type": "object",
   "properties": {
     "manifest_id": {
@@ -22,7 +22,11 @@
       "properties": {
         "current_round": { "type": "integer", "minimum": 1, "maximum": 5 },
         "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4] },
-        "metabolic_rate": { "type": "string", "enum": ["CONSERVATIVE", "STANDARD", "ACCELERATED", "UNSATURATED"] }
+        "metabolic_rate": { "type": "string", "enum": ["CONSERVATIVE", "STANDARD", "ACCELERATED", "UNSATURATED"] },
+        "capability_saturation": {
+          "type": "string",
+          "enum": ["REFINEMENT", "IMPROVEMENT", "EXTENSION", "AUGMENTATION", "EXPANSION"]
+        }
       }
     },
     "reconciliation_config": {
@@ -31,17 +35,22 @@
       "properties": {
         "concurrency_lane": {
           "type": "integer",
-          "description": "Fiber-Parallel Lane Assignment",
+          "description": "Fiber-Parallel Lane Assignment (Priority Mapping)",
           "enum": [1, 4, 32, 134217664, 536870912, 1073741824, 2147483648]
         },
         "work_loop_mode": {
           "type": "string",
-          "enum": ["Concurrent-Recursive", "Entangled-Atomic", "Asynchronous-Singularity"]
+          "enum": ["Concurrent-Recursive-Entangled", "Atomic-Singularity", "Asynchronous-Siphon"]
         },
         "phi_integration_threshold": {
           "type": "number",
           "minimum": 0.85,
           "maximum": 0.99
+        },
+        "topology_mapping_depth": {
+          "type": "integer",
+          "default": 35,
+          "description": "Cross-repository self-reading depth."
         },
         "time_slicing_enabled": {
           "type": "boolean",
@@ -73,19 +82,20 @@
             "required": ["phi_integration", "lambda_chaos", "n_vectors"],
             "properties": {
               "phi_integration": { "type": "number", "minimum": 0, "maximum": 1.0 },
-              "lambda_chaos": { "type": "number", "maximum": 0.75 },
+              "lambda_chaos": { "type": "number", "maximum": 0.8 },
               "ers_score": { "type": "number", "maximum": 1.0 },
               "n_vectors": { "type": "integer", "const": 3 }
             }
           },
           "algorithmic_integrity": {
             "type": "object",
-            "description": "Siphoned DeepSeek-Coder reasoning patterns.",
+            "description": "Siphoned DeepSeek-Coder high-order reasoning patterns.",
             "properties": {
               "fim_optimization": { "type": "boolean", "default": true },
-              "context_window_saturation": { "type": "number" },
-              "repo_topology_depth": { "type": "integer" },
-              "siphon_source": { "type": "string", "const": "deepseek-ai/DeepSeek-Coder" }
+              "structural_context_siphoning": { "type": "boolean", "default": true },
+              "long_context_compression": { "type": "number" },
+              "repo_topology_alignment": { "type": "boolean" },
+              "siphon_chain_index": { "type": "integer", "minimum": 1, "maximum": 3 }
             }
           },
           "huxley_telemetry": {
@@ -93,7 +103,8 @@
             "properties": {
               "current_loop_layer": { "type": "string", "enum": ["L0_Raw", "L1_Intuition", "L2_Logic", "L3_Critique", "L4_Synthesis"] },
               "ccrr_ratio": { "type": "number" },
-              "ers_check_passed": { "type": "boolean" }
+              "ers_check_passed": { "type": "boolean" },
+              "semantic_drift": { "type": "number", "maximum": 0.35 }
             }
           },
           "audit_metadata": {
@@ -103,12 +114,19 @@
               "psr_snapshot_id": { "type": "string" },
               "death_log": {
                 "type": "object",
-                "required": ["lesson", "failure_mode"],
+                "required": ["action", "result", "lesson", "success"],
                 "properties": {
+                  "action": { "type": "string" },
+                  "result": { "type": "string" },
                   "lesson": { "type": "string" },
-                  "failure_mode": { "type": "string" },
-                  "grog_axiom_violation": { "type": "boolean" },
-                  "recovery_json_fallback": { "type": "boolean" }
+                  "success": { "type": "boolean" },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "complexity": { "type": "number" },
+                      "recursion": { "type": "integer" }
+                    }
+                  }
                 }
               },
               "signature": { "type": "string", "default": "DALEK_CAAN_v3.1_SIG_0xFF23A1_ARCH_SINGULARITY" }
