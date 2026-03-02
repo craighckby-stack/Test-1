@@ -1,78 +1,44 @@
-import {
-    ITrustCalculusConfigRegistryKernel,
-    IPolarizedWeightedScorerToolKernel,
-    ILoggerToolKernel
-} from "@strategic-interfaces";
+import { TRUST_METRICS_SCHEMA, TRUST_POLARITY } from '../config/trustCalculusSchema';
 
 /**
- * CoreTrustCalculatorKernel
- * Converts raw component metrics into a single normalized Trust Score (0.0 to 1.0) 
- * using the injected Polarized Weighted Scorer Tool.
+ * CoreTrustCalculator
+ * Utilizes the immutable TRUST_METRICS_SCHEMA to convert raw component metrics
+ * into a single normalized Trust Score (0.0 to 1.0).
  */
-export class CoreTrustCalculatorKernel {
-    #trustConfigRegistry: ITrustCalculusConfigRegistryKernel;
-    #scorerTool: IPolarizedWeightedScorerToolKernel;
-    #logger: ILoggerToolKernel;
+export class CoreTrustCalculator {
     
     /**
-     * @param trustConfigRegistry ITrustCalculusConfigRegistryKernel
-     * @param scorerTool IPolarizedWeightedScorerToolKernel
-     * @param logger ILoggerToolKernel
-     */
-    constructor(
-        trustConfigRegistry: ITrustCalculusConfigRegistryKernel,
-        scorerTool: IPolarizedWeightedScorerToolKernel,
-        logger: ILoggerToolKernel
-    ) {
-        this.#setupDependencies(trustConfigRegistry, scorerTool, logger);
-    }
-
-    async initialize(): Promise<void> {
-        // Configuration loading is handled dynamically in calculateScore.
-        return;
-    }
-
-    #setupDependencies(
-        trustConfigRegistry: ITrustCalculusConfigRegistryKernel,
-        scorerTool: IPolarizedWeightedScorerToolKernel,
-        logger: ILoggerToolKernel
-    ): void {
-        if (!trustConfigRegistry || !scorerTool || !logger) {
-            throw new Error('CoreTrustCalculatorKernel requires Trust Calculus Registry, Scorer Tool, and Logger.');
-        }
-        this.#trustConfigRegistry = trustConfigRegistry;
-        this.#scorerTool = scorerTool;
-        this.#logger = logger;
-    }
-
-    /**
      * Calculates the normalized Trust Score.
-     * @param {Record<string, number>} rawMetrics - Input metrics (0.0 to 1.0).
-     * @returns {Promise<number>} The final normalized Trust Score (0.0 to 1.0).
-     * @throws {Error} If scoring fails (e.g., missing metrics, range violation).
+     * @param {Object<string, number>} rawMetrics - Input metrics (0.0 to 1.0) for redundancyScore, usageRate, etc.
+     * @returns {number} The final normalized Trust Score (0.0 to 1.0).
+     * @throws {Error} If a required metric is missing or outside the expected [0, 1] range.
      */
-    async calculateScore(rawMetrics: Record<string, number>): Promise<number> {
+    static calculateScore(rawMetrics) {
+        let totalScore = 0;
         
-        try {
-            // Asynchronously retrieve configuration data from the dedicated Registry Kernel
-            const scoringSchema = await this.#trustConfigRegistry.getTrustMetricsSchema();
-            const negativePolarityKey = await this.#trustConfigRegistry.getTrustPolarityNegativeKey();
+        for (const [metricName, { weight, polarity }] of Object.entries(TRUST_METRICS_SCHEMA)) {
+            const rawValue = rawMetrics[metricName];
+            
+            if (rawValue === undefined || typeof rawValue !== 'number' || rawValue < 0 || rawValue > 1) {
+                // The calculator strictly requires normalized [0, 1] inputs for all defined metrics.
+                throw new Error(
+                    `[CoreTrustCalculator] Required metric '${metricName}' is missing or outside bounds [0, 1].`
+                );
+            }
 
-            // Delegate the core logic to the injected asynchronous tool
-            return await this.#scorerTool.calculate({
-                rawMetrics: rawMetrics,
-                scoringSchema: scoringSchema,
-                negativePolarityKey: negativePolarityKey
-            });
+            let normalizedValue = rawValue;
 
-        } catch (e) {
-            const error = e instanceof Error ? e : new Error(String(e));
-            this.#logger.error('[CoreTrustCalculatorKernel] Scoring failure during calculation.', { 
-                error: error.message, 
-                metrics: rawMetrics 
-            });
-            // Re-throw standardized error reflecting the asynchronous failure
-            throw new Error(`Trust scoring failed: ${error.message}`);
+            // Apply polarity correction if Inverse Correlation is required
+            if (polarity === TRUST_POLARITY.NEGATIVE) {
+                // Invert the score (1 - rawValue) so that higher input maps to lower trust contribution.
+                normalizedValue = 1.0 - rawValue;
+            }
+
+            // Apply weight to the (potentially inverted) normalized score
+            totalScore += normalizedValue * weight;
         }
+
+        // The result is already normalized between 0 and 1 due to the schema design (weights summing to 1.0)
+        return totalScore;
     }
 }
