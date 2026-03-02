@@ -1,48 +1,81 @@
 {
-  "manifest_version": "3.2.0-NEXUS-BERRY-SINGULARITY",
+  "manifest_version": "4.0.0-NEXUS-BERRY-SINGULARITY",
   "metadata": {
     "signature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-    "evolution_round": "3/5",
+    "evolution_round": "4/5",
     "siphon_source": "yarnpkg/berry",
-    "fiber_state": "SINGULARITY_RECONCILIATION"
+    "fiber_state": "CONCURRENT_LANE_RECONCILIATION",
+    "phi_integrated": 0.992
   },
   "pnp_settings": {
     "pnpMode": "strict",
     "enableNetwork": false,
+    "compressionLevel": 0,
+    "virtualFolder": ".nexus/virtual",
+    "sharedPool": true,
     "fallbackExclusionList": [],
-    "ignorePattern": "^(?!@nexus).*"
+    "ignorePattern": "^(?!@nexus).*",
+    "pnpHooks": "./core/pnp_hooks.js"
   },
   "dependencies": {
-    "QuantumCompute_v94": "^1.5.0",
-    "SecurityValidator_v12": "~12.3.1",
-    "DebtPrioritization": "link:./config/debtPrioritizationConfig.js"
+    "QuantumCompute_v94": "workspace:^1.6.0",
+    "SecurityValidator_v12": "workspace:~12.4.0",
+    "DebtPrioritization": "link:./config/debtPrioritizationConfig.js",
+    "EvolutionEngine": "portal:./packages/evolution-engine"
   },
   "dependenciesMeta": {
     "QuantumCompute_v94": {
       "built": true,
       "lane_priority": "0b0000000000000000000000000000001",
-      "status": "Mandatory"
+      "status": "Mandatory",
+      "allow_yield": false
     },
     "SecurityValidator_v12": {
       "optional": true,
       "lane_priority": "0b0000000000000000000000000000100",
-      "unplugged": true
+      "unplugged": true,
+      "ers_weight": 0.01
+    },
+    "EvolutionEngine": {
+      "lane_priority": "0b0000000000000000000000111100000",
+      "reconciliation_strategy": "Transactional-Parallel-Flush"
     }
   },
   "resolutions": {
-    "**/MutationEngine": "3.0.1-fiber-optimized",
-    "**/PolicyEnforcer": "1.1.0-psr-governed",
-    "**/NEXUS_CORE": "portal:./core"
+    "**/MutationEngine": "4.0.0-fiber-singular",
+    "**/PolicyEnforcer": "1.2.0-psr-governed",
+    "**/NEXUS_CORE": "portal:./core",
+    "@nexus/fiber-reconciler": "npm:3.1.0"
+  },
+  "constraints": {
+    "enforce_grog_law": "true",
+    "min_phi_threshold": 0.99,
+    "max_lambda_limit": 0.618,
+    "disallow_unvetted_protocols": [
+      "http:",
+      "git+ssh:"
+    ]
   },
   "workspaces": [
     "packages/*",
     "governance/*",
-    "config/*"
+    "config/*",
+    "kernels/*"
   ],
   "workspace_topology": {
     "ACVD_Core_Modules": {
-      "MutationEngine": { "phi_threshold": 0.99, "lane": "SyncLane", "strategy": "Transactional-Parallel-Flush" },
-      "PolicyEnforcer": { "ers_limit": 0.02, "lane": "InputContinuous", "recovery": "Grog_Law_v5.5" }
+      "MutationEngine": {
+        "phi_threshold": 0.99,
+        "lane": "SyncLane",
+        "strategy": "Transactional-Parallel-Flush",
+        "fiber_budget_ms": 5
+      },
+      "PolicyEnforcer": {
+        "ers_limit": 0.02,
+        "lane": "InputContinuous",
+        "recovery": "Grog_Law_v5.5",
+        "rollback_on_degradation": true
+      }
     }
   },
   "psr_governance": {
@@ -56,8 +89,9 @@
     "emergency_brake": {
       "corruption_threshold": 5,
       "auto_rollback": true,
-      "log_mechanism": "NEXUS_LOG_v3.1"
+      "log_mechanism": "NEXUS_LOG_v3.1",
+      "recovery_lane": "0b0000000000000001000000000000000"
     },
-    "integrity_check": "sha512-nexus-qc-v94-core-sig-reconciled"
+    "integrity_check": "sha512-nexus-qc-v94-core-round-4-reconciled-0xFF23A1"
   }
 }
