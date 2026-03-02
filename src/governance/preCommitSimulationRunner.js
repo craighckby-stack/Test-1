@@ -1,97 +1,125 @@
-const { ITraceableIdGeneratorToolKernel, MutationPayloadSpecKernel, CFTMValidatorKernel, EvolutionaryRiskAssessorKernel, MultiTargetAuditDisperserToolKernel, GovernanceSettingsRegistryKernel, SchemaMigrationSimulationKernel } = require('AGI_TOOL_REGISTRY');
+// Component ID: PSR
+// Mandate: Provide enhanced predictive stability data (Simulation Score) to the ATM (S-01 input)
+// GSEP Role: EPDP B refinement step.
+
+import { MutationPayload } from '../types/payloadTypes';
+import { MicroSandbox } from '../execution/microSandbox';
+import { 
+    SimulationParameters, 
+    SimulationReport, 
+    TestResultMetrics 
+} from '../types/simulationTypes'; 
 
 /**
- * @class PreCommitSimulationRunnerKernel
- * @description High-integrity, asynchronous kernel responsible for coordinating the full simulation
- * cycle of proposed configuration mutations (pre-commit stage). It delegates core functions
- * (validation, simulation, risk assessment) to specialized Tool Kernels to ensure maximum recursive abstraction and non-blocking execution.
+ * PreCommitSimulationRunner (PSR)
+ * Executes the proposed mutation payload within an isolated, state-mirrored micro-sandbox.
+ * Gathers resilience and performance metrics necessary for refining the S-01 Success Projection Score.
+ * Implements adaptive scoring based on configured parameters.
  */
-class PreCommitSimulationRunnerKernel {
-    /**
-     * @param {object} dependencies
-     * @param {ITraceableIdGeneratorToolKernel} dependencies.ITraceableIdGeneratorToolKernel - For generating auditable trace IDs.
-     * @param {MutationPayloadSpecKernel} dependencies.MutationPayloadSpecKernel - For synchronous payload structure validation.
-     * @param {CFTMValidatorKernel} dependencies.CFTMValidatorKernel - For assessing Compliance, Fidelity, Trust, and Maturity.
-     * @param {SchemaMigrationSimulationKernel} dependencies.SchemaMigrationSimulationKernel - For executing the theoretical migration simulation.
-     * @param {EvolutionaryRiskAssessorKernel} dependencies.EvolutionaryRiskAssessorKernel - For analyzing and quantifying simulated state risk.
-     * @param {MultiTargetAuditDisperserToolKernel} dependencies.MultiTargetAuditDisperserToolKernel - For centralized, auditable logging.
-     * @param {GovernanceSettingsRegistryKernel} dependencies.GovernanceSettingsRegistryKernel - For asynchronous configuration loading.
-     */
-    constructor(dependencies) {
-        // Strict asynchronous dependency injection
-        this.traceIdGenerator = dependencies.ITraceableIdGeneratorToolKernel;
-        this.payloadSpecKernel = dependencies.MutationPayloadSpecKernel;
-        this.cftmValidator = dependencies.CFTMValidatorKernel;
-        this.simulationKernel = dependencies.SchemaMigrationSimulationKernel; // Previously SchemaMigrationSimulationEngine
-        this.riskAssessor = dependencies.EvolutionaryRiskAssessorKernel;
-        this.auditDisperser = dependencies.MultiTargetAuditDisperserToolKernel;
-        this.settingsRegistry = dependencies.GovernanceSettingsRegistryKernel;
+export class PreCommitSimulationRunner {
+    private sandbox: MicroSandbox;
 
-        // Ensure all dependencies are initialized (async check skipped here for brevity, assumed by Kernel pattern)
+    constructor(sandbox: MicroSandbox) {
+        this.sandbox = sandbox;
     }
 
     /**
-     * Runs the pre-commit simulation cycle for a given mutation payload.
-     * @param {object} mutationPayload - The proposed system mutation object.
-     * @returns {Promise<object>} The simulation report including risk metrics and recommendations.
+     * Runs a rapid simulation test of the mutation with specific governance parameters.
+     * @param payload The validated mutation specification.
+     * @param params Configuration defining simulation constraints and intensity.
+     * @returns A detailed predictive simulation report.
      */
-    async runSimulation(mutationPayload) {
-        const traceId = await this.traceIdGenerator.generateTraceId('PCS');
-
-        await this.auditDisperser.log({
-            level: 'info',
-            message: `[PCS] Initiating pre-commit simulation flow.`,
-            traceId
-        });
-
-        // 1. Initial Payload Validation (Delegated)
-        const validationResult = await this.payloadSpecKernel.validatePayload(mutationPayload);
-        if (!validationResult.isValid) {
-            await this.auditDisperser.log({ level: 'error', message: 'Payload failed initial schema validation.', details: validationResult.errors, traceId });
-            return { success: false, reason: 'Payload Validation Failure', traceId };
-        }
-
-        // 2. CFTM Validation (Delegated)
-        const cftmCheck = await this.cftmValidator.validate(mutationPayload, 'PRE_COMMIT_STAGE', { traceId });
-
-        // 3. Load Simulation Configuration (Asynchronous I/O)
-        const simulationConfig = await this.settingsRegistry.getSetting('simulation', 'preCommitDefaults');
+    async runSimulation(
+        payload: MutationPayload,
+        params: SimulationParameters 
+    ): Promise<SimulationReport> {
+        let metrics: TestResultMetrics | null = null;
+        let finalStatus: 'SUCCESS' | 'FAILURE' | 'ROLLBACK_FAILURE' = 'FAILURE';
+        let failureVector: string | null = null;
+        let score = 0.0;
         
-        // 4. Execution Simulation (Deep Abstraction)
-        // This relies on SchemaMigrationSimulationKernel to handle complex state snapshotting and diffing.
-        const simulationReport = await this.simulationKernel.simulateMigration(
-            mutationPayload.targetChanges,
-            { config: simulationConfig, traceId }
-        );
+        // 1. Snapshot critical state variables for the micro-sandbox.
+        const snapshot = await this.sandbox.takeSnapshot();
 
-        if (!simulationReport.success) {
-            await this.auditDisperser.log({ level: 'error', message: 'Simulation execution failed.', details: simulationReport.error, traceId });
-            return { success: false, reason: 'Simulation Execution Failure', traceId, report: simulationReport };
+        try {
+            // 2. Execute the mutation in the isolated environment.
+            await this.sandbox.applyMutation(payload);
+
+            // 3. Run resilience and synthetic stress tests post-mutation, passing config.
+            // NOTE: MicroSandbox.runStressTests must accept SimulationParameters.
+            metrics = await this.sandbox.runStressTests(params); 
+
+            // 4. Calculate a predictive score based on test resilience, performance, and required targets.
+            score = this.calculateScore(metrics, params);
+            finalStatus = 'SUCCESS';
+
+        } catch (error) {
+            failureVector = error instanceof Error ? error.message : String(error);
+            score = 0.05; // Immediate simulation crash yields near-zero score.
+        } finally {
+            // 5. Mandatory state rollback in the micro-sandbox.
+            try {
+                await this.sandbox.restoreSnapshot(snapshot);
+            } catch (rollbackError) {
+                // If rollback fails, the PSR state is compromised, critical failure.
+                finalStatus = 'ROLLBACK_FAILURE';
+                failureVector = failureVector 
+                    ? `${failureVector} | Rollback Failure: ${rollbackError.message}` 
+                    : `Rollback Failure: ${rollbackError.message}`;
+                score = 0.0; // Absolute failure score.
+            }
         }
 
-        // 5. Risk Assessment (Deep Abstraction)
-        // Delegates complex risk derivation and scoring entirely to the EvolutionaryRiskAssessorKernel.
-        const riskMetrics = await this.riskAssessor.assessRisk(
-            simulationReport.snapshotBefore,
-            simulationReport.snapshotAfter,
-            simulationReport.metrics
-        );
-
-        // 6. Final Report Generation
-        const finalReport = {
-            traceId,
-            success: true,
-            cftmStatus: cftmCheck,
-            simulationReport,
-            riskMetrics,
-            recommendation: riskMetrics.isAcceptable ? 'ACCEPT' : 'REVIEW_REQUIRED'
+        // 6. Construct and return the comprehensive report.
+        const defaultMetrics: TestResultMetrics = { 
+            totalTests: 0, passedTests: 0, passRate: 0, 
+            initialPerformanceMetric: 0, postMutationPerformanceMetric: 0, 
+            performanceDelta: 1.0, resourceCeilingProximity: 0.0 
         };
 
-        await this.auditDisperser.log({ level: 'info', message: 'Pre-commit simulation completed.', details: { recommendation: finalReport.recommendation, riskScore: riskMetrics.compositeScore }, traceId });
+        return {
+            timestamp: Date.now(),
+            simulationScore: score,
+            status: finalStatus,
+            metrics: metrics || defaultMetrics,
+            failureVector: failureVector
+        };
+    }
+
+    /**
+     * Predictive scoring logic utilizing multi-dimensional input metrics and simulation parameters.
+     * Introduces explicit weights and performance penalties relative to configuration targets.
+     */
+    private calculateScore(metrics: TestResultMetrics, params: SimulationParameters): number {
+        const { passRate, performanceDelta, resourceCeilingProximity } = metrics;
+        const { targetLatencyDelta, requiredPassRate } = params;
+
+        // Weights must sum close to 1.0 (1.00)
+        const W_PASS = 0.50; 
+        const W_PERF = 0.35; 
+        const W_RESOURCE = 0.15;
         
-        // Result object is guaranteed immutable upon return by downstream tool kernels
-        return Object.freeze(finalReport);
+        // 1. Pass Rate Contribution: Normalized against minimum requirement.
+        const passContribution = Math.min(1.0, passRate / requiredPassRate) * W_PASS;
+
+        // 2. Performance Contribution: Penalty for exceeding target latency.
+        const acceptableFactor = 1 + targetLatencyDelta; // E.g., 1.05 for 5% slowdown tolerance.
+        
+        // Perf Ratio aggressively penalizes deviations beyond tolerance (using a 2x multiplier).
+        const perfRatio = Math.max(0, 1 - ((performanceDelta - acceptableFactor) * 2)); 
+        const perfContribution = perfRatio * W_PERF;
+
+
+        // 3. Resource Contribution: Penalty for proximity to execution ceiling.
+        const ceilingPenalty = resourceCeilingProximity > 0.8 
+            ? Math.pow(resourceCeilingProximity, 3) // Cubic penalty for high usage
+            : 0;
+
+        const resourceContribution = Math.max(0, (1 - ceilingPenalty)) * W_RESOURCE;
+        
+        const rawScore = passContribution + perfContribution + resourceContribution;
+
+        // Ensure score is clamped [0.0, 1.0]
+        return Math.min(1.0, Math.max(0.0, rawScore));
     }
 }
-
-module.exports = PreCommitSimulationRunnerKernel;
