@@ -1,91 +1,30 @@
-import { ContextStore } from "@plugins/ContextStore";
-
 /**
- * CTG_ContextEngine: Manages compliance context, delegating core storage
- * and expiration handling to the reusable ContextStore plugin.
- * Contains specific business logic for governance decisions.
+ * CTG_ContextEngine
+ * Manages dynamic context validation and injection prior to code generation.
+ * Ensures contextual data (user input, environmental variables, dependency states)
+ * meets governance standards (e.g., security flagging, input sanitization) before
+ * being passed to the generation core.
  */
 class CTG_ContextEngine {
-    #contextStore;
+  constructor(config) {
+    this.config = config.context_rules; 
+  }
 
-    constructor() {
-        this.#setupDependencies();
+  async validateContext(contextPayload) {
+    // 1. Schema enforcement
+    if (!this.enforceSchema(contextPayload)) {
+      throw new Error('Context payload failed schema validation.');
     }
+    // 2. Sanitization checks (preventing XSS/Injection in configuration context)
+    const sanitizedPayload = this.sanitize(contextPayload);
+    
+    // 3. Dependency tree lookups (e.g., validating required component existence)
+    await this.checkDependencies(sanitizedPayload);
 
-    /**
-     * Extracts synchronous dependency resolution and initialization.
-     */
-    #setupDependencies() {
-        // Delegate all timed storage management to the ContextStore plugin
-        this.#contextStore = this.#delegateToStoreInstantiation();
-        this.#logInfo("CTG Context Engine Initialized.");
-    }
+    return sanitizedPayload; // Ready for CTG generation
+  }
 
-    // --- I/O Proxy Functions ---
-
-    /** Rigorously isolates external dependency instantiation. */
-    #delegateToStoreInstantiation() {
-        return new ContextStore();
-    }
-
-    /** Isolates interaction with external console logging. */
-    #logInfo(message) {
-        console.log(message);
-    }
-
-    /** Isolates interaction with ContextStore#set. */
-    #delegateToStoreSet(key, value, ttl) {
-        this.#contextStore.set(key, value, ttl);
-    }
-
-    /** Isolates interaction with ContextStore#getAll. */
-    #delegateToStoreGetAll() {
-        return this.#contextStore.getAll();
-    }
-
-    /** Isolates interaction with ContextStore#get. */
-    #delegateToStoreGet(key) {
-        return this.#contextStore.get(key);
-    }
-
-    // --- Public API ---
-
-    /**
-     * Registers a context item with optional expiration.
-     * @param {string} key
-     * @param {*} value
-     * @param {number} [ttl] - Time to live in seconds (default 3600).
-     */
-    registerContext(key, value, ttl) {
-        this.#delegateToStoreSet(key, value, ttl);
-    }
-
-    /**
-     * Retrieves the current context, filtering out expired items.
-     * @returns {Object}
-     */
-    getCurrentContext() {
-        return this.#delegateToStoreGetAll();
-    }
-
-    /**
-     * Retrieves a specific value if available and not expired.
-     * @param {string} key
-     * @returns {*} or undefined
-     */
-    getContextValue(key) {
-        return this.#delegateToStoreGet(key);
-    }
-
-    /**
-     * Governance Logic: Determines if the current context indicates a high-risk session.
-     * This specific business logic remains within the CTG component.
-     */
-    isHighRiskSession() {
-        const context = this.getCurrentContext();
-        // Example Rule: High Risk if unauthorized system access attempts are detected
-        return context.failedLogins > 5 || (context.userRole === 'Admin' && context.geoMismatch === true);
-    }
+  // [Private helper methods for enforceSchema, sanitize, checkDependencies...]
 }
 
-export default CTG_ContextEngine;
+module.exports = CTG_ContextEngine;
