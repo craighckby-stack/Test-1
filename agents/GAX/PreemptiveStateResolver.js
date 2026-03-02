@@ -1,194 +1,136 @@
-class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
+// agents/GAX/PreemptiveStateResolver.js
 
-  constructor(values = {}) {
-    this.setValues(values);
-  }
+/**
+ * GATED EXECUTION PIPELINE (GSEP-C) Enhancement: Preemptive State Resolution (v94.1 Axiomatic Trajectory Mapping)
+ *
+ * The Preemptive State Resolver (PSR) module generates the Axiomatic Trajectory Map (ATM)
+ * asynchronously during ANCHORING (P1) and POLICY VETTING (P2), using predictive outcome modeling
+ * to determine the mathematical certainty of policy or constraint failure (P-01=Fail) prior to P3/P4 execution.
+ * 
+ * PSR calculates the predicted TEMM (Temporal Metric) and ECVM (Execution Constraint Viability Metric)
+ * scores, comparing them against the dynamically calculated Risk Threshold (R_TH).
+ */
+class PreemptiveStateResolver {
+    
+    // Core internal handlers for state and modeling utilities
+    #policyEngine;
+    #metricsStore;
+    #riskModel;
+    #simEngine;
+    #contextAccessors; // For fetching dynamic metrics like UFRM/CFTM
 
-  setValues(values) {
-    Object.assign(this, values);
-  }
+    /**
+     * @param {Object} Dependencies - Structured dependencies required for PSR operation.
+     * @param {Object} Dependencies.GAX_Context - Full context container (must expose PolicyEngine, MetricsStore, getRiskModel, getUFRM, getCFTM).
+     * @param {Object} Dependencies.SimulationEngine - Engine for TEMM/ECVM prediction using ACVD.
+     */
+    constructor({ GAX_Context, SimulationEngine }) {
+        if (!GAX_Context || !SimulationEngine) {
+            throw new Error("[PSR Init] Missing essential dependencies: GAX_Context and SimulationEngine.");
+        }
+        
+        // Explicit extraction of core components for better typing and encapsulation
+        this.#policyEngine = GAX_Context.PolicyEngine;
+        this.#metricsStore = GAX_Context.MetricsStore;
+        this.#riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
+        this.#simEngine = SimulationEngine;
+        
+        // Store specific context accessors for UFRM/CFTM for localized dynamic fetching
+        this.#contextAccessors = {
+            getUFRM: GAX_Context.getUFRM,
+            getCFTM: GAX_Context.getCFTM,
+        };
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
-
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
-
-  validate() {
-    try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
+        if (!this.#policyEngine || !this.#riskModel || !this.#contextAccessors.getUFRM) {
+             throw new Error("[PSR Init] GAX_Context failed to provide necessary core components (PolicyEngine, RiskModel, or Metric Accessors).");
+        }
     }
-  }
+
+    /**
+     * Private handler: Projects the policy constraints against the anticipated input manifest.
+     * Incorporates Policy Volatility Metrics (PVM) for dynamic vetting (Simulates P2 checks).
+     * @param {Object} inputManifest
+     * @returns {boolean} True if initial policy projection passes the pre-vetted stage.
+     */
+    #projectPolicyViability(inputManifest) {
+        try {
+            // Retrieve PVM dynamically
+            const policyVolatility = this.#metricsStore.getPolicyVolatility();
+            
+            // Check viability synchronously for rapid fail-fast optimization
+            const policyViable = this.#policyEngine.checkViability(inputManifest, policyVolatility);
+            return policyViable;
+
+        } catch (error) {
+            console.error(`[PSR Policy Failure] Critical Projection Error: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * Private handler: Calculates the dynamically determined acceptable Risk Threshold (R_TH).
+     * Leverages UFRM, CFTM, and the RiskModel's volatility analysis.
+     * @returns {number} The calculated minimum acceptable TEMM score (R_TH).
+     */
+    #calculateDynamicRiskThreshold() {
+        const UFRM_Base = this.#contextAccessors.getUFRM();
+        const CFTM_Base = this.#contextAccessors.getCFTM();
+        
+        if (UFRM_Base === undefined || CFTM_Base === undefined) {
+             console.warn("[PSR Risk] UFRM or CFTM data missing. Calculation incomplete.");
+             // AGI v94.1 Safety: If core metrics are unavailable, rely on a conservative baseline fallback.
+             return 10.0; // Assume higher required threshold for uncertainty
+        }
+
+        // Derive the required volatility adjustment factor using the dedicated model
+        const volatilityAdjustment = this.#riskModel.calculateVolatilityAdjustment(UFRM_Base, CFTM_Base);
+        
+        // R_TH = (UFRM + CFTM) * Dynamic Volatility Multiplier
+        return (UFRM_Base + CFTM_Base) * (1 + volatilityAdjustment);
+    }
+
+    /**
+     * Generates the Axiomatic Trajectory Map (ATM).
+     * @param {Object} inputManifest - The incoming workflow or transaction data.
+     * @returns {Promise<Object>} ATM { predicted_TEMM: Number, predicted_ECVM: Boolean, R_TH: Number, Guaranteed_ADTM_Trigger: Boolean }
+     */
+    async generateATM(inputManifest) {
+        if (!inputManifest) {
+            throw new Error("[PSR] Input manifest required for ATM generation.");
+        }
+        
+        const R_TH = this.#calculateDynamicRiskThreshold();
+
+        // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
+        if (!this.#projectPolicyViability(inputManifest)) {
+            console.warn("PSR: Hard Policy Precursor Failure (P-01 certainty). Skipping full simulation.");
+            return { 
+                predicted_TEMM: 0, 
+                predicted_ECVM: false, 
+                R_TH: R_TH,
+                Guaranteed_ADTM_Trigger: true 
+            };
+        }
+
+        // Stage 2: Detailed Trajectory Modeling
+        console.log("PSR: Starting predictive model simulation (P1/P2 overlap).");
+        const { predictedTEMM, predictedECVM } = await this.#simEngine.runSimulation(inputManifest);
+        
+        // Stage 3: Failure Guarantee Check (S04 precursor evaluation)
+        const isFailureGuaranteed = predictedTEMM < R_TH;
+
+        const ATM = {
+            predicted_TEMM: predictedTEMM,
+            predicted_ECVM: predictedECVM,
+            R_TH: R_TH, 
+            Guaranteed_ADTM_Trigger: isFailureGuaranteed // Indicates guaranteed trigger of the Atomic Drift Trajectory Mitigation (ADTM) system
+        };
+
+        const status = isFailureGuaranteed ? "PREEMPTIVE FAIL (ADTM)" : "VIABLE (PASS)";
+        console.log(`PSR: ATM Generated. Status: ${status} | TEMM: ${predictedTEMM.toFixed(4)} / R_TH: ${R_TH.toFixed(4)}`);
+        
+        return ATM;
+    }
 }
 
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
-
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
-
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
-
-  execute() {
-    this.handler();
-  }
-}
-
-class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
-
-  #status = "INIT";
-
-  get status() {
-    return this.#status;
-  }
-
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
-      }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-    }
-  }
-
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  configure(config) {
-    this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
-  }
-
-  validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-  }
-
-  async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
-  }
-
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
-  async destroy() {
-    this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
-  }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
-}
-
-const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
+module.exports = PreemptiveStateResolver;
