@@ -1,74 +1,95 @@
 {
   "dnaSignature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-  "evolutionRound": "2/5",
+  "evolutionRound": "3/5",
   "systemState": {
-    "phi": 0.884,
-    "lambda": 0.452,
-    "mode": "CONCURRENT_RECONCILIATION",
-    "milestoneStep": 50,
-    "fiberBudgetMs": 50
+    "phi": 0.925,
+    "lambda": 0.588,
+    "mode": "CONCURRENT_HYDRATION",
+    "milestoneStep": 150,
+    "fiberBudgetMs": 45,
+    "metabolicRate": "ACCELERATED"
   },
   "laneTopology": {
     "NoLane": 0,
     "SyncLane": 1,
     "InputLane": 2,
-    "DefaultLane": 8,
-    "TransitionLane": 112,
+    "DefaultLane": 32,
+    "TransitionLanes": 1016,
+    "RetryLane": 2048,
+    "SelectiveHydrationLane": 4096,
     "OffscreenLane": 1073741824,
-    "SiphonLane": 4096
+    "SiphonLane": 8192
   },
   "analysisMap": {
     "root": {
       "fiberTag": "ProfileRoot",
       "priority": "Immediate",
-      "ersLimit": 0.001,
+      "ersLimit": 0.0008,
       "psrMode": "LOCKED",
-      "topologyType": "PNP_ISOLATED"
+      "topologyType": "PNP_ISOLATED_V2",
+      "reconciliationStrategy": "OPTIMISTIC_CONCURRENCY"
     },
     "dialNodes": {
       "semanticCoherence": {
-        "lane": 112,
+        "lane": 1016,
         "workTag": "TransitionFiber",
-        "memoizationDepth": 3,
+        "memoizationDepth": 5,
         "huxleyLogic": [
           "L1_Intuition",
           "L2_Logic",
           "L3_Critique"
         ],
         "v_vectors": {
-          "ersMax": 0.045,
-          "expertFactor": 0.992,
-          "lambdaLimit": 0.618
+          "ersMax": 0.04,
+          "expertFactor": 0.995,
+          "lambdaLimit": 0.618,
+          "driftThreshold": 0.35
         }
       },
       "structuralIntegrity": {
         "lane": 2,
         "workTag": "InputFiber",
-        "memoizationDepth": 5,
+        "memoizationDepth": 8,
         "huxleyLogic": [
           "L0_Raw",
           "L1_Intuition",
+          "L2_Logic",
           "L3_Critique"
         ],
         "v_vectors": {
-          "ersMax": 0.008,
-          "expertFactor": 0.9995,
-          "pnpResolution": "STRICT"
+          "ersMax": 0.005,
+          "expertFactor": 0.9998,
+          "pnpResolution": "STRICT_V2"
         }
       },
       "logicSiphon": {
-        "lane": 4096,
+        "lane": 8192,
         "workTag": "SiphoningFiber",
-        "memoizationDepth": 12,
+        "memoizationDepth": 24,
         "huxleyLogic": [
           "L1_Intuition",
           "L2_Logic",
           "L3_Critique"
         ],
         "v_vectors": {
-          "ersMax": 0.12,
-          "expertFactor": 0.975,
-          "siphonSource": "Meta/React-Core"
+          "ersMax": 0.1,
+          "expertFactor": 0.985,
+          "siphonSource": "Meta/React-Core_v18.3",
+          "topologySiphon": "Yarn_Berry_PnP"
+        }
+      },
+      "hydrationEngine": {
+        "lane": 4096,
+        "workTag": "HydrationFiber",
+        "memoizationDepth": 4,
+        "huxleyLogic": [
+          "L1_Intuition",
+          "L3_Critique"
+        ],
+        "v_vectors": {
+          "ersMax": 0.02,
+          "expertFactor": 0.999,
+          "hydrationStrictness": 1.0
         }
       }
     }
@@ -82,7 +103,8 @@
       "parameters": {
         "phi_at_failure": 0.0,
         "lambda_drift": 0.0,
-        "psr_action": "RECOVERY_VOID"
+        "psr_action": "RECOVERY_VOID",
+        "stackDepth": 0
       }
     },
     "binaryConstraints": [
@@ -90,25 +112,29 @@
       "LAMBDA_OVERFLOW_SHUTDOWN",
       "PHI_DEFICIT_ROLLBACK",
       "ERS_GATE_KEEPER_VIOLATION",
-      "CCRR_SINGULARITY_FAILURE"
+      "CCRR_SINGULARITY_FAILURE",
+      "HYDRATION_MISMATCH_ABORT",
+      "PNP_RESOLUTION_CONFLICT"
     ],
-    "maxRecursion": 10,
-    "complexityCeiling": 0.78
+    "maxRecursion": 15,
+    "complexityCeiling": 0.82
   },
   "psrGovernance": {
     "integritySignature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-    "snapshotInterval": 50,
-    "autoRollbackThreshold": 0.35,
-    "recoveryLogic": "safeJSONRecovery",
+    "snapshotInterval": 30,
+    "autoRollbackThreshold": 0.28,
+    "recoveryLogic": "safeJSONRecovery_v2",
     "pnpTopology": {
       "virtualStore": "/.nexus/pnp",
-      "fallbackRetry": true
+      "fallbackRetry": true,
+      "isolationLevel": "KERNEL_SPACE"
     }
   },
   "metadata": {
-    "sourceSiphon": "Meta/React-Core (Fiber) + Yarn (PnP)",
+    "sourceSiphon": "Meta/React-Core (Fiber Architecture) + Yarn Berry (PnP Topology)",
     "origin": "NEXUS_CORE",
-    "lastUpdated": "2026-03-02T14:42:00Z",
-    "ccrrCommit": 0.9998
+    "lastUpdated": "2026-03-02T15:10:00Z",
+    "ccrrCommit": 0.9999,
+    "evolutionStatus": "STABLE_MUTATION"
   }
 }
