@@ -1,194 +1,100 @@
-class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
+use crate::core::security::CRoT; 
+use std::time::{Instant, SystemTime, UNIX_EPOCH, Duration};
 
-  constructor(values = {}) {
-    this.setValues(values);
-  }
+// --- Configuration Constants & Types ---
+pub const INTEGRITY_HASH_SIZE: usize = 64; // Standard size for high-assurance (e.g., SHA-512)
+pub type IntegrityHash = [u8; INTEGRITY_HASH_SIZE];
 
-  setValues(values) {
-    Object.assign(this, values);
-  }
+// Target maximum execution time for atomicity (5ms)
+const MAX_SNAPSHOT_DURATION: Duration = Duration::from_micros(5000);
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
+// --- Trait Definitions for Dependency Injection ---
 
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
-
-  validate() {
-    try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
+/// Abstract API for system-level data capture. Enforces temporal requirements.
+pub trait SystemCaptureAPI: Send + Sync + 'static {
+    /// Checks for necessary execution privileges (e.g., kernel mode, specific capabilities).
+    fn check_privilege() -> bool;
+    
+    /// Retrieves a high-resolution system timestamp (Epoch nanoseconds). 
+    /// Implementations should prioritize monotonic and high-speed clock reading.
+    fn get_current_epoch_ns() -> u64 {
+        // Default uses std::time, custom implementations should use raw registers.
+        SystemTime::now().duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64
     }
-  }
+    
+    /// Performs low-level, atomic memory capture of predefined volatile regions.
+    fn capture_volatile_memory() -> Result<Vec<u8>, ()>;
+    
+    /// Captures the execution stack trace quickly.
+    fn capture_execution_stack() -> String;
 }
 
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
+// Defines the output structure for the immutable state capture
+#[derive(Debug)]
+pub struct RscmPackage {
+    pub absolute_capture_ts_epoch_ns: u64,
+    pub capture_latency_ns: u64,
+    pub integrity_hash: IntegrityHash, // Changed from String to fixed-size array
+    pub volatile_memory_dump: Vec<u8>,
+    pub stack_trace: String,
+    pub context_flags: u32,
 }
 
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
-
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
-
-  execute() {
-    this.handler();
-  }
+#[derive(Debug)]
+pub enum SnapshotError {
+    PrivilegeRequired,
+    MemoryCaptureFailed,
+    Timeout,
+    IntegrityHashingFailed,
 }
 
-class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
+/// Generates an immutable, temporally constrained state snapshot (RSCM Package).
+/// Requires a specific implementation of SystemCaptureAPI for its environment.
+/// Note: Assumes CRoT implements AtomicHasherFactory for fixed-output hashing.
+pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, SnapshotError> {
+    let start_time = Instant::now();
 
-  #status = "INIT";
-
-  get status() {
-    return this.#status;
-  }
-
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
-      }
+    // 1. Privilege and time check
+    if !T::check_privilege() {
+        return Err(SnapshotError::PrivilegeRequired);
     }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
+
+    let absolute_ts = T::get_current_epoch_ns();
+    
+    // 2. Perform atomic read of key memory regions
+    let vm_dump = T::capture_volatile_memory().map_err(|_| SnapshotError::MemoryCaptureFailed)?;
+    let trace = T::capture_execution_stack();
+
+    // 3. Assemble and cryptographic hash generation
+    let context_flags: u32 = 0x42; // GSEP-C flag
+
+    // Use CRoT implementation tailored for fixed-output integrity (requires CRoT scaffolded changes)
+    let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
+        .map_err(|_| SnapshotError::IntegrityHashingFailed)?;
+
+    hasher.update(&vm_dump);
+    hasher.update(trace.as_bytes());
+hasher.update(&context_flags.to_le_bytes()); 
+    
+    let hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
+
+    let duration = start_time.elapsed();
+    let latency_ns = duration.as_nanos();
+
+    if duration > MAX_SNAPSHOT_DURATION {
+        // Failure to meet temporal constraint (5ms max)
+        return Err(SnapshotError::Timeout);
     }
-  }
 
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  configure(config) {
-    this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
-  }
-
-  validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-  }
-
-  async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
-  }
-
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
-  async destroy() {
-    this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
-  }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
+    // 4. Final RSCM object creation
+    Ok(RscmPackage {
+        absolute_capture_ts_epoch_ns: absolute_ts,
+        capture_latency_ns: latency_ns as u64,
+        integrity_hash: hash,
+        volatile_memory_dump: vm_dump,
+        stack_trace: trace,
+        context_flags,
+    })
 }
-
-const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
