@@ -1,28 +1,17 @@
 /**
  * Utility: PolicyEngine
  * Purpose: A registry and execution environment for conflict resolution policies.
- * This component delegates strategy management (registration, lookup, execution) 
- * to the StrategyPatternRegistryTool for improved modularity.
+ * This enables CLARA (ClaraResolver) to delegate complex, strategy-specific
+ * resolution logic externally, implementing the Strategy Pattern.
  */
-
-// Note: StrategyPatternRegistryTool is assumed to be available via $P or similar injection mechanism.
-const $P = {
-    StrategyPatternRegistryTool: (typeof StrategyPatternRegistryTool !== 'undefined') ? StrategyPatternRegistryTool : null
-};
-
 
 class PolicyEngine {
     constructor() {
-        /**
-         * Instance of the underlying registry tool managing the handlers Map.
-         * @private
+        /** 
+         * Policy handlers are registered here. Stores functions that execute the policy logic.
+         * Structure: { [policyName]: handlerFunction }
          */
-        this.registryInstance = null;
-
-        if (!$P.StrategyPatternRegistryTool || typeof $P.StrategyPatternRegistryTool.createInstance !== 'function') {
-            throw new Error("Dependency missing: StrategyPatternRegistryTool must be available.");
-        }
-        this.registryInstance = $P.StrategyPatternRegistryTool.createInstance();
+        this.handlers = new Map();
     }
 
     /**
@@ -31,7 +20,11 @@ class PolicyEngine {
      * @param {function({proposal, currentState, metricData}): Promise<{status: string, details: object}>} handlerFn - The function that contains the policy execution logic.
      */
     register(policyName, handlerFn) {
-        $P.StrategyPatternRegistryTool.register(this.registryInstance, policyName, handlerFn);
+        if (typeof handlerFn !== 'function') {
+            throw new Error(`Policy registration failed for ${policyName}: Handler must be a function.`);
+        }
+        this.handlers.set(policyName, handlerFn);
+        // console.log(`PolicyEngine registered handler: ${policyName}`); // Optional logging
     }
 
     /**
@@ -39,10 +32,15 @@ class PolicyEngine {
      * @param {string} policyName 
      * @param {object} context - Contains proposal, currentState, metricData required by the policy.
      * @returns {Promise<{status: string, details: object}>} The result of the policy execution.
+     * @throws {Error} If the policy is not registered.
      */
     async execute(policyName, context) {
-        // The tool handles lookup, error throwing (if not found), and asynchronous execution.
-        return $P.StrategyPatternRegistryTool.execute(this.registryInstance, policyName, context);
+        const handler = this.handlers.get(policyName);
+        if (!handler) {
+            throw new Error(`Policy not registered: ${policyName}`);
+        }
+        // Execute the policy handler, passing the resolution context
+        return handler(context);
     }
 
     /**
@@ -50,7 +48,7 @@ class PolicyEngine {
      * @returns {Array<string>}
      */
     getRegisteredPolicies() {
-        return $P.StrategyPatternRegistryTool.getRegisteredPolicies(this.registryInstance);
+        return Array.from(this.handlers.keys());
     }
 }
 
