@@ -1,194 +1,50 @@
-class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
+import { z } from 'zod'; // Assumed dependency for type safety and validation
 
-  constructor(values = {}) {
-    this.setValues(values);
-  }
+/**
+ * ACVD Schema Definitions (v1.1)
+ * Defines the canonical structure and constraints for the 
+ * Axiomatic Constraint Vector Definition (ACVD).
+ */
 
-  setValues(values) {
-    Object.assign(this, values);
-  }
+// --- Sub-Schemas ---
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
+export const ACVDMetadataSchema = z.object({
+    version: z.number().int().min(1).describe("Sequential policy version identifier (starts at 1)."),
+    creationTimestamp: z.string().datetime().describe("ISO timestamp of policy creation."),
+    issuer: z.enum(["CGR", "CORE_SYSTEM", "ADVISORY_BOARD"]).default("CORE_SYSTEM").describe("The entity that issued or updated the policy."),
+    hashSignature: z.string().min(64).max(128).describe("Cryptographic hash ensuring governance approval and integrity.")
+}).strict();
 
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
+export const ACVDConstraintSchema = z.object({
+    id: z.string().uuid().describe("Unique identifier for the specific constraint."),
+    targetDomain: z.enum(["ARCHITECTURE", "CODE_EVOLUTION", "PERCEPTION", "GOVERNANCE"]).describe("System domain the constraint applies to."),
+    metricPath: z.string().describe("JSON path or dotted notation to the monitored metric (e.g., 'system.memory.usage')."),
+    thresholdType: z.enum(["MAX", "MIN", "EQUALITY", "DELTA_RATE"]).describe("Type of comparison to apply."),
+    value: z.number().or(z.string()).describe("The threshold value (numeric or string identifier)."),
+    enforcementAction: z.enum(["FLAG", "BLOCK_EXECUTION", "INITIATE_FALLBACK", "SCALE_BACK"]).default("BLOCK_EXECUTION").describe("Action taken upon constraint violation.")
+}).strict();
 
-  validate() {
-    try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
+export const ACVDParametersSchema = z.object({
+    UFRM: z.number().min(0.0).max(1.0).describe("Unforeseen Risk Mitigation factor (0.0 to 1.0). Controls generalization."),
+    CFTM: z.number().min(0.0).max(1.0).describe("Constraint Fulfillment Threshold Maximum (Tolerance for divergence)."),
+    SelfCorrectionFidelity: z.number().min(0.7).max(1.0).describe("Minimum required fidelity for internal self-correction proofs/inferences."),
+    autonomyLevel: z.enum(["LOW", "MEDIUM", "HIGH", "SOVEREIGN"]).default("SOVEREIGN").describe("Current operational autonomy mode, determining constraint rigidity.")
+}).strict();
+
+// --- Main Schema and Utility ---
+
+export const ACVDSchema = z.object({
+    metadata: ACVDMetadataSchema,
+    parameters: ACVDParametersSchema,
+    constraints: z.array(ACVDConstraintSchema).min(1).describe("Detailed, rigorous constraint vectors applied to specific subsystems.")
+}).strict().describe("Axiomatic Constraint Vector Definition (ACVD) Root Schema.");
+
+/**
+ * Validates a candidate ACVD object against the defined schema using Zod.
+ * @param {unknown} candidate - The object to validate.
+ * @returns {typeof ACVDSchema._output} The validated and parsed object.
+ * @throws {z.ZodError} If validation fails.
+ */
+export function validateACVDStructure(candidate) {
+    return ACVDSchema.parse(candidate);
 }
-
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
-
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
-
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
-
-  execute() {
-    this.handler();
-  }
-}
-
-class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
-
-  #status = "INIT";
-
-  get status() {
-    return this.#status;
-  }
-
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
-      }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-    }
-  }
-
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
-  configure(config) {
-    this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
-  }
-
-  validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-  }
-
-  async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
-  }
-
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
-  }
-
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
-  async destroy() {
-    this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
-  }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
-}
-
-const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
