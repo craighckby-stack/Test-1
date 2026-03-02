@@ -1,135 +1,93 @@
 /**
- * Component ID: ASCMK (Active State Context Manager Kernel)
- * Component Name: Active State Context Manager Kernel
+ * Component ID: ASCM
+ * Component Name: Active State Context Manager
  * GSEP Role: EPDP F (Deployment Traceability Lookup)
- * Location: src/governance/activeStateContextManagerKernel.js
+ * Location: src/governance/activeStateContextManager.js
  *
- * Function: Manages and provides asynchronous, high-integrity access to the globally agreed-upon identifier 
+ * Function: Manages and provides access to the globally agreed-upon identifier 
  * of the currently active architectural state (Proposal ID, Version Hash).
- * This state serves as the operational root-of-trust for auditing and integrity checks (SSV).
+ * This state is considered the operational root-of-trust for auditing (SSV).
  */
 
-import { GovernanceError } from "../utilities/governance/governancePrimitives";
-import { ILoggerToolKernel } from "../tools/logger/ILoggerToolKernel";
+// MANDATE 3: DE-FRAGMENTATION & PRUNING (utilities -> utility)
+import { GovernanceLock, GovernanceError } from "../utility/governancePrimitives.js";
 
-/**
- * @typedef {Object} ActiveContextState
- * @property {string} id - The unique identifier of the deployed state (Proposal ID).
- * @property {string} versionHash - The cryptographic checksum or version tag of the codebase.
- * @property {number} timestamp - Unix timestamp of when the state became active.
- */
-
-// Defines the initial, unverified bootstrap state blueprint.
+// Defines the initial, unverified bootstrap state.
 const CONTEXT_INITIALIZED_STATE = Object.freeze({
     id: 'BOOTSTRAP_V0',
     versionHash: '00000000',
-    timestamp: 0
+    timestamp: Date.now()
 });
 
-export class ActiveStateContextManagerKernel {
-    /** @type {ILoggerToolKernel} */
-    #logger;
-    /** @type {ActiveContextState | null} */
-    #activeContext = null;
-    #isInitialized = false;
-
-    /**
-     * @param {object} dependencies
-     * @param {ILoggerToolKernel} dependencies.logger - High-integrity logging tool.
-     */
-    constructor(dependencies) {
-        this.#setupDependencies(dependencies);
-    }
-
-    /**
-     * Validates and sets up injected dependencies.
-     */
-    #setupDependencies(dependencies) {
-        if (!dependencies.logger) {
-            throw new Error("ASCM Kernel requires ILoggerToolKernel for auditable operations.");
-        }
-        this.#logger = dependencies.logger;
-    }
+// MANDATE 2: UNIFIER PROTOCOL (Export retained)
+export class ActiveStateContextManager {
+    // #activeContext holds an immutable state object: { id, versionHash, timestamp }
+    static #activeContext = null;
+    static #LOCK_HOLDER_ID = "ASCM_DEPLOYMENT_CORE";
 
     /**
      * Ensures the manager has been initialized to a known baseline state.
-     * Idempotent and Asynchronous.
-     * Initializes the kernel state.
-     * @returns {Promise<void>}
+     * Idempotent.
      */
-    async initialize() {
-        if (this.#isInitialized) {
-            return;
+    static initialize() {
+        if (ActiveStateContextManager.#activeContext) {
+            return; // Already initialized
         }
-
-        // Initialize state to the bootstrap baseline with current timestamp.
-        this.#activeContext = Object.freeze({
-            ...CONTEXT_INITIALIZED_STATE,
-            timestamp: Date.now()
-        });
-
-        this.#isInitialized = true;
-        this.#logger.info(`[ASCMK] Manager initialized. Baseline state set: ${this.#activeContext.id}`);
+        ActiveStateContextManager.#activeContext = CONTEXT_INITIALIZED_STATE;
+        console.log(`[ASCM] Manager initialized. Initial state: ${ActiveStateContextManager.#activeContext.id}`);
     }
 
     /**
      * Registers the state context confirmed immediately post-deployment/successful rollout.
-     * This transition must be asynchronous and atomic. Locking responsibility is delegated
-     * to the surrounding execution environment (e.g., IAsyncCheckExecutionWrapperToolKernel).
-     * 
+     * This update must strictly be protected by a governance lock to ensure singularity of transition.
      * @param {string} proposalID - The identifier of the successfully deployed system state.
-     * @param {string} [versionHash='N/A'] - Optional verification hash/checksum of the deployed codebase.
-     * @returns {Promise<void>}
-     * @throws {GovernanceError} If the kernel is uninitialized or input is invalid.
+     * @param {string} [versionHash] - Optional verification hash/checksum of the deployed codebase.
      */
-    async setActiveState(proposalID, versionHash = 'N/A') {
-        if (!this.#isInitialized) {
-            throw new GovernanceError("ASCM Kernel accessed before successful initialization.", "ASCM_E000");
+    static setActiveState(proposalID, versionHash = 'N/A') {
+        if (!proposalID) {
+            throw new GovernanceError("Proposal ID cannot be null when setting active context.", "ASCM_E001");
         }
 
-        if (typeof proposalID !== 'string' || proposalID.trim() === '') {
-            throw new GovernanceError("Proposal ID must be a non-empty string when setting active context.", "ASCM_E001");
-        }
-
-        if (this.#activeContext.id === proposalID) {
-            this.#logger.debug(`[ASCMK] State ${proposalID} is already active. Skipping redundant transition.`);
+        // Prevent redundant updates
+        if (this.getActiveState().id === proposalID) {
+            console.debug(`[ASCM] State ${proposalID} is already active.`);
             return;
         }
 
+        // V94.2 Implementation: Use Governance Lock
         try {
-            const oldStateId = this.#activeContext.id;
-            const newState = Object.freeze({
-                id: proposalID,
-                versionHash: versionHash,
-                timestamp: Date.now()
+            GovernanceLock.acquire(this.#LOCK_HOLDER_ID);
+
+            const newState = Object.freeze({ 
+                id: proposalID, 
+                versionHash: versionHash, 
+                timestamp: Date.now() 
             });
 
-            // Atomic state transition
-            this.#activeContext = newState;
-            
-            // Log successful transition using the injected logger as a system event
-            this.#logger.systemEvent(`[ASCMK] State transition successful. New active state: ${newState.id}`, {
-                previousStateId: oldStateId,
-                newStateId: proposalID,
-                versionHash: versionHash,
-                timestamp: newState.timestamp
-            });
+            ActiveStateContextManager.#activeContext = newState;
+            console.log(`[ASCM] Active state context updated: ${newState.id} (Hash: ${versionHash})`);
 
         } catch (error) {
-            const err = (error instanceof GovernanceError) ? error : new GovernanceError(`Unexpected internal error during state transition: ${error.message}`, "ASCM_E999");
-            this.#logger.error(`[ASCMK] Failed state transition for ${proposalID}.`, { error: err.message, code: err.code });
-            throw err;
+            if (error instanceof GovernanceError) {
+                console.error("[ASCM] Failed state transition due to lock contention.");
+                throw error; // Re-throw structured governance error
+            }
+            throw new GovernanceError(`Unexpected error during state transition: ${error.message}`, "ASCM_E999");
+        } finally {
+            // Always attempt to release the lock managed by this component.
+            if (GovernanceLock.currentHolder === this.#LOCK_HOLDER_ID) {
+                GovernanceLock.release(this.#LOCK_HOLDER_ID);
+            }
         }
     }
 
     /**
      * Retrieves the complete verifiable operating state context.
-     * @returns {ActiveContextState}
-     * @throws {GovernanceError} If the kernel has not been initialized.
+     * @returns {{id: string, versionHash: string, timestamp: number}} The active state object.
      */
-    getActiveState() {
-        if (!this.#isInitialized || !this.#activeContext) {
-            throw new GovernanceError("ASCM Kernel accessed before successful initialization.", "ASCM_E002");
+    static getActiveState() {
+        if (!this.#activeContext) {
+            this.initialize(); // Lazy initialization
         }
         return this.#activeContext;
     }
@@ -138,15 +96,10 @@ export class ActiveStateContextManagerKernel {
      * Convenience method to retrieve just the Proposal ID.
      * @returns {string}
      */
-    getActiveProposalID() {
+    static getActiveProposalID() {
         return this.getActiveState().id;
     }
-
-    /**
-     * Convenience method to retrieve the associated Version Hash.
-     * @returns {string}
-     */
-    getActiveVersionHash() {
-        return this.getActiveState().versionHash;
-    }
 }
+
+// Ensure initial baseline state is set upon module load.
+ActiveStateContextManager.initialize();
