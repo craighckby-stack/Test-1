@@ -45,31 +45,12 @@ class ManifestSaveError extends GovernanceError {
  */
 class GovernanceArtifactsRegistrar {
   
-  /** @type {{validate: (hash: string, expectedLength: number, identifier: string) => void}} */
-  hashValidator;
-
   /**
    * @param {string} [manifestPath] Path to the sealed G0 manifest file.
-   * @param {any} [hashValidator] Injected HashLengthValidator tool instance.
    */
-  constructor(manifestPath = ARTIFACT_MANIFEST_DEFAULT_PATH, hashValidator = global.AGI_KERNEL?.getPlugin('HashLengthValidator')) {
+  constructor(manifestPath = ARTIFACT_MANIFEST_DEFAULT_PATH) {
     this.manifestPath = path.resolve(manifestPath);
     this.G0_HASH_LENGTH = G0_HASH_LENGTH; // Expose constant for consistency checks
-    
-    if (!hashValidator) {
-        console.warn("[GAR WARNING] HashLengthValidator plugin not available. Falling back to internal checks.");
-        // Fallback for environments without AGI_KERNEL (e.g., pure Node testing)
-        this.hashValidator = {
-             validate: (hash, expectedLength, identifier) => {
-                if (hash.length !== expectedLength) {
-                    throw new Error(`[HASH_LENGTH_MISMATCH] Invalid hash length for ${identifier}. Expected ${expectedLength}, got ${hash.length}.`);
-                }
-            }
-        }
-    } else {
-        this.hashValidator = hashValidator;
-    }
-
     this.sealedManifest = this._syncLoadManifest();
     
     // Use an internal method for controlled logging
@@ -133,12 +114,8 @@ class GovernanceArtifactsRegistrar {
    * @param {string} sourceUtility Utility/Subsystem that performed the sealing.
    */
   registerG0Seal(artifactPath, g0Hash, sourceUtility) {
-    // === UTILIZING PLUGIN: HashLengthValidator ===
-    try {
-        this.hashValidator.validate(g0Hash, this.G0_HASH_LENGTH, artifactPath);
-    } catch (e) {
-        // Original code threw a standard Error on bad length
-        throw new Error(e.message);
+    if (g0Hash.length !== this.G0_HASH_LENGTH) { 
+      throw new Error(`Invalid G0 Hash length for ${artifactPath}. Expected ${this.G0_HASH_LENGTH}.`); 
     }
     
     if (this.sealedManifest[artifactPath]) {
@@ -162,16 +139,12 @@ class GovernanceArtifactsRegistrar {
    * @throws {AttestationMismatchError | GovernanceError} If integrity check fails.
    */
   attestG0Seal(artifactPath, currentHash) {
-    // === UTILIZING PLUGIN: HashLengthValidator ===
-    try {
-        this.hashValidator.validate(currentHash, this.G0_HASH_LENGTH, artifactPath);
-    } catch (e) {
-       // Original code threw GovernanceError E-GAX-H01
-       throw new GovernanceError("E-GAX-H01", `Invalid supplied hash length for attestation of ${artifactPath}. Details: ${e.message}`, 'VALIDATION');
-    }
-
     const expected = this.sealedManifest[artifactPath];
     
+    if (currentHash.length !== this.G0_HASH_LENGTH) { 
+       throw new GovernanceError("E-GAX-H01", `Invalid supplied hash length for attestation of ${artifactPath}.`, 'VALIDATION');
+    }
+
     if (!expected) {
       // Unregistered critical artifact access attempt (E-GAX-U01)
       throw new GovernanceError("E-GAX-U01", `Artifact ${artifactPath} not found in G0 Seal Manifest.`, 'UNREGISTERED');
