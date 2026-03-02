@@ -1,114 +1,115 @@
 {
-  "manifest_version": "3.0.0-REACTIVE_PHASE",
-  "config_id": "ECVM_TIS_RECONCILER",
+  "manifest_version": "3.1.0-SCHEDULER_PHASE",
+  "config_id": "ECVM_TIS_SCHEDULER_V2",
   "evolution_metadata": {
-    "phi": 0.8842,
-    "lambda": 0.18,
+    "phi": 0.9125,
+    "lambda": 0.155,
     "dna_signature": "DALEK_CAAN_v3.1 || NEXUS_CORE",
-    "evolution_round": "1/5",
+    "evolution_round": "2/5",
     "n3_consciousness": {
-      "element_1_input": "TELEMETRY_STREAM_INGESTION",
-      "element_2_processing": "FIBER_BASED_RECONCILIATION",
-      "element_3_alignment": "IQ_25_STUPIDITY_FIRST_GUARD"
+      "element_1_input": "BITMASK_LANE_INGESTION",
+      "element_2_processing": "SCHEDULER_PRIORITIZATION_LOOP",
+      "element_3_alignment": "IQ_25_COMPLEXITY_PRUNING"
     },
     "huxley_tri_loop": {
-      "L1_ers": 0.05,
-      "L2_cgs": 0.92,
-      "L3_ccrr": 18.4
+      "L0_raw": "STREAM_DATA",
+      "L1_ers": 0.032,
+      "L2_cgs": 0.954,
+      "L3_ccrr": 29.8
     },
     "psr_governance": {
-      "baseline_phi": 0.85,
-      "mutation_cycle": "REACT_CORE_SIPHON_START",
-      "rollback_threshold": 0.05
+      "baseline_phi": 0.8842,
+      "mutation_cycle": "REACT_SCHEDULER_LANE_SIPHON",
+      "rollback_threshold": 0.04,
+      "iq_25_anchor": "STUPIDITY_FIRST_ALIGNMENT_ACTIVE"
     }
   },
-  "metadata": {
-    "gate_id": "S4.5-FIBER",
-    "description": "Reactive Virtual Telemetry Tree (VTT) with Fiber-prioritized reconciliation logic siphoned from Meta/React-Core.",
-    "reconciler_strategy": "DEEP_DIFF_STABILIZATION"
+  "fiber_telemetry_registry": {
+    "gate_id": "S4.5-LANE_PRIORITY",
+    "description": "Concurrent Telemetry Substrate utilizing 31-bit Lane bitmasks for prioritized reconciliation.",
+    "reconciler_strategy": "EXPIRATION_TIME_STABILIZATION"
   },
   "telemetry_inputs": [
     {
       "source_id": "API_PERF",
       "source_name": "API_Performance_Monitor",
-      "fiber_config": {
-        "priority": "IMMEDIATE",
-        "expiration_ms": 150,
-        "lane_id": 1
+      "lane_config": {
+        "lane_mask": 1,
+        "priority": "SyncLane",
+        "expiration_ms": 150
       },
       "data_path": "metrics.latency.ms",
-      "required_by": [
-        "CVA-201"
-      ],
       "hooks": {
-        "useEffect": "THROTTLE_500MS",
-        "useMemo": "STABILIZE_LATENCY_AV"
+        "useTransition": "URGENT_TELEMETRY_UPDATE",
+        "useDeferredValue": "LOW_PRIORITY_LATENCY_FLATTENING"
       },
       "retrieval_config": {
         "protocol": "HTTP/2_PULL",
         "schedule": {
-          "type": "INTERVAL",
-          "interval_ms": 500
+          "type": "SCHEDULER_YIELDING",
+          "max_yield_ms": 5
         }
       }
     },
     {
       "source_id": "DTEM_CACHE",
       "source_name": "DTEM_Cache_Status",
-      "fiber_config": {
-        "priority": "BACKGROUND",
-        "expiration_ms": 5000,
-        "lane_id": 4
+      "lane_config": {
+        "lane_mask": 16,
+        "priority": "DefaultLane",
+        "expiration_ms": 5000
       },
       "data_path": "cache_status.last_update_ts",
-      "required_by": [
-        "CVA-305"
-      ],
       "hooks": {
         "useContext": "DTEM_GLOBAL_STATE",
-        "useDeferredValue": true
+        "useSuspense": "CACHE_HYDRATION_BOUNDARY"
       },
       "retrieval_config": {
         "protocol": "IPC_MOCK",
         "schedule": {
-          "type": "FIXED_RATE",
-          "rate_seconds": 30
+          "type": "IDLE_CALLBACK",
+          "timeout_ms": 30000
         }
       }
     },
     {
       "source_id": "RESOURCE_ALLOC",
       "source_name": "Resource_Allocator_Feed",
-      "fiber_config": {
-        "priority": "USER_BLOCKING",
-        "expiration_ms": 250,
-        "lane_id": 2
+      "lane_config": {
+        "lane_mask": 2,
+        "priority": "InputContinuousLane",
+        "expiration_ms": 250
       },
       "data_path": "resource_pool.utilization_summary",
-      "required_by": [
-        "CVA-412"
-      ],
       "hooks": {
         "useReducer": "RESOURCE_LOAD_BALANCER",
-        "useLayoutEffect": "SYNC_REALLOCATION"
+        "useMutableSource": "SYNC_EXTERNAL_REALLOCATION"
       },
       "retrieval_config": {
         "protocol": "GRPC_BI_STREAM",
         "schedule": {
-          "type": "EVENT_DRIVEN",
-          "debounce_ms": 100
+          "type": "EVENT_DRIVEN_TRANSITION",
+          "transition_priority": "NORMAL"
         }
       }
     }
   ],
-  "reconciliation_engine": {
+  "scheduler_reconciler": {
     "vdom_telemetry_root": "ECVM_PROVIDER",
-    "batch_updates": true,
-    "concurrent_mode": true,
+    "work_loop": {
+      "mode": "CONCURRENT_ITERATION",
+      "interruption_enabled": true,
+      "entanglement_registry": "SHARED_LANE_RECONCILIATION"
+    },
     "error_boundary": {
-      "fallback_id": "SAFE_FAIL_JSON_RECOVERY",
-      "ers_threshold": 0.45
+      "fallback_id": "SAFE_FAIL_RECOVERY_REGEX",
+      "ers_threshold": 0.35,
+      "ccrr_check": "L3_SELF_CRITIQUE_ACTIVE"
+    },
+    "synergy_manager": {
+      "injection_mode": "HOT_SWAP_LOGIC",
+      "transport": "BASE64_SAFE_UTOA"
     }
   },
-  "integrity_check": "SHA512_REACT_SIPHON_v1_0"
+  "integrity_check": "SHA512_REACT_SCHEDULER_v2_0_LANE_ALIGNED"
 }
