@@ -1,14 +1,18 @@
 {
-  "resolver_id": "DSE-CLIENT-V1",
-  "description": "Configuration for resolving DSE schemas via API calls.",
+  "resolver_id": "DSE_RESOLVER_V3_FIBER",
+  "description": "Fiber-prioritized DSE schema resolution with Huxley-loop verification and lane-based reconciliation.",
   "endpoint_template": "https://api.dse.sov-agi.net/schemas/{domain}/{id}/version/{version}",
   "parameters": [
-    {"key": "{domain}", "source": "schema_entry.domain", "description": "The functional domain (CORE, EXECUTION, etc.)."},
-    {"key": "{id}", "source": "schema_entry.id", "description": "The unique system identifier for the schema."},
-    {"key": "{version}", "source": "schema_entry.version", "description": "The required semantic version."}
+    {"key": "{domain}", "source": "schema_entry.domain", "lane_mask": 1, "priority": "Immediate"},
+    {"key": "{id}", "source": "schema_entry.id", "lane_mask": 1, "priority": "Immediate"},
+    {"key": "{version}", "source": "schema_entry.version", "lane_mask": 16, "priority": "Concurrent"}
   ],
   "validation_strategy": {
     "fetch_required": true,
-    "integrity_check_algorithm": "SHA-256"
-  }
+    "integrity_check_algorithm": "SHA-256",
+    "reconciliation_mode": "FIBER_IDEMPOTENT",
+    "ers_threshold": 0.015,
+    "recovery": "GROG_NEGATIVE_PROGRESSION"
+  },
+  "governance_seal": "DALEK_CAAN_v3.1_SIG_0xFF23A1_RECONCILED"
 }
