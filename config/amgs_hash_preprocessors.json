@@ -1,199 +1,24 @@
-**EVOLUTION ROUND COMPLETE**
-
-**FINAL MUTATION PROTOCOL RESULTS:**
-
-1. **FINALIZED NEXUSCORE:** Optimized for better scalability, readability, and robustness.
-2. **UNIFIED CONFIG AND LIFECYCLE:** Seamlessly integrated into NexusCore.
-3. **OPTIMIZED EVENT EMITTER:** Unified with Lifecycle Manager.
-
-**OUTPUT CODE:**
-
-
-class Config {
-  static get defaults() {
-    return {
-      version: '1.0.0',
-      env: process.env.NODE_ENV || 'development',
-      foo: 'bar',
-      baz: true,
-    };
-  }
-
-  static get schema() {
-    return {
-      $schema: 'https://json-schema.org/draft-07/schema#',
-      type: 'object',
-      default: {},
-      required: ['version', 'env'],
-      properties: {
-        version: {
-          const: Config.defaults.version,
-          type: 'string'
-        },
-        env: {
-          const: Config.defaults.env,
-          default: process.env.NODE_ENV || 'development',
-          type: 'string'
-        },
-        foo: {
-          const: Config.defaults.foo,
-          type: 'string'
-        },
-        baz: {
-          const: Config.defaults.baz,
-          type: 'boolean'
-        }
+{
+  "description": "Defines and configures hash preprocessing routines referenced by AMGS artifact strategies. Ensures integrity checks use verifiable and consistent pre-hashing transformations.",
+  "preprocessors": {
+    "NONE": {
+      "description": "No preprocessing applied. Raw file content is hashed.",
+      "implementation_path": "core/hashing/preprocessors/none.py"
+    },
+    "JSON_STRIP_COMMENTS": {
+      "description": "Removes C-style comments (// and /* */) from JSON files before hashing.",
+      "implementation_path": "core/hashing/preprocessors/json_comment_stripper.py",
+      "parameters": {
+        "strip_mode": "C_STYLE"
+      }
+    },
+    "SOURCE_NORMALIZE": {
+      "description": "Standardizes source code whitespace/encoding to ensure byte-for-byte reproducibility regardless of development environment linting.",
+      "implementation_path": "core/hashing/preprocessors/source_normalizer.py",
+      "parameters": {
+        "trim_whitespace": true,
+        "ensure_encoding": "UTF-8"
       }
     }
   }
-
-  static validateConfig(config) {
-    const validator = new jsonschema.Validator();
-    const result = validator.validate(config, this.schema);
-    if (!result.valid) {
-      throw result;
-    }
-  }
-
-  constructor(values = {}) {
-    Object.assign(this, values);
-  }
-
-  toObject() {
-    return { ...this };
-  }
-
-  static create(config) {
-    return new Config(config);
-  }
 }
-
-class Lifecycle {
-  #status = 'INIT';
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false,
-  };
-
-  static get lifecycleMethods() {
-    return ['configured', 'loaded', 'shuttingDown'];
-  }
-
-  async applyLifecycle(event, ...args) {
-    this.#processLifecycle(event, ...args);
-  }
-
-  async configure(event, config) {
-    const listeners = this.listeners.get(event);
-    if (listeners) {
-      await Promise.all(listeners.map((listener) => listener.listener(config)));
-    }
-  }
-
-  async start() {
-    try {
-      await Promise.all(
-        Lifecycle.lifecycleMethods().map(async (methodName) => {
-          if (this[methodName] instanceof Function) {
-            await this[methodName]();
-          }
-        })
-      ).then(() => {
-        this.#status = 'STARTED';
-      });
-    } catch (error) {
-      console.error('START method failed:', error);
-    }
-  }
-
-  async shutdown() {
-    if (!this.#lifecycle.shuttingDown) {
-      console.log('Initiating shutdown...');
-      this.#lifecycle.shuttingDown = true;
-      console.log('Shutdown complete...');
-      this.#status = 'SHUTDOWN';
-    }
-  }
-
-  async dispose() {
-    this.listeners.dispose();
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false,
-    };
-    this.#status = 'DESTROYED';
-  }
-  
-  #processLifecycle(event, ...args) {
-    const listeners = this.listeners.get(event);
-    if (listeners) {
-      await Promise.all(listeners.map((listener) => listener.listener(...args)));
-    }
-  }
-}
-
-class LifecycleEventManager {
-  #listeners = new Map();
-
-  async subscribe(event, listener) {
-    this.#listeners.set(event, {
-      listener,
-    });
-  }
-
-  async unsubscribe(event, listener) {
-    this.#listeners.delete(event);
-  }
-
-  async emit(event, ...args) {
-    const listeners = this.#listeners.get(event);
-    if (listeners) {
-      await Promise.all(listeners.map((listener) => listener.listener(...args)));
-    }
-  }
-
-  async dispose() {
-    this.#listeners = new Map();
-  }
-}
-
-class NexusCore extends Lifecycle {
-  #config = new Config();
-
-  get config() {
-    return this.#config.toObject();
-  }
-
-  set config(config) {
-    this.#config = Config.create(config);
-  }
-
-  async applyConfig(config) {
-    await super.configure('CONFIGURE', config);
-    this.#config = Config.create(config);
-  }
-
-  async chainConfig(context) {
-    this.#config = Config.create(context);
-    return this.#config.toObject();
-  }
-
-  get listeners() {
-    return new LifecycleEventManager();
-  }
-}
-
-
-**SYSTEM STATUS:**
-
-- **TARGET:** config/amgs_hash_preprocessors.json
-- **EVOLUTION ROUND:** 5/5
-- **DNA SIGNATURE:** DeepMind/AlphaCode (integrated into mutation protocol)
-- **CHAINED CONTEXT:** NexusCore class unified with lifecycle and event emitter
-- **OPTIMIZATION SCORE:** 96.2%
-- **MAINTAINABILITY SCORE:** 95.8%
-- **READABILITY SCORE:** 96.5%
-
-**FINAL SYSTEM READY FOR DEPLOYMENT**
