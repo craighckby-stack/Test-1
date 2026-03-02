@@ -1,104 +1,92 @@
-// src/core/data_management/ArtifactSchemaValidatorKernel.ts
+import { readFileSync } from 'fs';
+import Ajv, { ValidateFunction } from 'ajv';
+import path from 'path';
 
-import { ISpecValidatorKernel } from '../../interfaces/ISpecValidatorKernel';
-import { ISecureResourceLoaderInterfaceKernel } from '../../interfaces/SecureResourceLoaderInterfaceKernel';
-import { IArtifactSchemaConfigRegistryKernel } from './IArtifactSchemaConfigRegistryKernel';
-
-/**
- * CONTRACT: ValidationResult (Mapping the output structure of ISpecValidatorKernel)
- */
-interface ValidationResult {
-    isValid: boolean;
-    errors: Array<{ message: string, dataPath?: string }>;
-    errorText?: string;
-}
+// Use a centralized, globally accessible Ajv instance for compilation efficiency.
+const ajv = new Ajv({ 
+    coerceTypes: true, 
+    allowUnionTypes: true 
+});
 
 /**
- * Manages dynamic loading and validation of external schemas referenced by 
- * the Data Artifact Registry (via the 'schema_ref' field).
- * 
- * This Kernel ensures that structured data payloads conform 
- * to the defined governance and operational contracts at runtime using strict Dependency Injection.
+ * Manages dynamic loading, compilation, caching, and validation of schemas.
+ * Enforces a Singleton pattern to ensure the schema cache is initialized and accessed only once,
+ * maximizing computational efficiency by avoiding redundant schema loading and compilation.
  */
-export class ArtifactSchemaValidatorKernel {
-    private loadedSchemaRefs: Set<string>; 
-    private configuredSchemaBasePath: string;
-    private readonly specValidator: ISpecValidatorKernel;
-    private readonly resourceLoader: ISecureResourceLoaderInterfaceKernel;
-    private readonly configRegistry: IArtifactSchemaConfigRegistryKernel;
+export class ArtifactSchemaValidator {
+    private static instance: ArtifactSchemaValidator;
+    // Map stores compiled Ajv functions (optimization key)
+    private loadedSchemas: Map<string, ValidateFunction> = new Map();
+    private schemaBasePath: string;
 
-    constructor(
-        specValidator: ISpecValidatorKernel,
-        resourceLoader: ISecureResourceLoaderInterfaceKernel,
-        configRegistry: IArtifactSchemaConfigRegistryKernel
-    ) {
-        // Dependency assignment, ensuring rigor and immutability of dependencies
-        this.specValidator = specValidator;
-        this.resourceLoader = resourceLoader;
-        this.configRegistry = configRegistry;
-        this.loadedSchemaRefs = new Set();
-        
-        // Rigorously enforce synchronous setup extraction
-        this.#setupDependencies();
-    }
-    
     /**
-     * Private method to isolate synchronous dependency setup and configuration retrieval.
-     * Satisfies synchronous setup extraction and enforces architectural separation.
+     * Private constructor enforces Singleton pattern.
+     * Uses path.resolve for robust, platform-independent base path handling.
      */
-    #setupDependencies(): void {
-        // Configuration retrieved via injected registry, eliminating hardcoded path defaults
-        const basePath = this.configRegistry.getArtifactSchemaBasePath();
-        
-        // Isolation of path normalization logic
-        this.configuredSchemaBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
+    private constructor(schemaBasePath: string) {
+        // Abstract path normalization using path module
+        this.schemaBasePath = path.resolve(schemaBasePath);
     }
 
     /**
-     * Loads, parses, and compiles a schema from the file system based on its reference path.
-     * Caches the compilation result via the Spec Validator Kernel.
+     * Factory method to retrieve the centralized Singleton instance.
+     * This is the entry point for maximizing recursive cache efficiency.
+     * @param schemaBasePath Path used only on first initialization (default: './config/schemas').
      */
-    private ensureSchemaIsCompiled(schemaRef: string): void {
-        if (this.loadedSchemaRefs.has(schemaRef)) {
-            return;
+    public static getInstance(schemaBasePath: string = './config/schemas'): ArtifactSchemaValidator {
+        if (!ArtifactSchemaValidator.instance) {
+            ArtifactSchemaValidator.instance = new ArtifactSchemaValidator(schemaBasePath);
+        }
+        return ArtifactSchemaValidator.instance;
+    }
+
+    /**
+     * Core recursive abstraction mechanism: Loads and compiles a schema, prioritizing cache access.
+     * @param schemaRef The path defined in the artifact registry.
+     * @returns Compiled Ajv validation function.
+     */
+    private loadSchema(schemaRef: string): ValidateFunction {
+        // 1. Recursive Efficiency: Check cache (Base Case/Immediate Return)
+        if (this.loadedSchemas.has(schemaRef)) {
+            return this.loadedSchemas.get(schemaRef)!;
         }
 
-        const fullPath = `${this.configuredSchemaBasePath}${schemaRef}`;
+        // 2. Abstraction: Build the full path robustly.
+        const fullPath = path.join(this.schemaBasePath, schemaRef);
+        console.debug(`[ArtifactSchemaValidator] Loading schema from: ${fullPath}`);
 
         try {
-            // Replaced synchronous 'fs.readFileSync' with injected synchronous resource loader method.
-            const schemaContentString = this.resourceLoader.readResourceSync(fullPath, 'utf-8');
-            const schema = JSON.parse(schemaContentString);
+            const schemaContent = readFileSync(fullPath, 'utf-8');
+            const schema = JSON.parse(schemaContent);
             
-            // Delegate compilation and caching to the external tool (ISpecValidatorKernel)
-            this.specValidator.compileAndCacheSchema(schemaRef, schema);
+            // 3. Computational Step: Ajv compilation (CPU intensive, happens only once per schemaRef)
+            const validate = ajv.compile(schema);
             
-            this.loadedSchemaRefs.add(schemaRef);
-
+            // 4. Cache Update (Future Efficiency)
+            this.loadedSchemas.set(schemaRef, validate);
+            return validate;
         } catch (error) {
-            let errorMessage = `Failed to initialize validator for schemaRef: ${schemaRef}.`;
-            
-            if (error instanceof Error) {
-                errorMessage += ` Internal tool or processing error: ${error.message}`;
-            }
-            
-            throw new Error(errorMessage);
+            const msg = `Failed to initialize validator for schemaRef: ${schemaRef}. Ensure file exists and is valid JSON Schema at ${fullPath}.`;
+            console.error(msg, error);
+            throw new Error(msg);
         }
     }
 
     /**
-     * Validates a given structured data payload against the referenced artifact schema.
+     * Validates a structured data payload against the referenced artifact schema.
+     * The client interacts only with validation; loading/caching is abstracted internally.
+     * @param data The data object to validate.
+     * @param schemaRef The reference key for the schema definition.
+     * @returns True if valid.
+     * @throws Error if validation fails.
      */
     public validateArtifact(data: unknown, schemaRef: string): boolean {
-        // 1. Ensure schema is loaded and compiled
-        this.ensureSchemaIsCompiled(schemaRef);
+        const validate = this.loadSchema(schemaRef);
+        const isValid = validate(data);
 
-        // 2. Delegate validation to the external tool
-        const validationResult = this.specValidator.validateData(schemaRef, data) as ValidationResult;
-
-        if (!validationResult.isValid) {
-            // Providing clear error details from the tool
-            const errorDetails = validationResult.errorText || `Unknown validation error with ${validationResult.errors.length} issues.`
+        if (!isValid) {
+            // Highly optimized error reporting using Ajv's built-in text generator
+            const errorDetails = ajv.errorsText(validate.errors, { dataVar: 'data' });
             throw new Error(`Data artifact validation failed for schema '${schemaRef}'. Details: ${errorDetails}`);
         }
 
