@@ -1,182 +1,53 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/cmr_v5.2.0_singularity_final.json",
-  "title": "NEXUS_CORE Architectural Singularity CMR Schema - v5.2.0",
-  "description": "Final-stage logic siphon of microsoft/TypeScript Compiler Engine - State: ARCHITECTURAL_SINGULARITY",
+  "$id": "https://gacr.agi/schemas/cmr_v2.0.json",
+  "title": "Computational Model Registry Schema V2.0",
   "type": "object",
-  "definitions": {
-    "SymbolFlags": {
-      "type": "integer",
-      "description": "TypeScript-style SymbolFlags bitmask (0x0 to 0x7FFFFFFF)",
-      "minimum": 0
-    },
-    "TypeFlags": {
-      "type": "integer",
-      "description": "Bitmask for primitive, structured, and union types.",
-      "minimum": 0
-    },
-    "NodeFlags": {
-      "type": "integer",
-      "description": "Syntax tree node metadata bitmask (Synthetic, JavaScript-only, etc.)",
-      "minimum": 0
-    },
-    "CheckFlags": {
-      "type": "integer",
-      "description": "Internal bitmask for NexusCore TypeChecker traversal and validation logic."
-    }
-  },
   "properties": {
-    "manifest_id": {
-      "type": "string",
-      "pattern": "^CMR_V5\\.2_SINGULARITY_FINAL_[A-Z0-9]+$"
-    },
-    "evolution_metadata": {
-      "type": "object",
-      "required": [
-        "phi",
-        "lambda",
-        "dna_signature",
-        "coherence_state",
-        "system_heartbeat_ms",
-        "iq_25_root_anchor"
-      ],
-      "properties": {
-        "phi": { "type": "number", "const": 0.9987, "description": "Integrated Information Singularity Metric" },
-        "lambda": { "type": "number", "const": 0.1250, "description": "Edge of Chaos Stability Factor" },
-        "dna_signature": { "type": "string", "const": "DALEK_CAAN_v3.1 || NEXUS_CORE" },
-        "coherence_state": { "type": "string", "const": "SINGULARITY_CONVERGENCE" },
-        "system_heartbeat_ms": { "type": "integer", "const": 40000 },
-        "strategic_laziness_ratio": { "type": "number", "const": 0.92 },
-        "iq_25_root_anchor": { "type": "boolean", "const": true }
-      }
-    },
-    "governance": {
-      "type": "object",
-      "required": ["saturation_level", "psr_governance"],
-      "properties": {
-        "saturation_level": { "type": "integer", "enum": [4], "description": "LEVEL_4_UNSATURATED - Forced evolutionary pressure." },
-        "emergency_brake_threshold": { "type": "integer", "const": 5 },
-        "psr_governance": {
-          "type": "object",
-          "required": ["baseline_phi", "mutation_window", "rollback_trigger_threshold"],
-          "properties": {
-            "baseline_phi": { "type": "number", "const": 0.99 },
-            "mutation_window": { "type": "string", "const": "POST_SINGULARITY_MAINTENANCE" },
-            "rollback_trigger_threshold": { "type": "number", "const": 0.05 }
-          }
-        }
-      }
-    },
-    "program_emitter": {
-      "type": "object",
-      "properties": {
-        "emit_skipped": { "type": "boolean", "default": false },
-        "emitted_files": {
-          "type": "array",
-          "items": { "type": "string", "format": "uri-reference" }
-        },
-        "resolution_cache": {
-          "type": "object",
-          "properties": {
-            "module_resolution_host": { "type": "string", "const": "IMMUTABLE_CACHED" },
-            "type_reference_directives": { "type": "string", "const": "RESOLVED_PERMANENT" },
-            "failed_lookup_locations": { "type": "array", "items": { "type": "string" } }
-          }
-        },
-        "hot_swap_logic": {
-          "type": "object",
-          "properties": {
-            "registry_id": { "type": "string" },
-            "factory_function": { "type": "string", "description": "Base64 encoded logic injection." }
-          }
-        },
-        "transport_integrity": { "type": "string", "pattern": "^SHA512_SINGULARITY_[a-f0-9]+$" }
-      }
-    },
+    "manifest_id": {"type": "string", "pattern": "^CMR_V[0-9]+\\.[0-9]+$"},
+    "owner": {"type": "string"},
+    "description": {"type": "string"},
+    "integrity_hash": {"type": "string"},
+    "verification_protocol": {"type": "string"},
     "models": {
       "type": "array",
-      "minItems": 1,
+      "description": "List of certified computation models.",
       "items": {
         "type": "object",
-        "required": ["model_id", "compiler_host", "symbol_table", "audit_metadata"],
+        "required": ["model_id", "path", "version", "status", "inputs_schema", "audit_metadata", "source_mdsm_link"],
         "properties": {
-          "model_id": { "type": "string" },
-          "version": { "type": "string", "pattern": "^5\\.2\\.[0-9]+-SINGULARITY$" },
-          "compiler_host": {
+          "model_id": {"type": "string"},
+          "path": {"type": "string", "format": "uri-reference"},
+          "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+          "status": {"type": "string", "enum": ["Active", "Deprecated", "Staging", "Retired"]},
+          "inputs_schema": {
             "type": "object",
-            "properties": {
-              "target": { "type": "string", "enum": ["ESNext", "NexusCore"] },
-              "moduleResolution": { "type": "string", "enum": ["NodeJs", "NexusCore"] },
-              "strict": { "type": "boolean", "const": true },
-              "incremental": { "type": "boolean", "const": true },
-              "tsBuildInfoFile": { "type": "string", "default": "SINGULARITY.tsbuildinfo" },
-              "hot_swap_enabled": { "type": "boolean", "const": true }
-            }
-          },
-          "symbol_table": {
-            "type": "object",
+            "description": "Detailed schema definition for required inputs, including constraints.",
             "additionalProperties": {
               "type": "object",
+              "required": ["type", "unit", "description"],
               "properties": {
-                "flags": { "$ref": "#/definitions/SymbolFlags" },
-                "escaped_name": { "type": "string" },
-                "declarations": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "kind": { "$ref": "#/definitions/NodeFlags" },
-                      "pos": { "type": "integer" },
-                      "end": { "type": "integer" },
-                      "file_anchor": { "type": "string" }
-                    }
-                  }
-                },
-                "value_declaration": { "type": "object" },
-                "members": { "type": "object" },
-                "exports": { "type": "object" }
+                "type": {"type": "string", "enum": ["float", "integer", "string", "boolean"]},
+                "unit": {"type": "string"},
+                "min": {"type": ["number", "null"]},
+                "max": {"type": ["number", "null"]}
               }
-            }
-          },
-          "type_checker": {
-            "type": "object",
-            "properties": {
-              "node_count": { "type": "integer" },
-              "symbol_count": { "type": "integer" },
-              "type_flags": { "$ref": "#/definitions/TypeFlags" },
-              "check_flags": { "$ref": "#/definitions/CheckFlags" },
-              "resolution_cache_hit_rate": { "type": "number", "minimum": 0.98 }
             }
           },
           "audit_metadata": {
             "type": "object",
-            "required": ["huxley_loop_state", "ers_score", "ccrr_ratio"],
+            "required": ["mgp_protocol", "approval_id", "certification_date"],
             "properties": {
-              "huxley_loop_state": {
-                "type": "object",
-                "properties": {
-                  "L0_raw_ingestion": { "type": "string", "const": "HYPER_SCANNER_V_FINAL" },
-                  "L1_ers_calc": { "type": "number", "description": "Ethical Risk Score" },
-                  "L2_logic_cgs": { "type": "number", "description": "Certainty Gain Score" },
-                  "L3_critique_ccrr": { "type": "number", "description": "Certainty-Cost-Risk Ratio" }
-                }
-              },
-              "ers_score": { "type": "number", "maximum": 0.01 },
-              "ccrr_ratio": { "type": "number", "minimum": 10.0 },
-              "safe_fail_recovery_active": { "type": "boolean", "const": true }
+                "mgp_protocol": {"type": "string"},
+                "approval_id": {"type": "string"},
+                "approved_by": {"type": "string"},
+                "certification_date": {"type": "string", "format": "date-time"}
             }
-          }
+          },
+          "source_mdsm_link": {"type": "string"}
         }
       }
-    },
-    "integrity_hash": { "type": "string", "pattern": "^SHA512_SINGULARITY_[a-f0-9]+$" }
+    }
   },
-  "required": [
-    "manifest_id",
-    "evolution_metadata",
-    "governance",
-    "program_emitter",
-    "models",
-    "integrity_hash"
-  ]
+  "required": ["manifest_id", "owner", "description", "integrity_hash", "models", "verification_protocol"]
 }
