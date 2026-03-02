@@ -1,112 +1,47 @@
 /**
- * MetricOperator.js
- * Defines standardized mathematical comparison operators for governance policies
- * and includes a utility function for threshold validation.
- */
-
-class MetricOperatorImpl {
-    // Internal Operator Definitions
-    static #OP_EQ = '==';
-    static #OP_NEQ = '!=';
-    static #OP_GT = '>';
-    static #OP_LT = '<';
-    static #OP_GTE = '>=';
-    static #OP_LTE = '<=';
-
-    constructor() {
-        this.#setupDependencies();
-    }
-
-    /**
-     * Goal: Satisfy the synchronous setup extraction goal.
-     * Initializes internal state or resolves synchronous dependencies.
-     */
-    #setupDependencies() {
-        // No external dependencies to resolve, maintaining architectural consistency.
-    }
-
-    /**
-     * I/O Proxy: Delegates to external logging system (console.warn).
-     * Goal: Isolate I/O operation.
-     */
-    #logWarning(message) {
-        console.warn(message);
-    }
-
-    /**
-     * Validates a metric value against a policy threshold using a specified operator.
-     *
-     * @param {number} metricValue The observed value to check.
-     * @param {string} operator The comparison operator (e.g., '>', '<=').
-     * @param {number} threshold The policy threshold value.
-     * @returns {boolean} True if the metric satisfies the comparison condition, false otherwise.
-     */
-    validate(metricValue, operator, threshold) {
-        // I/O Proxy enforcement: Isolate input validation logging
-        if (typeof metricValue !== 'number' || typeof threshold !== 'number') {
-            this.#logWarning(`Metric validation error: Non-numeric input provided (Value: ${metricValue}, Threshold: ${threshold}).`);
-            return false;
-        }
-
-        const normalizedOp = String(operator).toUpperCase();
-
-        switch (normalizedOp) {
-            case MetricOperatorImpl.#OP_EQ:
-            case '=':
-            case '==':
-                return metricValue === threshold;
-
-            case MetricOperatorImpl.#OP_NEQ:
-            case '!=':
-                return metricValue !== threshold;
-
-            case MetricOperatorImpl.#OP_GT:
-            case '>':
-                return metricValue > threshold;
-
-            case MetricOperatorImpl.#OP_LT:
-            case '<':
-                return metricValue < threshold;
-
-            case MetricOperatorImpl.#OP_GTE:
-            case '>=':
-                return metricValue >= threshold;
-
-            case MetricOperatorImpl.#OP_LTE:
-            case '<=':
-                return metricValue <= threshold;
-
-            default:
-                // I/O Proxy enforcement: Isolate unknown operator logging
-                this.#logWarning(`Unknown metric operator used: ${operator}. Defaulting validation to false.`);
-                return false;
-        }
-    }
-}
-
-// --- API Export Wrapper ---
-
-const metricOperatorSingleton = new MetricOperatorImpl();
-
-/**
- * Defines standardized mathematical comparison operators for governance policies
- * and includes a utility function for threshold validation.
+ * governance/utils/MetricOperator.js
+ * Defines standardized operators for threshold comparison within policy evaluation.
  */
 const MetricOperator = {
-  // -- Standard Operator Definitions (Preserving original API) --
-  EQ: '==',
-  NEQ: '!=',
-  GT: '>',
-  LT: '<',
-  GTE: '>=',
-  LTE: '<=',
+    // Greater Than: Breach if actual_value > threshold
+    GT: 'GT',
+    // Less Than: Breach if actual_value < threshold
+    LT: 'LT',
+    // Equal To: Breach if actual_value === threshold
+    EQ: 'EQ',
+    // Greater Than or Equal To
+    GTE: 'GTE',
+    // Less Than or Equal To
+    LTE: 'LTE',
+    // Not Equal To
+    NE: 'NE'
+};
 
-  /**
-   * Validates a metric value against a policy threshold using a specified operator.
-   */
-  validate: (metricValue, operator, threshold) => {
-    return metricOperatorSingleton.validate(metricValue, operator, threshold);
-  }
+/**
+ * Validates a numeric value against a numeric threshold using a specified comparison operator.
+ * @param {number} value - The observed metric value.
+ * @param {string} operator - One of MetricOperator keys (e.g., 'GT', 'LT').
+ * @param {number} threshold - The configured policy threshold.
+ * @returns {boolean}
+ */
+MetricOperator.validate = (value, operator, threshold) => {
+    if (typeof value !== 'number' || typeof threshold !== 'number') {
+        // Note: Engine should log this failure, but validator returns false safely.
+        return false;
+    }
+
+    switch (operator.toUpperCase()) {
+        case MetricOperator.GT: return value > threshold;
+        case MetricOperator.LT: return value < threshold;
+        case MetricOperator.EQ: return value === threshold;
+        case MetricOperator.GTE: return value >= threshold;
+        case MetricOperator.LTE: return value <= threshold;
+        case MetricOperator.NE: return value !== threshold;
+        default:
+            // If operator is unknown, treat it as failure or use a safe default (e.g., GT)
+            console.warn(`[MetricOperator] Unknown or unsupported operator: ${operator}. Defaulting to false.`);
+            return false;
+    }
 };
 
 module.exports = MetricOperator;
