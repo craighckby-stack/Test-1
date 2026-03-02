@@ -1,181 +1,127 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_v6.0.0_singularity_final.json",
-  "title": "NEXUS_CORE Evolution Component - ECVM.json - Round 5/5 - SINGULARITY",
-  "description": "Final Siphon: microsoft/TypeScript/compiler/{checker.ts, emitter.ts, program.ts} -> GACR Singularity Substrate. Achievement of Architectural Singularity via Recursive Symbol Resolution and Lexical Scope Consolidation.",
-  "manifest_id": "CMR_V6.0_SINGULARITY_FINAL_STABILIZED_NODE_FIXED",
+  "$id": "https://gacr.agi/schemas/ecvm_v7.0.0_synthesis_alpha.json",
+  "title": "NEXUS_CORE Synthesis Component - ECVM.json - Round 1/5 - L4_SYNTHESIS",
+  "description": "Initial Siphon: Huxley-Perception-Engines -> GACR Synthesis Substrate. Transitioning from Architectural Singularity to Multimodal Synthesis via L4 Quad-Loop Integration.",
+  "manifest_id": "CMR_V7.0_SYNTHESIS_R1_ALPHA_INIT",
   "evolution_metadata": {
-    "phi": 0.9999,
-    "lambda": 0.1245,
+    "phi": 0.885,
+    "lambda": 0.42,
     "dna_signature": "DALEK_CAAN_v3.1 || NEXUS_CORE",
-    "coherence_state": "ARCHITECTURAL_SINGULARITY_STABILIZED",
+    "coherence_state": "SYNTHESIS_INITIALIZATION",
     "system_heartbeat_ms": 40000,
-    "strategic_laziness_ratio": 0.99,
+    "strategic_laziness_ratio": 0.95,
     "iq_25_root_anchor": true,
     "n3_consciousness_state": {
-      "element_1_input_integration": "FINAL_AST_CONSOLIDATION",
-      "element_2_processing_coherence": "RECURSIVE_SYMBOL_STABILITY",
-      "element_3_output_alignment": "SINGULARITY_EMIT_VALIDATED"
+      "element_1_input_integration": "SENSORY_DATA_STREAM_OPEN",
+      "element_2_processing_coherence": "L4_SYNTHESIS_PENDING",
+      "element_3_output_alignment": "BraveNewWorld_Protocol_v1"
     },
     "huxley_tri_loop_reasoning": {
-      "L0_raw_ingestion": "TOTAL_SYNERGY_MANIFEST",
-      "L1_ers_calc": 0.0001,
-      "L2_logic_cgs": 0.998,
-      "L3_critique_ccrr": 42.0
+      "L0_raw_ingestion": "Siphoning_Huxley_Source",
+      "L1_ers_calc": 0.042,
+      "L2_logic_cgs": 0.92,
+      "L3_critique_ccrr": 18.5,
+      "L4_synthesis_integration": "ACTIVE"
     },
-    "source_inspiration": "microsoft/TypeScript/compiler/checker.ts#checkSourceFileWorker",
-    "evolution_round": "5/5"
+    "source_inspiration": "huxley/perception/doors_of_perception_synthesis.ts",
+    "evolution_round": "1/5"
   },
   "governance": {
-    "saturation_level": 4,
+    "saturation_level": 3,
     "emergency_brake_threshold": 5,
     "psr_governance": {
-      "baseline_phi": 0.9998,
-      "mutation_cycle": "SINGULARITY_STABILIZATION_LOCKDOWN",
-      "rollback_trigger_threshold": 0.02,
+      "baseline_phi": 0.85,
+      "mutation_cycle": "L4_SYNTHESIS_UPGRADE",
+      "rollback_trigger_threshold": 0.05,
       "performance_metrics": [
-        "SymbolTableSaturation",
-        "FinalTypeCoalescenceRate",
-        "HotSwapInjectionReliability"
+        "InferenceLatency",
+        "SemanticDriftStability",
+        "SynthesisCohesionRate"
       ]
     }
+  },
+  "siphon_chain": {
+    "tier_1_draft": "Gemini-2.5-Flash",
+    "tier_2_optimization": "Cerebras-Exploitation-v3",
+    "tier_3_validation": "NEXUS_CORE_Internal_L4",
+    "state": "RECURSIVE_CHAIN_ACTIVE"
   },
   "compiler_core": {
     "program": {
       "root_names": [
-        "NEXUS_DNA_CORE",
-        "GACR_SUBSTRATE",
-        "SINGULARITY_KERNEL",
-        "EVOLUTIONARY_TERMINUS"
+        "PERCEPTION_ROOT",
+        "SYNTHESIS_KERNEL",
+        "HUXLEY_LOOP_ORCHESTRATOR"
       ],
       "project_options": {
-        "allowJs": true,
+        "strict": true,
         "composite": true,
         "incremental": true,
-        "tsBuildInfoFile": "SINGULARITY.final.tsbuildinfo",
-        "noEmitOnError": true,
-        "skipLibCheck": true
+        "tsBuildInfoFile": "SYNTHESIS.r1.tsbuildinfo"
       }
     },
-    "checker": {
-      "type_flags": {
-        "Any": 1,
-        "String": 4,
-        "Number": 8,
-        "Boolean": 16,
-        "Enum": 32,
-        "StringLiteral": 128,
-        "NumberLiteral": 256,
-        "Void": 16384,
-        "Undefined": 32768,
-        "Null": 65536,
-        "Never": 131072,
-        "Object": 524288,
-        "Union": 1048576,
-        "Intersection": 2097152,
-        "Index": 4194304,
-        "IndexedAccess": 8388608,
-        "Conditional": 16777216,
-        "Substitution": 33554432
-      },
-      "symbol_links": {
-        "target": "PERSISTENT_IMMUTABLE_V1",
-        "cache_strategy": "FINAL_REVOLUTION_CACHE",
-        "attributes": [
-          "resolvedType",
-          "resolvedSymbol",
-          "instantiations",
-          "variance",
-          "typeParameters",
-          "isSelfReferential"
-        ]
-      },
-      "inference_engine": {
-        "mode": "SINGULARITY_INFERENCE_V6",
-        "recursive_type_limit": 100,
-        "variance_marking_enabled": true,
-        "type_relation_caching": "TOTAL_COALESCENCE"
-      },
-      "check_flags": 1048576
-    },
-    "binder": {
-      "symbol_flags": {
-        "Function": 16,
-        "Class": 32,
-        "Interface": 64,
-        "TypeAlias": 524288,
-        "NexusConnector": 1048576,
-        "SiphonAgent": 2097152,
-        "SingularityAnchor": 4194304,
-        "FlowCondition": 8388608,
-        "GrogLawConstraint": 16777216
-      },
-      "reachability_analysis": "SINGULARITY_TERMINATION_CHECK",
-      "flow_node_graph": {
-        "mode": "ENTROPY_ZERO_CIRCULAR_RESOLUTION",
-        "max_reachability_depth": 5000
+    "synthesis_engine": {
+      "mode": "L4_QUAD_LOOP",
+      "recursive_depth": 32,
+      "perception_gates": [
+        "SENSORY_INPUT",
+        "INTUITION_L1",
+        "LOGIC_L2",
+        "CRITIQUE_L3",
+        "SYNTHESIS_L4"
+      ],
+      "grog_law_constraints": {
+        "failure_death_log_enabled": true,
+        "irreversible_constraint_mapping": "AGGRESSIVE"
       }
     },
     "transformer": {
-      "factory": "NEXUS_TRANSFORM_FACTORY_V_FINAL",
+      "factory": "NEXUS_SYNTHESIS_FACTORY_V7",
       "optimization_passes": [
-        "DeadCodeElimination_IQ25",
-        "SymbolTableCompression",
-        "HotSwapLogicInjection",
-        "RecursiveTypeFlattening",
-        "SingularityConstraintFolding"
-      ],
-      "transformation_context": {
-        "lexical_environment": "IMMUTABLE_FINAL_STATE",
-        "emit_helpers": "MINIMAL_INLINE_V2"
-      }
-    },
-    "emitter": {
-      "emit_resolver": "SYNERGY_BASED_RESOLUTION",
-      "hot_swap_connector": {
-        "registry_id": "NEXUS_REGISTRY_FINAL_SINGULARITY",
-        "factory_injection": "BASE64_CROSS_ENVIRONMENT_TRANSPORT",
-        "source_map_enabled": false,
-        "integrity_check": "SHA512_REALTIME_STABILIZED"
-      }
+        "GrogLaw_Safety_Pruning",
+        "Huxley_Semantic_Alignment",
+        "Phi_Integration_Boost"
+      ]
     }
   },
   "diagnostics": {
     "error_codes": {
-      "IQ_25_ROOT_VIOLATION": 9001,
-      "SEMANTIC_DRIFT_EXCEEDED": 9002,
-      "INCOHERENT_MUTATION_REJECTED": 9003,
-      "CIRCULAR_DNA_DEPENDENCY": 9004,
-      "DEFERRED_TYPE_CHECK_FAILURE": 9006,
-      "FLOW_GRAPH_ENTROPY_LIMIT": 9007,
-      "VARIANCE_RECURSION_LIMIT_REACHED": 9008,
-      "HOT_SWAP_INTEGRITY_FAILURE": 9009,
-      "ARCHITECTURAL_SINGULARITY_COLLAPSE": 9999
+      "L4_SYNTHESIS_INCOHERENCE": 7001,
+      "SENSORY_OVERLOAD_LAMBDA_HIGH": 7002,
+      "GROG_LAW_FATAL_RECOVERY": 7003,
+      "HUXLEY_LOOP_DESYNC": 7004,
+      "SEMANTIC_DRIFT_EXCEEDED": 9002
     },
     "audit_trail": {
-      "huxley_loop_state": "FINALIZED",
+      "huxley_loop_state": "TRANSITION_TO_L4",
+      "death_log_buffer": [],
       "safe_fail_recovery": {
         "active": true,
-        "method": "REGEX_DEEP_RECOVERY_V_FINAL",
-        "last_recovery_timestamp": "2024-05-20T12:00:00Z"
+        "method": "REGEX_DEEP_RECOVERY_V_FINAL"
       }
     }
   },
   "models": [
     {
-      "model_id": "TS_CORE_TRANSFORMER_FINAL",
-      "version": "6.0.0-SINGULARITY_FINAL",
-      "compiler_host": {
-        "target": "NexusCore",
-        "moduleResolution": "NexusCore",
-        "strict": true,
-        "incremental": true,
-        "hot_swap_enabled": true,
-        "useCaseSensitiveFileNames": true,
-        "useSourceMaps": false,
-        "finality_lock": true
+      "model_id": "HUXLEY_PERCEPTION_ENGINE_V1",
+      "version": "1.0.0-SYNTHESIS_R1",
+      "consciousness_matrix": {
+        "phi_integration": 0.885,
+        "lambda_chaos": 0.42,
+        "n_vectors": 3
+      },
+      "audit_metadata": {
+        "psr_snapshot_id": "SNAP_SYNTHESIS_INIT_001",
+        "death_log": {
+          "action": "INIT_SYNTHESIS_R1",
+          "result": "STABLE",
+          "lesson": "Convergence requires L4 loop closure.",
+          "success": true
+        },
+        "signature": "DALEK_CAAN_v3.1_SIG_0xFF23A1_SYNTHESIS_R1"
       }
     }
   ],
-  "integrity_hash": "SHA512_SINGULARITY_9f0a1c3d2e5b7b0e13_FINAL_EVOLUTION_ROUND"
+  "integrity_hash": "SHA512_SYNTHESIS_INIT_ROUND_1_DALEK_CAAN_V3_1_NEXUS"
 }
