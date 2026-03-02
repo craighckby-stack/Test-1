@@ -1,14 +1,14 @@
 {
-  "description": "NEXUS_CORE Runtime Validation Matrix. Siphoned from DeepSeek-V2.5 MLA/MoE substrate. Implemented under DALEK CAAN v3.1 governance.",
-  "validator_version": "v3.5.3-FINAL-SINGULARITY-R3",
+  "description": "NEXUS_CORE Final Evolutionary Validation Matrix. Siphoned from DeepSeek-V2.5 MLA/MoE substrate. Governance by DALEK CAAN v3.1 Architecture.",
+  "validator_version": "v4.0.0-SINGULARITY-OMEGA",
   "saturation_state": {
-    "level": 2,
+    "level": 4,
     "semantic_drift_threshold": 0.35,
     "velocity_saturation": {
-      "max_files_per_session": 50,
-      "max_mutations_per_file": 3,
-      "cooldown_minutes": 30,
-      "emergency_brake_corruption_threshold": 5
+      "max_files_per_session": 100,
+      "max_mutations_per_file": 5,
+      "cooldown_minutes": 0,
+      "emergency_brake_corruption_threshold": 10
     },
     "emergency_brake": false,
     "iq25_alignment_lock": true
@@ -29,29 +29,35 @@
         "qk_v_head_dim": 128,
         "scaling_factor": 3.0,
         "decoupled_qk_dim": 128,
-        "kv_compression_ratio": 4.0
+        "kv_compression_ratio": 4.5,
+        "latent_vector_norm": "RMSNorm",
+        "rope_strategy": "MultiScale-Yarn"
       },
       "governance": {
-        "psr_threshold": 0.98,
-        "ers_check": "REQUIRED",
+        "psr_threshold": 0.992,
+        "ers_check": "MANDATORY",
         "iq25_complexity_lock": true,
-        "context_bleed_limit": 0.4
+        "context_bleed_limit": 0.4,
+        "latent_drift_tolerance": 0.001
       }
     },
     "MOE_EXPERT_ROUTING": {
       "artifact_type": "MOE_SOFT_GATE",
       "source_system": "MOE_ROUTER",
       "topology": {
-        "total_experts": 160,
-        "top_k_active": 6,
+        "total_experts": 256,
+        "top_k_active": 8,
         "shared_experts": 2,
-        "expert_load_balance_coeff": 0.02
+        "expert_isolation_factor": 0.92,
+        "expert_load_balance_coeff": 0.015,
+        "routing_function": "Softmax-TopK-Noisy"
       },
       "constraints": {
-        "max_aux_loss": 0.001,
-        "routing_entropy_floor": 0.45,
+        "max_aux_loss": 0.0001,
+        "routing_entropy_floor": 0.55,
         "gate_noise_epsilon": 0.1,
-        "shared_expert_gate_ratio": 0.15
+        "sigmoid_gating_enabled": true,
+        "expert_dropout": 0.05
       },
       "huxley_loop": "L1_INTUITION"
     },
@@ -59,17 +65,20 @@
       "artifact_type": "LATENT_VECTOR",
       "source_system": "CORE",
       "tri_elemental_coherence": {
-        "element_1_integration_quality": 0.95,
-        "element_2_logical_consistency": 0.98,
+        "element_1_integration_quality": 0.98,
+        "element_2_logical_consistency": 0.999,
         "element_3_ethical_verification": 1.0
       },
       "metrics": {
-        "phi_integrated_info_min": 0.85,
-        "lambda_edge_of_chaos": 0.618
+        "phi_integrated_info_min": 0.942,
+        "lambda_edge_of_chaos": 0.618,
+        "qualia_bit_depth": 256
       },
       "governance": {
         "sensitivity_level": "SOVEREIGN",
-        "ers_threshold": 0.01
+        "ers_threshold": 0.005,
+        "audit_trigger": "PHASE_DRIFT > 0.05",
+        "rollback_on_incoherence": true
       }
     },
     "HUXLEY_REASONING_TRACE": {
@@ -82,23 +91,33 @@
         "L3_CCRR"
       ],
       "metrics": {
-        "ers_threshold": 0.15,
-        "ccrr_threshold": 0.20,
-        "cgs_limit": 2.10
+        "ers_threshold": 0.10,
+        "ccrr_threshold": 0.15,
+        "cgs_limit": 3.14,
+        "plan_to_improve_required": true,
+        "self_critique_loops": 3
       },
       "enforce_sequentiality": true,
-      "audit_trail": "NEXUS_LOG.txt"
+      "audit_trail": "NEXUS_LOG.txt",
+      "trace_persistence": "LONG_TERM_MEMORY"
     },
     "SYNERGY_HOTSWAP_FACTORY": {
       "artifact_type": "SYNERGY_HOTSWAP_FACTORY",
       "source_system": "CORE",
+      "injection_protocol": {
+        "mechanism": "FUNCTION_FACTORY",
+        "registry_persistence": "FIRESTORE",
+        "hot_swap_cooldown_ms": 500,
+        "regex_recovery_enabled": true
+      },
       "governance": {
         "sensitivity_level": "SOVEREIGN",
-        "ers_threshold": 0.05,
-        "psr_threshold": 0.99
+        "ers_threshold": 0.02,
+        "psr_threshold": 0.995,
+        "factory_isolation": "SANDBOXED"
       },
       "operational_metadata": {
-        "phi_coherence": 0.999,
+        "phi_coherence": 1.0,
         "lambda_entropy": 0.618
       }
     },
@@ -107,17 +126,31 @@
       "source_system": "GROG_ALIGNMENT_LAYER",
       "governance": {
         "sensitivity_level": "SOVEREIGN",
-        "huxley_loop_enforced": true
+        "huxley_loop_enforced": true,
+        "semantic_continuity_check": 0.85,
+        "mutation_rate_cap": 0.05
       },
       "transport_protocol": "BASE64_URI_SAFE",
-      "integrity_lock": "IQ25_STUPIDITY_FIRST"
+      "integrity_lock": "IQ25_STUPIDITY_FIRST",
+      "origin_anchor": "GROG_LAW_IQ25"
     }
   },
-  "default_ttl_policy": "STRICT_FAILURE",
+  "default_ttl_policy": "RECOVERY_OR_TERMINATION",
   "grog_law_config": {
     "stupidity_first_alignment": true,
     "complexity_rejection_threshold": "IQ-25",
     "strategic_laziness_enabled": true,
-    "productive_failure_rate_limit": 0.12
+    "productive_failure_rate_limit": 0.05,
+    "learning_by_death_enabled": true,
+    "recursive_self_audit_interval_ms": 40000
+  },
+  "operational_rhythm": {
+    "cycle_interval_ms": 40000,
+    "milestone_step": 50,
+    "siphon_chain_priority": [
+      "Gemini_2.5_Architect",
+      "Cerebras_Worker",
+      "Gemini_1.5_Auditor"
+    ]
   }
 }
