@@ -1,124 +1,84 @@
 /**
- * M-02 Mutation Pre-Processor Kernel (MPP)
+ * M-02 Mutation Pre-Processor (MPP)
  *
- * Role: Implements GSEP Stage 2 efficiency gate. MPP runs necessary, low-latency invariant checks
+ * Role: Implements GSEP Stage 2 efficiency gate. M-02 runs necessary, low-latency invariant checks
  * and fast-path compliance simulations against a proposed mutation payload before submission to
- * the P-01 Trust Calculus (Stage 3). It orchestrates rule evaluation and calculates the initial
- * Risk Index (R_INDEX) based on defined governance policies.
- *
- * Adheres strictly to AIA Enforcement Layer mandates for asynchronous operation, explicit dependency
- * management, and maximal recursive abstraction.
+ * the P-01 Trust Calculus (Stage 3). It utilizes the RuleExecutorRegistry to delegate specific
+ * compliance checks, ensuring high extensibility (OCP).
  */
-class MutationPreProcessorKernel {
+class MutationPreProcessor {
     /**
-     * @param {object} dependencies
-     * @param {IRuleEvaluationEngineToolKernel} dependencies.ruleEngine - Executes specific compliance rules.
-     * @param {IConceptualPolicyEvaluatorKernel} dependencies.scoreEvaluator - Calculates R_INDEX based on violations.
-     * @param {GovernanceSettingsRegistryKernel} dependencies.settingsRegistry - Provides general governance configuration.
-     * @param {IGovernanceRuleDefinitionsRegistryKernel} dependencies.ruleDefinitionsRegistry - Provides specific rule definitions.
-     * @param {MultiTargetAuditDisperserToolKernel} dependencies.auditDisperser - Handles auditable logging and error dispersal.
+     * @param {object} governanceConfig - Global governance configuration.
+     * @param {RuleExecutorRegistry} ruleRegistry - Centralized registry for all executable checks.
      */
-    constructor({
-        ruleEngine,
-        scoreEvaluator,
-        settingsRegistry,
-        ruleDefinitionsRegistry,
-        auditDisperser
-    }) {
-        if (!ruleEngine || !scoreEvaluator || !settingsRegistry || !ruleDefinitionsRegistry || !auditDisperser) {
-            throw new Error("MPP Kernel initialization failed: Missing required Tool Kernels.");
+    constructor(governanceConfig, ruleRegistry) {
+        if (!governanceConfig || !governanceConfig.rules) {
+             throw new Error("MPP requires a valid governance configuration including compliance rules.");
+        }
+        if (!ruleRegistry || typeof ruleRegistry.execute !== 'function') {
+             throw new Error("MPP requires a valid RuleExecutorRegistry instance.");
         }
 
-        this._ruleEngine = ruleEngine;
-        this._scoreEvaluator = scoreEvaluator;
-        this._settingsRegistry = settingsRegistry;
-        this._ruleDefinitionsRegistry = ruleDefinitionsRegistry;
-        this._auditDisperser = auditDisperser;
-
-        this._isInitialized = false;
-        this._passThreshold = 0.7; // Default
-        this._checkDefinitions = {};
-        this._invariants = {};
-    }
-
-    /**
-     * Asynchronously loads configuration and initializes the kernel state.
-     * Must be called before any operational method.
-     */
-    async initialize() {
-        if (this._isInitialized) return;
-
-        try {
-            // Use Registries to securely and asynchronously load configuration
-            const config = await this._settingsRegistry.getGovernanceSettings();
-            const rules = await this._ruleDefinitionsRegistry.getRuleDefinitions();
-            
-            this._checkDefinitions = rules;
-            
-            // Extract necessary settings
-            this._passThreshold = config.thresholds?.pass || 0.7;
-            // Invariants are rules/limits provided by the config
-            this._invariants = config.invariants || {};
-
-            if (Object.keys(this._checkDefinitions).length === 0) {
-                 await this._auditDisperser.audit('MPP_INIT_WARN', { message: "No governance rules defined. MPP checks will be bypassed.", level: 'WARNING' });
-            }
-
-            this._isInitialized = true;
-        } catch (error) {
-            await this._auditDisperser.audit('MPP_INIT_FATAL', { 
-                error: error.message, 
-                message: "Failed to load governance configuration during MPP initialization.",
-                level: 'CRITICAL' 
-            });
-            throw new Error(`MutationPreProcessorKernel initialization failed: ${error.message}`);
-        }
+        this.config = governanceConfig;
+        this.checkDefinitions = governanceConfig.rules;
+        this.ruleRegistry = ruleRegistry;
+        
+        // Define key thresholds
+        this.PASS_THRESHOLD = governanceConfig.thresholds?.pass || 0.7;
     }
 
     /**
      * Executes technical compliance checks and invariant enforcement.
      * @param {object} mutationPayload - The proposed code mutation payload.
      * @param {object} [context={}] - Optional context (e.g., current system state/metrics).
-     * @returns {Promise<Readonly<{ R_INDEX: number, violations: ReadonlyArray<{ code: string, message: string, penalty: number }>, pass: boolean }>>}
+     * @returns {Promise<{ R_INDEX: number, violations: Array<{ code: string, message: string, penalty: number }>, pass: boolean }>}
      */
     async preProcess(mutationPayload, context = {}) {
-        if (!this._isInitialized) {
-             throw new Error("MutationPreProcessorKernel must be initialized before use.");
+        const results = [];
+        let totalWeightedPenalty = 0;
+
+        // Iterate over defined rules using centralized configuration
+        for (const checkCode in this.checkDefinitions) {
+            const ruleDefinition = this.checkDefinitions[checkCode];
+            
+            // Execute the check via the registry, passing context and configuration.
+            const checkResult = this._executeCheck(checkCode, ruleDefinition, mutationPayload, context);
+            results.push(checkResult);
+            
+            if (!checkResult.compliant) {
+                totalWeightedPenalty += ruleDefinition.penaltyWeight;
+            }
         }
+
+        // Penalty should be capped to prevent configuration errors from yielding R_INDEX < 0
+        totalWeightedPenalty = Math.min(1.0, totalWeightedPenalty);
         
-        const checkPromises = [];
+        const R_INDEX = Math.min(1.0, Math.max(0, 1.0 - totalWeightedPenalty));
 
-        // 1. Execute all checks concurrently
-        for (const checkCode in this._checkDefinitions) {
-            const ruleDefinition = this._checkDefinitions[checkCode];
-            // Execute checks asynchronously
-            checkPromises.push(this._executeCheck(checkCode, ruleDefinition, mutationPayload, context));
-        }
-        
-        // Wait for all checks to complete
-        const rawCheckResults = await Promise.all(checkPromises);
+        const violations = results
+            .filter(r => !r.compliant)
+            .map(r => ({
+                code: r.code,
+                message: r.message,
+                penalty: r.weight 
+            }));
 
-        // 2. Score the results using the Policy Evaluator Kernel (replacement for synchronous PenaltyScoreCalculator)
-        const { R_INDEX, violations } = await this._scoreEvaluator.deriveComplianceScore(rawCheckResults);
-
-        const result = {
+        return {
             R_INDEX: R_INDEX,
-            violations: Object.freeze(violations), // Ensure violations array is immutable
-            pass: R_INDEX >= this._passThreshold
+            violations: violations,
+            pass: R_INDEX >= this.PASS_THRESHOLD
         };
-        
-        return Object.freeze(result);
     }
 
     /**
-     * Delegates the execution of a specific governance check to the Rule Evaluation Engine.
+     * Delegates the execution of a specific governance check to the RuleExecutorRegistry.
      * @param {string} checkCode - The key for the check definition.
-     * @param {object} ruleDefinition - The rule configuration.
+     * @param {object} ruleDefinition - The rule configuration from governanceConfig.rules.
      * @param {object} payload - The mutation payload.
      * @param {object} context - System context.
-     * @returns {Promise<{ compliant: boolean, code: string, message: string, weight: number }>} 
+     * @returns {{ compliant: boolean, code: string, message: string, weight: number }}
      */
-    async _executeCheck(checkCode, ruleDefinition, payload, context) {
+    _executeCheck(checkCode, ruleDefinition, payload, context) {
         const defaultViolation = {
             compliant: false,
             code: checkCode,
@@ -127,39 +87,30 @@ class MutationPreProcessorKernel {
         };
 
         try {
-            const checkConfig = this._invariants?.[checkCode] || {};
+            // Retrieve check-specific configuration (e.g., limits, targets) from invariants.
+            const checkConfig = this.config.invariants?.[checkCode] || {};
             
-            // Delegate the logic execution to the asynchronous Rule Evaluation Engine Tool Kernel.
-            const { compliant, details } = await this._ruleEngine.evaluateRule({
-                ruleId: checkCode,
-                targetPayload: payload,
-                ruleConfig: checkConfig,
-                context: context
-            });
+            // Delegate the logic execution. The registry handles the actual implementation based on checkCode.
+            const checkPassed = this.ruleRegistry.execute(checkCode, payload, checkConfig, context);
 
-            // Output format compliant with IConceptualPolicyEvaluatorKernel input requirements
             return {
-                compliant: compliant,
+                compliant: checkPassed,
                 code: checkCode,
-                message: compliant ? "OK" : (details?.message || ruleDefinition.failureMessage),
+                // Use the configured failure message only if the check fails
+                message: checkPassed ? "OK" : ruleDefinition.failureMessage,
                 weight: ruleDefinition.penaltyWeight || 0
             };
             
         } catch (e) {
-            // Handle technical failure during execution with auditable logging
-            await this._auditDisperser.audit('MPP_RULE_EXEC_FAIL', {
-                rule: checkCode,
-                error: e.message,
-                message: `Fatal execution error for rule ${checkCode}.`,
-                level: 'ERROR'
-            });
-            
+            // Technical failure during execution (e.g., missing rule handler, configuration syntax error)
+            console.error(`MPP: Fatal execution error for rule ${checkCode}:`, e);
             // Treat execution errors as critical violations
-            defaultViolation.message = `Critical Execution Failure (${e.name || 'Error'}): ${e.message}`;
+            defaultViolation.message = `Critical Execution Failure (${e.name}): ${e.message}`;
+            // Ensure high penalty for critical execution failures
             defaultViolation.weight = 1.0; 
             return defaultViolation;
         }
     }
 }
 
-module.exports = MutationPreProcessorKernel;
+module.exports = MutationPreProcessor;
