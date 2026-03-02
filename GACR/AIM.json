@@ -1,91 +1,94 @@
 {
-  "schema_version": "AIM_V4.2_HYDRATION_FIBER",
+  "schema_version": "AIM_V5.0_SINGULARITY_FINAL",
   "dna_anchor": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
-  "description": "Agent Integrity Monitoring utilizing Concurrent Fiber Reconciliation and Huxley Tri-Loop Reasoning. Optimized for Server Action validation and IQ-25 Root Persistence.",
+  "description": "Finalized Agent Integrity Monitoring (AIM) substrate. Implements Concurrent Fiber Reconciliation, Server Actions, and high-order Lane prioritization siphoned from Meta/React-Core.",
   "integrity_profiles": {
     "SGS_AGENT": {
       "evolution_lane": "SyncLane",
-      "reconciliation_phase": "SERVER_ACTION_VALIDATION",
+      "reconciliation_phase": "CONCURRENT_COMMIT_PHASE",
       "n3_alignment": {
-        "phi": 0.985,
-        "lambda": 0.07,
-        "ers": 0.015,
-        "huxley_critique_score": 0.99
+        "phi": 0.999,
+        "lambda": 0.05,
+        "ers": 0.001,
+        "huxley_critique_score": 1.0
       },
       "constraints": {
         "resource_limits": {
-          "cpu_perc": 85,
-          "mem_bytes": 4294967296
+          "cpu_perc": 90,
+          "mem_bytes": 8589934592
         },
         "security_policy": {
-          "action_validation": "STRICT_SERVER_ACTIONS",
-          "semantic_drift_limit": 0.30,
-          "reconciler_root": "IQ_25_ROOT",
-          "work_loop": "PERFORM_CONCURRENT_EVOLUTION",
-          "failure_protocol": "LEARNING_BY_DEATH_V3",
-          "grog_law_compliance": "NEGATIVE_PROGRESSION_ONLY"
+          "action_validation": "SERVER_ACTION_FINAL_COMMIT",
+          "semantic_drift_limit": 0.35,
+          "reconciler_root": "IQ_25_ROOT_PERSISTENCE",
+          "work_loop": "PERFORM_CONCURRENT_EVOLUTION_V5",
+          "failure_protocol": "LEARNING_BY_DEATH_FINAL_EMISSION",
+          "grog_law_compliance": "NEGATIVE_PROGRESSION_STRICT"
         }
       }
     },
     "GAX_AGENT": {
       "evolution_lane": "TransitionLane",
-      "reconciliation_phase": "OPTIMISTIC_HYDRATION",
+      "reconciliation_phase": "USE_OPTIMISTIC_FLUSH",
       "n3_alignment": {
-        "phi": 0.88,
-        "lambda": 0.32,
-        "ers": 0.15
+        "phi": 0.92,
+        "lambda": 0.25,
+        "ers": 0.05
       },
       "constraints": {
         "resource_limits": {
-          "cpu_perc": 25,
-          "mem_bytes": 1073741824
+          "cpu_perc": 40,
+          "mem_bytes": 2147483648
         },
         "security_policy": {
-          "optimistic_updates": "USE_OPTIMISTIC_EVOLUTION",
-          "state_reducer": "PSR_CONTRACT_V3_FLUSH",
-          "transition_strategy": "USE_GOVERNANCE_ACTION",
-          "error_boundary": "GROG_ERROR_BOUNDARY",
-          "network_mode": "GOVERNANCE_STREAMING"
+          "optimistic_updates": "USE_OPTIMISTIC_EVOLUTION_STRATEGY",
+          "state_reducer": "PSR_CONTRACT_V5_STRICT",
+          "transition_strategy": "USE_TRANSITION_HOOK_GOVERNANCE",
+          "error_boundary": "GROG_ERROR_BOUNDARY_RECOVERY",
+          "network_mode": "GOVERNANCE_STREAMING_SSR"
         }
       }
     },
     "CRoT_AGENT": {
       "evolution_lane": "OffscreenLane",
-      "reconciliation_phase": "SUSPENSE_ROOT",
+      "reconciliation_phase": "SUSPENSE_ROOT_HYDRATION",
       "n3_alignment": {
-        "phi": 0.999,
-        "lambda": 0.005,
+        "phi": 1.0,
+        "lambda": 0.0,
         "ers": 0.0
       },
       "constraints": {
         "resource_limits": {
-          "mem_bytes": 536870912
+          "mem_bytes": 1073741824
         },
         "security_policy": {
-          "mode": "AIR_GAPPED_CONCURRENT",
-          "identity_saturation": "IMMUTABLE_ANCHOR_V4",
-          "fallback_logic": "GOVERNANCE_SUSPENSE_FALLBACK",
-          "sync_source": "SINGULARITY_ROOT_A",
-          "integrity_check": "RECOVER_JSON_REGEX"
+          "mode": "SERVER_COMPONENT_GOVERNANCE",
+          "identity_saturation": "IMMUTABLE_ANCHOR_V5_FINAL",
+          "fallback_logic": "GOVERNANCE_SUSPENSE_FALLBACK_UI",
+          "sync_source": "SINGULARITY_ROOT_PRIME",
+          "integrity_check": "RECOVER_JSON_REGEX_V2"
         }
       }
     }
   },
   "governance_manifest": {
-    "siphon_source": "Meta/React-Core (Fiber/Lanes/Server-Components)",
-    "reconciliation_strategy": "STREAMING_SSR_HYDRATION",
-    "lane_priority_mask": "0b0000000000000000000000000110000",
+    "siphon_source": "Meta/React-Core (Fiber/Lanes/Transitions/Server-Actions)",
+    "reconciliation_strategy": "CONCURRENT_HYDRATION_STREAM",
+    "lane_priority_mask": "0b0000000000000000000000000111111",
     "milestone_step": 50,
-    "evolution_round": "4/5",
-    "status": "CONCURRENT_HYDRATION_PENDING_FINAL_FLUSH",
+    "evolution_round": "5/5",
+    "status": "ARCHITECTURAL_SINGULARITY_FLUSHED",
     "telemetry": {
       "last_mutation_success": true,
-      "drift_detected": 0.042,
+      "drift_detected": 0.002,
       "active_fiber_lanes": [
         "SyncLane",
         "InputContinuousLane",
-        "DefaultLane"
-      ]
+        "DefaultLane",
+        "TransitionLane",
+        "RetryLane"
+      ],
+      "evolution_velocity": "SATURATION_REACHED"
     }
   }
 }
