@@ -1,130 +1,81 @@
 import { RCMConfig, UsageSnapshot, CostReport } from '../types/EfficiencyTypes';
+import { ExpressionEvaluator } from '../utilities/ExpressionEvaluator';
 
-// Define the interface that the secure expression evaluator satisfies.
-interface EvaluatorPlugin {
-    safeEvaluate(expression: string, context: Record<string, any>): number;
-    safeEvaluateBoolean(expression: string, context: Record<string, any>): boolean;
-}
-
-// Re-declare AggregateUsage type based on the external meter's output structure
+// AggregateUsage is a super-set of UsageSnapshot, ensuring numerical tracking and timestamp.
+// Optimization Note: This structure relies on fast, direct property access via index signature.
 type AggregateUsage = UsageSnapshot & { 
     last_updated: number; 
-    [key: string]: number | undefined; 
+    [key: string]: number | undefined;
 };
 
-// Define the interface for the extracted Usage Meter logic
-interface UsageMeterPlugin {
-    recordUsage(moduleId: string, usage: Partial<UsageSnapshot>): void;
-    getAggregatedUsage(moduleId: string): AggregateUsage | undefined;
-    getAllModules(): string[];
-}
-
 /**
- * ResourceAuditorKernel: The core utility for cost calculation and RCM policy enforcement.
- * Relies on strictly injected external plugins for secure expression evaluation and usage metering.
+ * ResourceAuditor: Core utility for high-frequency tracking, cost calculation,
+ * and enforcement of RCM policies.
  */
-export class ResourceAuditorKernel {
-    #config: RCMConfig;
-    #evaluator: EvaluatorPlugin;
-    #meter: UsageMeterPlugin;
+export class ResourceAuditor {
+    private config: RCMConfig;
+    // Map provides O(1) average time complexity for module lookup.
+    private meter: Map<string, AggregateUsage>;
+    private evaluator: ExpressionEvaluator;
 
-    /**
-     * @param initialConfig The initial Resource Consumption Management configuration.
-     * @param meterPlugin The plugin for tracking resource usage metrics.
-     * @param evaluatorPlugin The secure plugin for evaluating cost models and policy conditions.
-     */
-    constructor(
-        initialConfig: RCMConfig, 
-        meterPlugin: UsageMeterPlugin,
-        evaluatorPlugin: EvaluatorPlugin
-    ) {
-        this.#setupDependencies(initialConfig, meterPlugin, evaluatorPlugin);
+    constructor(initialConfig: RCMConfig) {
+        this.config = initialConfig;
+        this.meter = new Map<string, AggregateUsage>();
+        // Dependency injection for recursive expression handling
+        this.evaluator = new ExpressionEvaluator(); 
+        // console.log(`Resource Auditor initialized with RCM v${initialConfig.version}.`);
     }
 
-    // --- Private Setup and Configuration --- 
-
-    /**
-     * Executes synchronous dependency validation and assignment.
-     */
-    #setupDependencies(
-        config: RCMConfig, 
-        meter: UsageMeterPlugin,
-        evaluator: EvaluatorPlugin
-    ): void {
-        if (!config || !meter || !evaluator) {
-            this.#throwSetupError("RCMConfig, UsageMeterPlugin, and EvaluatorPlugin must be provided.");
-        }
-        this.#config = config;
-        this.#meter = meter;
-        this.#evaluator = evaluator;
-        this.#logInitializationSuccess(config.version);
-    }
-
-    // --- Private I/O Proxies (External Dependency Interaction) ---
-
-    #throwSetupError(message: string): never {
-        throw new Error(`[ResourceAuditorKernel Setup Error] ${message}`);
-    }
-
-    #logInitializationSuccess(version: string): void {
-        console.info(`[ResourceAuditorKernel] Initialized successfully. RCM Version: ${version}`);
-    }
-
-    #logPolicyEnforcement(policyName: string, actionName: string): void {
-        console.log(`[RCM Policy Enforcement] Triggered: ${policyName}. Action: ${actionName}`);
-    }
-
-    #delegateToMeterRecordUsage(moduleId: string, usage: Partial<UsageSnapshot>): void {
-        this.#meter.recordUsage(moduleId, usage);
-    }
-
-    #delegateToMeterGetAggregatedUsage(moduleId: string): AggregateUsage | undefined {
-        return this.#meter.getAggregatedUsage(moduleId);
-    }
-    
-    #delegateToMeterGetAllModules(): string[] {
-        return this.#meter.getAllModules();
-    }
-
-    #delegateToEvaluatorSafeEvaluate(expression: string, context: Record<string, any>): number {
-        return this.#evaluator.safeEvaluate(expression, context);
-    }
-
-    #delegateToEvaluatorSafeEvaluateBoolean(expression: string, context: Record<string, any>): boolean {
-        return this.#evaluator.safeEvaluateBoolean(expression, context);
-    }
-
-    // --- Public Methods ---
-
-    /** Updates the RCM configuration dynamically. */
+    /** Updates the RCM configuration dynamically. (O(1)) */
     public updateConfig(newConfig: RCMConfig): void {
-        this.#config = newConfig;
+        this.config = newConfig;
     }
 
     /** 
-     * Delegates usage recording to the external metering plugin.
+     * Records resource usage metrics. Optimized for high-speed aggregation (O(N) where N is keys in usage).
+     * Uses direct property iteration instead of 'for...in' and 'hasOwnProperty'.
      */
     public recordUsage(moduleId: string, usage: Partial<UsageSnapshot>): void {
-        this.#delegateToMeterRecordUsage(moduleId, usage);
+        let existing = this.meter.get(moduleId);
+
+        if (!existing) {
+            // Initialize base structure with minimum overhead.
+            existing = { last_updated: 0 } as AggregateUsage;
+        }
+
+        // Use Object.keys for fast, direct iteration over usage metrics.
+        const keys = Object.keys(usage) as Array<keyof UsageSnapshot>;
+        
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const value = usage[key];
+
+            if (typeof value === 'number') {
+                // Perform accumulation directly, leveraging 'any' cast for performance 
+                // and reliance on the index signature for dynamic properties.
+                const currentTotal = (existing as any)[key] || 0;
+                (existing as any)[key] = currentTotal + value;
+            }
+        }
+
+        // Final update (O(1) average)
+        existing.last_updated = Date.now();
+        this.meter.set(moduleId, existing);
     }
 
     /** 
-     * Calculates operational cost based on current usage, leveraging the secure expression evaluator.
+     * Calculates operational cost, delegating evaluation to a specialized engine. 
+     * O(Complexity of model evaluation)
      */
     public calculateCost(moduleId: string, currentUsage: UsageSnapshot): CostReport {
-        const moduleConfig = this.#config.modules[moduleId];
-        const model = moduleConfig?.cost_model;
+        const model = this.config.modules[moduleId]?.cost_model;
         
         if (!model) {
-            return {
-                total_cost: 0.0,
-                module: moduleId,
-                calculation_reason: "No cost model defined for module."
-            };
+            return { total_cost: 0.0, module: moduleId, calculation_reason: "No cost model defined." };
         }
 
-        // Use the secure evaluator plugin via proxy
-        const cost = this.#delegateToEvaluatorSafeEvaluate(model, currentUsage);
+        // Abstracting policy evaluation to a dedicated, potentially recursive utility.
+        const cost = this.evaluator.safeEvaluate(model, currentUsage);
 
         return {
             total_cost: parseFloat(cost.toFixed(6)), 
@@ -133,22 +84,20 @@ export class ResourceAuditorKernel {
         };
     }
 
-    /** Checks all adaptive policies against current system state and applies actions. */
+    /** Checks all adaptive policies. O(N * Complexity of policy evaluation). */
     public checkAdaptivePolicies(): string[] {
         const actions: string[] = [];
-        
-        // Get module list via proxy
-        const allModules = this.#delegateToMeterGetAllModules();
-
         const systemContext = { 
-            global_load: 0.85, // Example metric
-            high_cost_modules_count: allModules.length 
+            global_load: 0.85, 
+            high_cost_modules_count: this.meter.size 
         };
 
-        for (const policy of this.#config.adaptive_policies || []) {
-            // Evaluate trigger condition via proxy
-            if (this.#delegateToEvaluatorSafeEvaluateBoolean(policy.trigger_condition, systemContext)) {
-                this.#logPolicyEnforcement(policy.name, policy.action_name);
+        const policies = this.config.adaptive_policies || [];
+
+        for (const policy of policies) {
+            // Recursive Abstraction: Policy evaluation logic is isolated to the ExpressionEvaluator.
+            if (this.evaluator.safeEvaluateBoolean(policy.trigger_condition, systemContext)) {
+                // console.log(`[RCM Policy Enforcement] Triggered: ${policy.name}`);
                 actions.push(policy.action_name);
             }
         }
@@ -156,8 +105,8 @@ export class ResourceAuditorKernel {
         return actions; 
     }
 
-    /** Retrieves the current aggregated usage snapshot from the metering plugin. */
+    /** Retrieves the current aggregated usage snapshot. (O(1)) */
     public getAggregatedUsage(moduleId: string): AggregateUsage | undefined {
-        return this.#delegateToMeterGetAggregatedUsage(moduleId);
+        return this.meter.get(moduleId);
     }
 }
