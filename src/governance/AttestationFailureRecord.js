@@ -1,60 +1,61 @@
 /**
- * @file AttestationFailureRecord.js
- * Represents an immutable record of a failed attestation attempt.
- * This class is a pure data structure requiring its serialization schema 
- * to be injected upon instantiation. Static factory and schema retrieval 
- * methods are delegated to a strategic Factory Kernel to enforce asynchronous 
- * configuration retrieval and dependency resolution.
+ * ATTENTION FAILURE RECORD (AFR)
+ * ID: AFR-E01
+ * GSEP Role: Standardized error structure for pre-execution integrity checks.
  *
- * NOTE: It is assumed that 'ImmutableRecordBase' is provided through the 
- * module environment or inheritance chain, eliminating the need for synchronous `require`.
+ * This record ensures that governance failures are reported consistently, including
+ * necessary metadata for telemetry and auditing (e.g., error codes, full reports).
  */
-
-class AttestationFailureRecord extends ImmutableRecordBase {
+class AttestationFailureRecord extends Error {
     /**
-     * Constructs an immutable failure record.
-     * 
-     * NOTE: This constructor now requires the validated serialization schema 
-     * to be passed by the calling Factory/Tool Kernel.
-     * 
-     * @param {object} data - Data structure containing properties.
-     * @param {string} data.attestationId - Unique ID of the failed attestation.
-     * @param {string} data.validatorId - ID of the validator that recorded the failure.
-     * @param {string} data.reason - Concise reason for the failure.
-     * @param {number} data.timestamp - Timestamp (ms) of the failure.
-     * @param {Object<string, string>} recordSchema - The serialization/minification schema.
+     * @type {string}
      */
-    constructor(data, recordSchema) {
-        // 1. Enforce essential validation
-        if (!data || !data.attestationId || typeof data.attestationId !== 'string' || 
-            !data.validatorId || typeof data.timestamp !== 'number' || !data.reason) {
-            throw new Error("AttestationFailureRecord: Required fields missing or invalid data type.");
-        }
+    code;
 
-        // 2. Validate injected configuration dependency
-        if (!recordSchema || typeof recordSchema !== 'object' || Object.keys(recordSchema).length === 0) {
-            throw new Error("AttestationFailureRecord: Required recordSchema configuration dependency missing or invalid.");
-        }
+    /**
+     * @type {object}
+     */
+    details;
 
-        // 3. The base constructor handles property definition, immutability, and assignment,
-        // utilizing the injected schema for mapping.
-        super(data, recordSchema);
+    /**
+     * @type {string}
+     */
+    timestamp;
+
+    /**
+     * @param {string} code - Standardized error code (See AttestationErrorCodes).
+     * @param {string} message - Human-readable explanation of the error.
+     * @param {object} [details={}] - Optional data payload, often containing the full AttestationReport or system state.
+     */
+    constructor(code, message, details = {}) {
+        // Ensure the message starts with the code for quick log identification
+        super(`[${code}]: ${message}`);
+
+        this.code = code;
+        this.details = details;
+        this.name = 'AttestationFailureRecord';
+        this.timestamp = new Date().toISOString(); // Capture failure time immediately
+
+        // Capture the stack trace specific to this error instantiation.
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, AttestationFailureRecord);
+        }
     }
 
     /**
-     * Serializes the record into a minimized JSON structure.
-     * Assumes the base class (ImmutableRecordBase) implements this method 
-     * using the schema passed during construction.
-     * @returns {Object}
+     * Returns the failure record data as a serializable object for standard JSON logging.
+     * This method is automatically called by JSON.stringify().
      */
     toJSON() {
-        // Delegate serialization responsibility entirely to the base class.
-        return super.toJSON();
+        return {
+            name: this.name,
+            code: this.code,
+            message: this.message,
+            timestamp: this.timestamp,
+            details: this.details,
+            stack: this.stack
+        };
     }
-    
-    // NOTE: Static methods (fromJSON, getSchema) are removed. They introduce 
-    // synchronous dependencies on configuration (schema) and utility kernel references,
-    // and must be implemented by an external, asynchronous Factory/Tool Kernel.
 }
 
 module.exports = AttestationFailureRecord;
