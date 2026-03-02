@@ -1,28 +1,34 @@
 /**
- * IErrorDetailNormalizationToolKernel
- * 
- * Defines the high-integrity interface for adapting verbose external validation errors 
- * (e.g., Joi, Zod) into the structured, lightweight format expected by core system 
- * errors (like PayloadSchemaError). This replaces the synchronous, globally coupled 
- * ErrorDetailAdapter utility, which relied on the global `__ErrorDetailNormalizationUtility__`.
- *
- * Adherence to the AIA Enforcement Layer mandates asynchronous operation and 
- * dependency injection for all structural normalization tasks.
+ * Utility class to adapt verbose external validation errors (e.g., Joi, Zod) 
+ * into a structured, lightweight format expected by system errors like PayloadSchemaError.
+ * This decouples the governance error structure from specific validation libraries.
  */
-class IErrorDetailNormalizationToolKernel {
+class ErrorDetailAdapter {
     
     /**
-     * Maps raw external validation error objects into a normalized, structured 
-     * array of failure details.
+     * Maps raw validation error objects (which are often verbose) into a 
+     * normalized array of failure structures for the PayloadSchemaError.
      * 
-     * @param {Object} externalError - The raw validation error object.
-     * @returns {Promise<Array<{field: string, reason: string, rule: string}>>} 
-     *          A promise resolving to the structured array of failure details.
+     * @param {Object} externalError - The raw validation error object (e.g., Joi validation error).
+     * @returns {Array<{field: string, reason: string, rule: string}>} A structured array of failure details.
      */
-    async normalize(externalError) {
-        // Mandates that consumers utilize the injected interface, not static methods or globals.
-        throw new Error("IErrorDetailNormalizationToolKernel: Method 'normalize' must be implemented and called asynchronously.");
+    static normalize(externalError) {
+        if (!externalError || !externalError.details || !Array.isArray(externalError.details)) {
+            // Handle cases where the error isn't structured (return general failure)
+            return externalError ? [{
+                field: 'general',
+                reason: externalError.message || 'Unstructured validation error',
+                rule: 'ADAPTER_FAILURE'
+            }] : [];
+        }
+        
+        return externalError.details.map(detail => ({
+            // Assuming Joi-like structure for path derivation
+            field: detail.path && detail.path.length > 0 ? detail.path.join('.') : detail.context?.key || 'unknown',
+            reason: detail.message.replace(/"/g, ''), // Clean up common validation quoting
+            rule: detail.type || 'schema_type_mismatch'
+        }));
     }
 }
 
-module.exports = { IErrorDetailNormalizationToolKernel };
+module.exports = { ErrorDetailAdapter };
