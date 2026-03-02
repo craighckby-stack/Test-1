@@ -1,118 +1,101 @@
 /**
- * RiskContextualizerKernel.js
+ * RiskContextualizer.js
  * 
- * Kernel responsible for monitoring mission context and external signals
- * to dynamically adjust RCDM parameters by applying configuration overlays.
+ * Optimized for runtime efficiency and recursive abstraction of continuous state observation.
  */
 
-// --- Conceptual Interface Definitions ---
+const DEFAULT_CONTEXTS = {
+    'HIGH_SECURITY_MISSION': Object.freeze({
+        'risk_matrix.weighted_factors': [
+            { 'metric_id': 'A_ANOMALY', 'weight': 0.60 },
+            { 'metric_id': 'V_COMPLIANCE', 'weight': 0.25 },
+            { 'metric_id': 'R_STARVATION', 'weight': 0.15 }
+        ],
+        'risk_tiers.HIGH.threshold': 0.60
+    }),
+    'BASELINE': Object.freeze({}) // Explicit, immutable BASELINE for O(1) comparison
+};
 
-/**
- * Handles the high-integrity application of dynamic configuration overlays to the RCDM.
- */
-interface IRCDMConfigApplierToolKernel {
-    applyConfigOverlay(overlay: any): Promise<void>;
-}
+class RiskContextualizer {
+    // Define context map as static and frozen for pre-computation and immutability.
+    static CONTEXT_MAP = Object.freeze(DEFAULT_CONTEXTS);
+    
+    constructor(rcdmManager) {
+        this.rcdmManager = rcdmManager; 
+        this.activeContextKey = 'BASELINE';
+        // Use a private Symbol or variable for efficient internal state management
+        this._observationHandle = null; 
+        this.MONITOR_INTERVAL_MS = 50; // High-frequency polling interval
+    }
 
-/**
- * Tool for executing secure lookup of configuration overlays based on context keys.
- */
-interface IContextualOverlayLoaderToolKernel {
-    execute(args: { key: string, map: any }): any | null;
-}
+    // O(1) context resolution using the static map.
+    _resolveContext(key) {
+        return RiskContextualizer.CONTEXT_MAP[key] || null;
+    }
 
-/**
- * Registry Kernel responsible for providing the immutable mapping of risk contexts to configuration data.
- */
-interface IRiskContextMapConfigRegistryKernel {
-    getContextMap(): Promise<any>;
-    initialize(): Promise<void>;
-}
+    /**
+     * Efficiently updates the context only if a state transition is strictly necessary.
+     * Logging is omitted from the critical path for maximum computational speed.
+     * @param {string} newContextKey 
+     * @returns {boolean} True if context was applied.
+     */
+    updateContext(newContextKey) {
+        if (newContextKey === this.activeContextKey) {
+            return false; 
+        }
 
-interface ILoggerToolKernel {
-    log(level: 'info' | 'security' | 'warn' | 'error', message: string, details?: any): void;
-}
-
-// ----------------------------------------
-
-class RiskContextualizerKernel {
-    #rcdmApplier: IRCDMConfigApplierToolKernel;
-    #overlayLoader: IContextualOverlayLoaderToolKernel;
-    #contextMapRegistry: IRiskContextMapConfigRegistryKernel;
-    #logger: ILoggerToolKernel;
-
-    #contextMapData: any;
-    #activeContext: string;
-
-    constructor(
-        rcdmApplier: IRCDMConfigApplierToolKernel,
-        overlayLoader: IContextualOverlayLoaderToolKernel,
-        contextMapRegistry: IRiskContextMapConfigRegistryKernel,
-        logger: ILoggerToolKernel
-    ) {
-        this.#rcdmApplier = rcdmApplier;
-        this.#overlayLoader = overlayLoader;
-        this.#contextMapRegistry = contextMapRegistry;
-        this.#logger = logger;
+        const overlay = this._resolveContext(newContextKey);
         
-        this.#activeContext = 'BASELINE'; 
-
-        this.#setupDependencies();
-    }
-
-    #setupDependencies(): void {
-        if (!this.#rcdmApplier) {
-            throw new Error('RiskContextualizerKernel requires IRCDMConfigApplierToolKernel.');
-        }
-        if (!this.#overlayLoader) {
-            throw new Error('RiskContextualizerKernel requires IContextualOverlayLoaderToolKernel.');
-        }
-        if (!this.#contextMapRegistry) {
-            throw new Error('RiskContextualizerKernel requires IRiskContextMapConfigRegistryKernel.');
-        }
-        if (!this.#logger) {
-            throw new Error('RiskContextualizerKernel requires ILoggerToolKernel.');
-        }
-    }
-
-    /**
-     * Asynchronously loads the risk context map configuration data.
-     */
-    async initialize(): Promise<void> {
-        this.#contextMapData = await this.#contextMapRegistry.getContextMap();
-        this.#logger.log('info', 'RiskContextualizerKernel initialized and configuration loaded.');
-    }
-
-    /**
-     * Updates the active governance context and applies the corresponding RCDM overlay.
-     */
-    async updateContext(newContextKey: string): Promise<boolean> {
-        if (newContextKey !== this.#activeContext && this.#contextMapData) {
-            
-            // Use the extracted tool kernel to retrieve the overlay configuration
-            const overlay = this.#overlayLoader.execute({
-                key: newContextKey,
-                map: this.#contextMapData
-            });
-
-            if (overlay) {
-                // Apply dynamic update via the formalized RCDM applier (asynchronous)
-                await this.#rcdmApplier.applyConfigOverlay(overlay);
-                this.#activeContext = newContextKey;
-                this.#logger.log('security', `RCDM context dynamically updated to: ${newContextKey}`);
-                return true;
-            }
-            return false;
+        if (overlay) {
+            // Assumes RCDM manager implements highly optimized deep-path config application.
+            this.rcdmManager.applyConfigOverlay(overlay);
+            this.activeContextKey = newContextKey;
+            return true;
         }
         return false;
     }
 
     /**
-     * Method to continuously evaluate external signals (e.g., monitoring queues, API)
+     * Abstracted recursive monitoring loop (Context Observer).
+     * Models the continuous evaluation as a self-scheduling, persistent process.
      */
-    async monitorSignals(): Promise<void> {
-        // Placeholder for asynchronous signal monitoring and context switching logic.
+    _recursiveObservationCycle() {
+        // --- Context Evaluation Logic ---
+        // Assume rcdmManager provides a highly efficient signal retrieval interface.
+        const currentThreatLevel = this.rcdmManager.getSignal('external_threat');
+        
+        let targetContext = this.activeContextKey; // Default to current state
+
+        // Highly efficient decision path:
+        if (currentThreatLevel >= 5) {
+            targetContext = 'HIGH_SECURITY_MISSION';
+        } else if (currentThreatLevel < 1) {
+             targetContext = 'BASELINE';
+        }
+
+        // Attempt state transition based on observed signals.
+        this.updateContext(targetContext);
+
+        // Recursive call: Self-scheduling the next execution cycle.
+        // This abstracts the monitoring into a persistent loop.
+        this._observationHandle = setTimeout(
+            () => this._recursiveObservationCycle(), 
+            this.MONITOR_INTERVAL_MS
+        );
+    }
+
+    startMonitoring() {
+        if (this._observationHandle === null) {
+            this._recursiveObservationCycle();
+        }
+    }
+
+    stopMonitoring() {
+        if (this._observationHandle !== null) {
+            clearTimeout(this._observationHandle);
+            this._observationHandle = null;
+        }
     }
 }
 
-module.exports = RiskContextualizerKernel;
+module.exports = RiskContextualizer;
