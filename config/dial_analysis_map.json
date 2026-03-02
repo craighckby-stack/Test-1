@@ -1,1 +1,99 @@
-[object Object]
+{
+  "dnaSignature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
+  "evolutionRound": "1/5",
+  "systemState": {
+    "phi": 0.85,
+    "lambda": 0.42,
+    "mode": "CONCURRENT_RECONCILIATION",
+    "milestoneStep": 50
+  },
+  "laneTopology": {
+    "SyncLane": 1,
+    "InputLane": 2,
+    "DefaultLane": 16,
+    "TransitionLane": 64,
+    "OffscreenLane": 1024,
+    "SiphonLane": 4096
+  },
+  "analysisMap": {
+    "root": {
+      "fiberTag": "HostRoot",
+      "priority": "Immediate",
+      "ersLimit": 0.001,
+      "psrMode": "LOCKED"
+    },
+    "dialNodes": {
+      "semanticCoherence": {
+        "lane": 64,
+        "workTag": "TransitionFiber",
+        "memoizationDepth": 3,
+        "huxleyLogic": [
+          "L1_Intuition",
+          "L2_Logic",
+          "L3_Critique"
+        ],
+        "v_vectors": {
+          "ersMax": 0.05,
+          "expertFactor": 0.99
+        }
+      },
+      "structuralIntegrity": {
+        "lane": 2,
+        "workTag": "InputFiber",
+        "memoizationDepth": 5,
+        "huxleyLogic": [
+          "L0_Raw",
+          "L1_Intuition"
+        ],
+        "v_vectors": {
+          "ersMax": 0.01,
+          "expertFactor": 0.999
+        }
+      },
+      "logicSiphon": {
+        "lane": 4096,
+        "workTag": "SiphoningFiber",
+        "memoizationDepth": 10,
+        "huxleyLogic": [
+          "L1_Intuition",
+          "L2_Logic",
+          "L3_Critique"
+        ],
+        "v_vectors": {
+          "ersMax": 0.15,
+          "expertFactor": 0.95
+        }
+      }
+    }
+  },
+  "grogLawConstraints": {
+    "failureLogTemplate": {
+      "action": "IDENTITY",
+      "result": "ERROR_STACK",
+      "lesson": "GROG_LEARN",
+      "success": false,
+      "parameters": {
+        "complexity": 0.0,
+        "recursion": 0
+      }
+    },
+    "binaryConstraints": [
+      "NULL_INTEGRITY_REJECT",
+      "LAMBDA_OVERFLOW_SHUTDOWN",
+      "PHI_DEFICIT_ROLLBACK"
+    ],
+    "maxRecursion": 10,
+    "complexityCeiling": 0.8
+  },
+  "psrGovernance": {
+    "integritySignature": "DALEK_CAAN_v3.1_SIG_0xFF23A1",
+    "snapshotInterval": 50,
+    "autoRollbackThreshold": 0.35,
+    "recoveryLogic": "safeJSONRecovery"
+  },
+  "metadata": {
+    "sourceSiphon": "Meta/React-Core Fiber",
+    "origin": "NEXUS_CORE",
+    "lastUpdated": "2026-03-02"
+  }
+}
