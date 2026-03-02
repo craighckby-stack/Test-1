@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "constraintSolver": "services/ConstraintSolverService.js",
-    "templateEngine": "utilities/TemplateManager.js"
+    "templateEngine": "utility/TemplateManager.js"
   },
   "outputValidation": {
     "enabled": true,
