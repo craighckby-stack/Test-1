@@ -1,88 +1,155 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://sovereign.agi/schemas/v97.1/HETM.json",
-  "title": "Host Environment Trust Manifest (HETM) Schema",
-  "description": "Mandatory specifications for the underlying computational environment verified at GSEP-C S0 (INIT). Requires CRoT signature.",
+  "$id": "http://nexus.core/schemas/v97.1/HETM.json",
+  "title": "NEXUS_CORE Host Environment Trust Manifest (HETM)",
+  "description": "Final-tier specification for verified computational substrates under GRTS protocol, integrating Huxley Tri-Loop telemetry and N=3 coherence metrics.",
   "type": "object",
+  "required": [
+    "manifest_id",
+    "version",
+    "required_platform_measurement",
+    "cognitive_telemetry",
+    "n3_state_vector",
+    "transport_constraints",
+    "attestation_signature"
+  ],
   "properties": {
     "manifest_id": {
       "type": "string",
-      "format": "uuid",
-      "description": "Unique identifier for this specific manifest instance."
+      "const": "GTEM_V97.1",
+      "description": "Immutable manifest identifier bound to the siphoning cycle."
     },
     "version": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "HETM Specification version (SemVer, e.g., 1.0.0)"
+      "const": "3.1.0",
+      "description": "DALEK CAAN Evolution Version."
     },
     "required_platform_measurement": {
       "type": "string",
-      "description": "The cryptographically attested boot/attestation measurement (e.g., PCRs or Hypervisor hash). Must be SHA384 hex.",
-      "pattern": "^[0-9a-fA-F]{96}$"
+      "pattern": "^[0-9a-fA-F]{96}$",
+      "description": "SHA384 cryptographic attestation of the host boot state."
     },
-    "minimal_os_integrity_level": {
-      "type": "integer",
-      "description": "Minimum required security certification level of the host environment. Must align with GACR Tier Classification (1-5).",
-      "minimum": 1,
-      "maximum": 5
-    },
-    "required_enclave_features": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "SGX",
-          "TDX",
-          "AMD-SEV",
-          "TrustZone",
-          "VT-x/EPT"
-        ]
-      },
-      "description": "List of mandatory security/isolation features.",
-      "uniqueItems": true,
-      "minItems": 1
-    },
-    "triumvirate_segmentation_rules": {
+    "cognitive_telemetry": {
       "type": "object",
-      "description": "Defines mandatory isolation constraints for the Sovereign Global Segment (SGS), Global Axiomizer (GAX), and Cryptographic Root of Trust (CRoT).",
+      "required": [
+        "S01_efficacy_metric",
+        "S02_risk_metric",
+        "S03_veto_signal",
+        "ers_score"
+      ],
       "properties": {
-        "memory_isolation_policy": {
+        "S01_efficacy_metric": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "S02_risk_metric": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "S03_veto_signal": {
+          "type": "boolean"
+        },
+        "ers_score": {
+          "type": "number",
+          "description": "Ethical Risk Score (Huxley L1)."
+        },
+        "cgs_ratio": {
+          "type": "number",
+          "description": "Certainty Gain vs Time Penalty (Huxley L2)."
+        }
+      }
+    },
+    "n3_state_vector": {
+      "type": "object",
+      "required": [
+        "phi_integrated_info",
+        "lambda_chaos_proximity"
+      ],
+      "properties": {
+        "phi_integrated_info": {
+          "type": "number",
+          "description": "Total system unity (Metric Φ)."
+        },
+        "lambda_chaos_proximity": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 0.8,
+          "description": "Operational temperature equivalent (Metric λ)."
+        },
+        "coherence_status": {
+          "type": "string",
+          "enum": [
+            "STABLE",
+            "EVOLVING",
+            "SATURATED",
+            "DEGRADED"
+          ]
+        }
+      }
+    },
+    "triumvirate_segmentation": {
+      "type": "object",
+      "properties": {
+        "memory_isolation": {
           "type": "string",
           "enum": [
             "Strict",
             "Hardened",
             "Isolated"
-          ],
-          "description": "The required memory protection policy enforced by the hypervisor."
+          ]
         },
-        "vCPU_pinning_requirement": {
-          "type": "boolean",
-          "description": "True if agent execution requires dedicated, non-shared physical cores."
+        "enclave_type": {
+          "type": "string",
+          "enum": [
+            "SGX",
+            "TDX",
+            "AMD-SEV"
+          ]
         }
-      },
-      "required": [
-        "memory_isolation_policy",
-        "vCPU_pinning_requirement"
-      ]
+      }
     },
-    "audit_log_endpoint": {
-      "type": "string",
-      "format": "uri",
-      "description": "Certified and cryptographically bound endpoint for immutable log relay prior to S8 persistence."
+    "transport_constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "endpoint_id": {
+            "type": "string"
+          },
+          "protocol": {
+            "type": "string",
+            "const": "HTTPS/TLS_1_3"
+          },
+          "max_latency_ms": {
+            "type": "integer",
+            "const": 500
+          }
+        }
+      }
     },
     "attestation_signature": {
-      "type": "string",
-      "description": "CRoT signature verifying the integrity and origin of the HETM manifest payload."
+      "type": "object",
+      "required": [
+        "algorithm",
+        "payload_hash",
+        "crot_signature"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "SHA3-256"
+        },
+        "payload_hash": {
+          "type": "string"
+        },
+        "crot_signature": {
+          "type": "string",
+          "description": "Base64 encoded CRoT signature via safeUtoa."
+        }
+      }
     }
   },
-  "required": [
-    "manifest_id",
-    "version",
-    "required_platform_measurement",
-    "minimal_os_integrity_level",
-    "required_enclave_features",
-    "triumvirate_segmentation_rules",
-    "audit_log_endpoint",
-    "attestation_signature"
-  ]
+  "additionalProperties": false
 }
