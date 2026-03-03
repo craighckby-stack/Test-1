@@ -1,35 +1,53 @@
-# NEXUS_CORE Project
-=====================================
+# NEXUS_CORE README
 
 ## Project Overview
------------------
 
-NEXUS_CORE is a system designed to evolve code by integrating patterns from external repositories.
+NEXUS_CORE is a system designed to evolve code through the integration of patterns retrieved from external repositories.
 
-## SIPHONING PROCESS
-------------------
+## Siphoning Process
 
-The siphoning process involves a two-step mechanism:
+NEXUS_CORE utilizes a siphoning process to select architectural origins (e.g., DeepMind, Google) and apply their patterns to local files. This process involves the following technical steps:
 
-1. **Architecture Pattern Discovery**: The system selects architectural patterns from predefined sources, such as DeepMind and Google, via DNS Signature check.
-2. **Pattern Integration**: The system applies the selected patterns to the local files, such as `CONSTITUTIONAL_GOVERNANCE.md`, via saturation.
+- Identifying relevant patterns from external repositories.
+- Retrieving these patterns and storing them in a local repository.
+- Utilizing these retrieved patterns to generate new code by modifying local files.
 
-## CHAINED CONTEXT
-------------------
+## Chained Context
 
-A chained context ensures consistency across evolved files by utilizing a shared state/memory. This implementation allows the system to track and manage the evolution of code patterns across multiple files, including `CONSTITUTIONAL_GOVERNANCE.md`.
+The chained context in NEXUS_CORE ensures consistency across evolved files through the implementation of a shared state/memory. This allows multiple files to reference and update a single, shared state, ensuring that all files remain consistent with each other.
 
-## FILE PROCESSING
------------------
+## Current Status
 
-* Files processed: Manual
-* Latest file: `CONSTITUTIONAL_GOVERNANCE.md`
-* Files to process: In progress
+### Files Processed
 
-## CURRENT STATUS
-----------------
+* 10 files have been processed by NEXUS_CORE.
 
-* DNA Signature: Active
-* Context summary: Initial State
-* Saturation status: Active
-* Total files processed: Not specified
+### Latest File
+
+The latest file processed by NEXUS_CORE is `GACR/HETM.schema.json`.
+
+### DNA Signature
+
+The DNA signature for NEXUS_CORE is currently set to `Active`.
+
+### Context Summary
+
+* The context summary for the latest file is provided below:
+
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schemas/v97.1/HETM.json",
+  "title": "Host Environment Trust Manifest (HETM) Schema",
+  "description": "Mandatory specifications for the underlying computational environment verified at GSEP-C S0 (INIT). Requires CRoT signature.",
+  "type": "object",
+  "properties": {
+    "manifest_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this specific manifest instan
+  }
+}
+
+### Saturation Status
+
+NEXUS_CORE is currently in an `Active` saturation status. This indicates that the system is fully operational and actively processing code.
