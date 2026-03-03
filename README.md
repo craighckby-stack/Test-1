@@ -1,20 +1,35 @@
-# NEXUS_CORE
+# NEXUS_CORE Project
+=====================================
 
 ## Project Overview
-NEXUS_CORE is a codebase evolution system designed to integrate high-level architectural patterns from external repositories into a local environment. The system automates the structural refinement of code by identifying and applying standardized design paradigms to local source files.
+-----------------
 
-## Siphoning Process
-The siphoning process is the technical mechanism responsible for the extraction of architectural logic from external sources. The system targets specific repositories (e.g., DeepMind, Google) to analyze their structural frameworks. Once identified, these patterns are mapped and applied to local files, ensuring that the target codebase adopts the performance and organizational characteristics of the selected architectural origins.
+NEXUS_CORE is a system designed to evolve code by integrating patterns from external repositories.
 
-## Chained Context
-NEXUS_CORE implements a Chained Context architecture to maintain system-wide synchronization. This shared memory state ensures that every file within the evolved codebase remains consistent with the global architectural requirements. By preserving metadata and state across all modified components, the system prevents architectural drift and ensures functional interoperability between disparate code modules.
+## SIPHONING PROCESS
+------------------
 
-## Current Status
-The project is currently in its initial phase of deployment.
+The siphoning process involves a two-step mechanism:
 
-*   **Latest File:** `nexus_core.js`
-*   **DNA Signature:** Active
-*   **Saturation Status:** Active
-*   **Context Summary:** Initial State
-*   **Processing Mode:** Manual
-*   **Files Processed:** 1 (nexus_core.js)
+1. **Architecture Pattern Discovery**: The system selects architectural patterns from predefined sources, such as DeepMind and Google, via DNS Signature check.
+2. **Pattern Integration**: The system applies the selected patterns to the local files, such as `CONSTITUTIONAL_GOVERNANCE.md`, via saturation.
+
+## CHAINED CONTEXT
+------------------
+
+A chained context ensures consistency across evolved files by utilizing a shared state/memory. This implementation allows the system to track and manage the evolution of code patterns across multiple files, including `CONSTITUTIONAL_GOVERNANCE.md`.
+
+## FILE PROCESSING
+-----------------
+
+* Files processed: Manual
+* Latest file: `CONSTITUTIONAL_GOVERNANCE.md`
+* Files to process: In progress
+
+## CURRENT STATUS
+----------------
+
+* DNA Signature: Active
+* Context summary: Initial State
+* Saturation status: Active
+* Total files processed: Not specified
