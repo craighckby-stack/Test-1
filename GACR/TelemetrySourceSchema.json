@@ -1,9 +1,10 @@
 {
   "$id": "GACR/TelemetrySourceSchema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Telemetry Aggregation Output Schema",
-  "description": "Defines the required structure for data ingested by the Constraint Validator from the Aggregator.",
+  "title": "NEXUS_CORE Telemetry Aggregator Schema (Fiber-Augmented)",
+  "description": "Hierarchical semantic telemetry schema utilizing React-Fiber reconciliation and OOXML-DocX relational mapping logic.",
   "type": "array",
+  "mc:Ignorable": "nx mce react fiber lanes scheduler",
   "items": {
     "type": "object",
     "properties": {
@@ -12,8 +13,22 @@
       "timestamp_ms": { "type": "integer", "format": "int64", "description": "Aggregation timestamp." },
       "metric_value": { "type": ["number", "string", "boolean"], "description": "The extracted metric value." },
       "data_type": { "type": "string", "enum": ["GAUGE", "COUNTER", "BOOLEAN", "HISTOGRAM"] },
-      "source_metadata": { "type": "object", "additionalProperties": true, "description": "Raw metadata about the data collection." }
+      "rId": { "type": "string", "description": "Relationship ID mapping to external part URI in _rels manifest." },
+      "fiber_context": {
+        "type": "object",
+        "properties": {
+          "lane": { "type": "string", "description": "React-inspired concurrent lane for update prioritization." },
+          "pStyle": { "type": "string", "description": "Cascading style inheritance ID for telemetry formatting." },
+          "expiration_ms": { "type": "integer", "description": "Fiber-level time limit before work is committed." },
+          "memoize": { "type": "boolean", "default": true }
+        }
+      },
+      "source_metadata": { 
+        "type": "object", 
+        "additionalProperties": true, 
+        "description": "Raw metadata including docx:coreProperties and react:flags." 
+      }
     },
-    "required": ["constraint_id", "monitor_id", "timestamp_ms", "metric_value", "data_type"]
+    "required": ["constraint_id", "monitor_id", "timestamp_ms", "metric_value", "data_type", "rId"]
   }
 }
