@@ -1,24 +1,34 @@
 {
   "nexus_core": {
-    "version": "3.1.0",
+    "version": "3.2.0",
     "signature": "ARCH-OOXML-V2-DOCX-DNA",
     "identity": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
       "mechanism": "Siphoning patterns from advanced codebases",
       "origin": "NEXUS_CORE"
-    }
+    },
+    "siphon_source": "microsoft/TypeScript"
   },
   "package_manifest": {
     "parts": [
       {
         "uri": "/GACR/AdaptiveSamplingEngine.ts",
         "contentType": "application/vnd.nexus.siphon.engine.v3+ts",
-        "rId": "rId1"
+        "rId": "rId1",
+        "metadata": {
+          "kind": "source",
+          "emit": "ESNext",
+          "checkJs": false
+        }
       },
       {
         "uri": "/governance/SATURATION.md",
         "contentType": "application/vnd.nexus.governance.saturation+md",
-        "rId": "rId2"
+        "rId": "rId2",
+        "metadata": {
+          "kind": "config",
+          "immutable": true
+        }
       }
     ],
     "relationships": [
@@ -32,21 +42,38 @@
         "type": "http://schemas.nexus.org/core/2026/relationships/governance",
         "target": "SATURATION.md"
       }
+    ],
+    "project_references": [
+      {
+        "path": "../NEXUS_CORE/Types",
+        "rId": "rIdRef1",
+        "circular_dependency_check": true
+      }
     ]
   },
-  "siphon_options": {
-    "compiler": "microsoft/TypeScript-v5.x",
-    "target_ecmascript": "ESNext",
-    "module_resolution": "node",
-    "strict_hhh_compliance": true,
-    "experimental_decorators": true,
-    "emit_decorator_metadata": true,
-    "skip_lib_check": true,
+  "compiler_options": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictPropertyInitialization": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "cascading_inheritance": {
       "enabled": true,
       "resolver": "CascadingStyleResolver",
-      "default_pPr": "Normal",
-      "default_rPr": "StandardText"
+      "extends": "base-siphon-policy.json"
+    }
+  },
+  "diagnostics_engine": {
+    "enable_semantic_checks": true,
+    "strict_hhh_compliance": true,
+    "drift_threshold": 0.35,
+    "saturation_level": 2,
+    "emergency_brake": {
+      "corruption_threshold": 5,
+      "log_target": "NEXUS_LOG.txt"
     }
   },
   "state_machine": {
@@ -60,13 +87,6 @@
             "numFmt": "decimal",
             "lvlText": "%1.",
             "lvlJc": "left"
-          },
-          {
-            "ilvl": 1,
-            "start": 1,
-            "numFmt": "alphaLowe",
-            "lvlText": "(%2)",
-            "lvlJc": "left"
           }
         ]
       }
@@ -76,33 +96,26 @@
         "numId": "101",
         "abstractNumId": "0"
       }
-    ]
-  },
-  "capability_saturation": {
-    "level": 2,
-    "mode": "STANDARD",
-    "thresholds": {
-      "structural": 0.4,
-      "semantic_drift": 0.35,
-      "velocity_max_files": 50
-    },
-    "emergency_brake": {
-      "corruption_threshold": 5,
-      "log_target": "NEXUS_LOG.txt"
+    ],
+    "symbol_table": {
+      "rId1": "EngineCore",
+      "rId2": "GovSaturate",
+      "rIdRef1": "TypeDefinitions"
     }
   },
   "markup_compatibility": {
-    "ignorable": "ve o r v",
+    "ignorable": "ve o r v ts",
     "namespaces": {
       "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-      "aim": "http://schemas.nexus.org/agi/instantiation/2026/main"
+      "aim": "http://schemas.nexus.org/agi/instantiation/2026/main",
+      "ts": "http://schemas.microsoft.com/typescript/2026/main"
     }
   },
   "metadata": {
-    "author": "DALEK_CAAN_V3.1",
-    "last_mutation": "2026-03-02T04:00:00Z",
-    "evolution_round": 1,
-    "status": "STABLE"
+    "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
+    "last_mutation": "2026-03-02T04:30:00Z",
+    "evolution_round": 2,
+    "status": "MUTATED_STABLE"
   }
 }
