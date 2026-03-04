@@ -1,106 +1,166 @@
 {
-  "mc:Ignorable": "dalek_ext nx_mce",
+  "mc:Ignorable": "dalek_ext nx_mce react fiber lanes mce",
   "namespaces": {
     "nx": "https://nexus-core.agi/governance",
     "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006",
-    "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+    "react": "https://react.dev/core/reconciliation",
+    "fiber": "https://react.dev/core/fiber-tree"
   },
   "metadata": {
-    "manifest_id": "GACR_MODEL_TIER_MAPPING_V2.1",
-    "version": "2.1.0-EVOLVE-1",
+    "manifest_id": "GACR_MODEL_TIER_MAPPING_V2.2",
+    "version": "2.2.0-EVOLVE-2",
     "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-    "evolution_round": 1,
+    "evolution_round": 2,
     "saturation_level": 2,
     "identity_anchors": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
       "origin": "NEXUS_CORE",
-      "mechanism": "Siphoning patterns from DeepSeek-Coder / OOXML-DocX"
+      "mechanism": "Siphoning patterns from DeepSeek-Coder / OOXML-DocX",
+      "memory": "Chained context across files — the system is one organism"
     }
   },
   "settings": {
     "cascading_inheritance": {
       "enabled": true,
+      "resolver_logic": "RecursiveFlatten",
       "docDefaults": {
         "tierPr": {
           "priority_level": 3,
           "sla_target_ms": 500,
           "redundancy_level": "SingleRegion",
           "availability": 0.995,
-          "nx:governance_mode": "Passive"
+          "nx:governance_mode": "Passive",
+          "fiber:workTag": "HostComponent"
         }
       }
+    },
+    "mce_compatibility": {
+      "process_unknown_namespaces": "Ignorable",
+      "fallback_logic": "DeepSeek_Heuristic_Match"
     }
   },
   "abstractTierDefinitions": [
     {
       "abstractId": "0",
       "name": "CRITICAL_CORE_P1",
+      "ilvl": 0,
       "tierPr": {
         "priority_level": 1,
         "sla_target_ms": 50,
         "redundancy_level": "GeoRedundant",
         "availability": 0.9999,
-        "nx:governance_mode": "Strict"
+        "nx:governance_mode": "Strict",
+        "lanes:priority": "Sync"
       }
     },
     {
       "abstractId": "1",
       "name": "STANDARD_PROD_P2",
+      "ilvl": 0,
       "tierPr": {
         "priority_level": 2,
         "sla_target_ms": 200,
         "redundancy_level": "RegionalActivePassive",
-        "availability": 0.999
+        "availability": 0.999,
+        "lanes:priority": "Default"
       }
     }
   ],
-  "tierInstances": [
+  "tierInstanceMapping": [
     {
       "numId": "101",
       "abstractId": "0",
       "rId": "rId_R001",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "fiber:key": "tier-critical-01"
     },
     {
       "numId": "102",
       "abstractId": "1",
       "rId": "rId_R002",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "fiber:key": "tier-standard-02"
     }
   ],
+  "logical_structure": {
+    "body": [
+      {
+        "type": "Block",
+        "pStyle": "TierContainer_Primary",
+        "content_ref": "Core Model Routing Logic",
+        "pPr": {
+          "jc": "both",
+          "react:context": "TierRoutingProvider"
+        }
+      },
+      {
+        "type": "Inline",
+        "rStyle": "LogicRun_HighPriority",
+        "rPr": {
+          "bold": true,
+          "react:useHook": "useTierReconciliation"
+        },
+        "terminal": {
+          "is_field": true,
+          "field_logic": "DYNAMIC_SLA_CHECK",
+          "value": "ACTIVE_LOAD_BALANCING"
+        }
+      }
+    ]
+  },
   "relationships": [
     {
       "rId": "rId_R001",
       "type": "https://nexus-core.agi/tier/assignment",
       "target": "CRITICAL_CORE_P1",
+      "targetMode": "Internal",
       "rule": {
         "rule_id": "R001_CoreFinancial",
         "criteria": {
           "match_type": "exact_id",
-          "values": ["UUID_CORE_SERVICE_X"]
+          "values": [
+            "UUID_CORE_SERVICE_X"
+          ]
         },
-        "rationale": "Explicit core engine siphoning."
+        "rationale": "Explicit core engine siphoning with Fiber reconciliation."
       }
     },
     {
       "rId": "rId_R002",
       "type": "https://nexus-core.agi/tier/assignment",
       "target": "STANDARD_PROD_P2",
+      "targetMode": "Internal",
       "rule": {
         "rule_id": "R002_StandardProd",
         "criteria": {
           "match_type": "tag_match",
           "tags": [
-            { "key": "environment", "operator": "equals", "value": "production" },
-            { "key": "system_sensitivity", "operator": "not_equals", "value": "low" }
+            {
+              "key": "environment",
+              "operator": "equals",
+              "value": "production"
+            },
+            {
+              "key": "system_sensitivity",
+              "operator": "not_equals",
+              "value": "low"
+            }
           ]
         }
       }
+    },
+    {
+      "rId": "rId_Settings",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings",
+      "target": "word/settings.xml",
+      "targetMode": "Internal"
     }
   ],
   "diagnostics": {
-    "semantic_drift_check": 0.12,
+    "semantic_drift_check": 0.18,
     "structure_integrity": "OK",
-    "mce_compatibility": "PASS"
+    "mce_compatibility": "PASS",
+    "fiber_tree_health": "OPTIMAL"
   }
 }
