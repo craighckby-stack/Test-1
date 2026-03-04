@@ -1,45 +1,94 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "GACR/Schemas/APITelemetry.json",
-  "title": "API Performance Metrics Telemetry Schema",
+  "title": "API Performance Metrics Telemetry Schema [NEXUS_CORE v3.1 MUTATION_1]",
+  "description": "Architectural evolution: Siphoning React-Fiber reconciliation and OOXML Relationship (RID) logic for high-granularity telemetry state mapping.",
   "type": "object",
+  "mc:Ignorable": "nx mce react fiber lanes scheduler w r",
+  "namespaces": {
+    "nx": "https://nexus-core.agi/governance",
+    "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+    "react": "https://react.dev/core/reconciliation",
+    "fiber": "https://react.dev/core/fiber-tree",
+    "lanes": "https://react.dev/core/concurrent-lanes",
+    "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  },
   "properties": {
     "timestamp_ms": {
       "type": "integer",
-      "description": "Unix timestamp of the measurement."
+      "description": "Terminal state Unix timestamp for telemetry atomization."
     },
-    "metrics": {
+    "telemetry_context": {
       "type": "object",
       "properties": {
-        "latency": {
-          "type": "object",
-          "properties": {
-            "ms": {
-              "type": "number",
-              "format": "float",
-              "description": "The specific metric utilized in data_path: 95th percentile latency."
-            },
-            "p99": {
-              "type": "number",
-              "format": "float",
-              "description": "99th percentile latency in milliseconds."
+        "r:id": { "type": "string", "pattern": "^rId[0-9]+$" },
+        "fiber:mode": { "type": "integer", "enum": [0, 1, 2, 4, 8], "description": "ConcurrentMode = 1, BlockingMode = 2" },
+        "lanes:active": { "type": "string", "description": "Bitmask of active lanes for this telemetry slice." }
+      }
+    },
+    "metrics_fiber_tree": {
+      "type": "array",
+      "description": "Hierarchical Semantic Serialization of performance metrics as a Fiber Tree.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fiber:tag": { "type": "integer", "description": "WorkTag (FunctionComponent, HostRoot, etc.)" },
+          "fiber:key": { "type": "string" },
+          "w:pPr": { "$ref": "#/$defs/paragraphProperties" },
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "latency": {
+                "type": "object",
+                "properties": {
+                  "ms": { "type": "number" },
+                  "p99": { "type": "number" },
+                  "w:rPr": { "$ref": "#/$defs/runProperties" }
+                },
+                "required": ["ms"]
+              },
+              "errors_per_second": { "type": "integer" }
             }
           },
-          "required": [
-            "ms"
-          ]
-        },
-        "errors_per_second": {
-          "type": "integer"
+          "child": { "type": "array", "items": { "$ref": "#/properties/metrics_fiber_tree/items" } }
         }
-      },
-      "required": [
-        "latency"
-      ]
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "description": "Indirection Dependency Layer for external telemetry parts (media/logs).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rId": { "type": "string" },
+          "type": { "type": "string", "format": "uri" },
+          "target": { "type": "string" }
+        },
+        "required": ["rId", "type", "target"]
+      }
     }
   },
   "required": [
     "timestamp_ms",
-    "metrics"
-  ]
+    "telemetry_context",
+    "metrics_fiber_tree"
+  ],
+  "$defs": {
+    "paragraphProperties": {
+      "type": "object",
+      "properties": {
+        "w:jc": { "type": "string", "description": "Alignment of telemetry data flow (start, center, end, both)." },
+        "scheduler:priority": { "type": "string", "enum": ["Immediate", "UserBlocking", "Normal", "Low", "Idle"] }
+      }
+    },
+    "runProperties": {
+      "type": "object",
+      "properties": {
+        "w:color": { "type": "string", "description": "Semantic threshold color (Hex)." },
+        "w:sz": { "type": "integer", "description": "Weight/Magnitude of the metric." },
+        "react:memoize": { "type": "boolean", "default": true }
+      }
+    }
+  }
 }
