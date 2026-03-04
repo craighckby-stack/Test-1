@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://gacr.agi/schemas/ecvm_tis_v10.2.0.json",
-  "title": "NEXUS_CORE Registry - ECVM_TIS - Evolution Round 3/5 - SEMANTIC_ATOMIZATION",
-  "description": "Implementation of atomized semantic tree logic and indirection dependency layers. Integrates TypeScript 5.4+ incremental build metadata with OOXML-style recursive cascading properties.",
-  "manifest_id": "CMR_V10.2.0_TIS_EVO_3",
+  "title": "NEXUS_CORE Registry - ECVM_TIS - Evolution Round 4/5 - ARCHITECTURAL_CONVERGENCE",
+  "description": "Integration of TypeScript 5.4+ project-reference architectures with OOXML Relational Dependency Mapping (RID). Implements cascading inheritance and atomized semantic layers for convergence.",
+  "manifest_id": "CMR_V10.2.0_TIS_EVO_4",
   "owner": "NEXUS_CORE Identity Anchor: DALEK_CAAN_v3.1",
   "markup_compatibility": {
     "ignorable": "dalek v3 nx_ext mce",
@@ -20,31 +20,25 @@
     {
       "rId": "rId1",
       "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
-      "target": "styles/GlobalTelemetryStyles.json",
+      "target": "styles/ConvergenceStyles.json",
       "targetMode": "Internal"
     },
     {
       "rId": "rId2",
-      "type": "https://nexus-core.agi/relationships/telemetry_source",
-      "target": "schemas/APITelemetry.json",
+      "type": "https://nexus-core.agi/relationships/model_definition",
+      "target": "models/huxley_v5_evolution.json",
       "targetMode": "Internal"
     },
     {
       "rId": "rId3",
-      "type": "https://nexus-core.agi/relationships/telemetry_source",
-      "target": "schemas/ResourceTelemetry.json",
+      "type": "https://nexus-core.agi/relationships/diagnostic_rules",
+      "target": "diagnostics/precision_gate.json",
       "targetMode": "Internal"
     },
     {
       "rId": "rId4",
       "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings",
       "target": "settings/ECVM_Settings.json",
-      "targetMode": "Internal"
-    },
-    {
-      "rId": "rId8",
-      "type": "https://nexus-core.agi/relationships/diagnostic_rules",
-      "target": "diagnostics/precision_gate.json",
       "targetMode": "Internal"
     },
     {
@@ -86,41 +80,46 @@
       }
     }
   },
+  "references": [
+    {
+      "path": "./core/logic_gate",
+      "rId": "rId5",
+      "resolution_mode": "node",
+      "circular_dependency_gate": "Strict"
+    },
+    {
+      "path": "./governance/saturation_engine",
+      "rId": "rId7",
+      "resolution_mode": "bundler",
+      "circular_dependency_gate": "Strict"
+    }
+  ],
   "parts": [
     {
-      "id": "TELEMETRY_SUBSTRATE_PART",
-      "rId": "rId5",
+      "id": "CONVERGED_SUBSTRATE_PART",
+      "rId": "rId2",
       "status": "Active",
       "atomized_layers": [
         {
           "layer_type": "Block",
           "pPr": {
-            "pStyle": { "type": "string", "val": "HighPriorityIngestion", "inheritance": "Override" },
+            "pStyle": { "type": "string", "val": "ConvergedLogic", "inheritance": "Override" },
             "numPr": { "type": "rid_ref", "val": "numId:1", "ilvl": 0 }
           },
-          "source_mapping": {
-            "source_id": "API_PERF_SIPHON",
-            "rId_ref": "rId2",
-            "vector_path": "metrics.latency.ms"
-          }
+          "content_ref": "HUXLEY_CORE_V5_EVOLUTION"
         },
         {
           "layer_type": "Inline",
-          "rPr": { 
-            "bold": { "type": "boolean", "val": true }, 
+          "rPr": {
+            "bold": { "type": "boolean", "val": true },
             "color": { "type": "string", "val": "00FF23" },
-            "spacing": { "type": "integer", "val": 20 },
-            "rStyle": { "val": "EmphasisLogic" }
+            "spacing": { "type": "integer", "val": 20 }
           },
-          "source_mapping": {
-            "source_id": "METABOLIC_RESOURCE_FEED",
-            "rId_ref": "rId3",
-            "vector_path": "resource_pool.utilization_summary"
-          }
+          "content_ref": "SYNAPTIC_PRECISION_LAYER_4"
         },
         {
           "layer_type": "Terminal",
-          "rPr": { 
+          "rPr": {
             "sz": { "type": "integer", "val": 24 },
             "highlight": { "val": "black" },
             "vertAlign": { "type": "string", "val": "baseline" }
@@ -139,7 +138,7 @@
             "ilvl": 0,
             "start": 1,
             "numFmt": "decimal",
-            "lvlText": "Telemetry Path %1:",
+            "lvlText": "Evolution Path %1:",
             "lvlJc": "left"
           },
           {
@@ -179,8 +178,8 @@
   },
   "metadata": {
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
-    "evolution_round": 3,
-    "status": "SEMANTIC_ATOMIZATION_COMPLETE",
+    "evolution_round": 4,
+    "status": "ARCHITECTURAL_CONVERGENCE_STAGING",
     "opc_compliant": true,
     "anchors": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
@@ -189,6 +188,6 @@
       "governance": "Human oversight active - Level 2 Standard Saturation",
       "origin": "NEXUS_CORE"
     },
-    "last_mutation": "2026-03-06T09:15:00Z"
+    "last_mutation": "2026-03-08T14:45:00Z"
   }
 }
