@@ -1,11 +1,11 @@
 {
   "$schema": "https://gacr.agi/schemas/ecvm_tis_v10.5.0_final.json",
-  "$id": "https://gacr.agi/mqm/metric_catalog_v10.5.json",
+  "$id": "https://gacr.agi/mqm/metric_catalog_v10.5.4_evolution.json",
   "metadata": {
-    "manifest_id": "MQM_CATALOG_V10.5.0_FINAL",
-    "version": "10.5.7-EVO_ROUND_3",
+    "manifest_id": "MQM_CATALOG_V10.5.4_EVO",
+    "version": "10.5.8-EVO_ROUND_4",
     "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-    "evolution_round": 3,
+    "evolution_round": 4,
     "saturation_level": 2,
     "metabolic_rate": "STANDARD",
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
@@ -17,7 +17,7 @@
       "origin": "NEXUS_CORE"
     },
     "markup_compatibility": {
-      "mc:Ignorable": "dalek react nx_ext mce fiber scheduler lanes",
+      "mc:Ignorable": "dalek react nx_ext fiber scheduler lanes mce",
       "namespaces": {
         "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
         "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
@@ -25,7 +25,8 @@
         "react": "https://react.dev/core/reconciliation",
         "fiber": "https://react.dev/core/fiber-tree",
         "scheduler": "https://react.dev/core/scheduler",
-        "lanes": "https://react.dev/core/concurrent-lanes"
+        "lanes": "https://react.dev/core/concurrent-lanes",
+        "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006"
       }
     }
   },
@@ -37,7 +38,8 @@
         "pPr": {
           "jc": { "val": "both" },
           "spacing": { "val": 12, "unit": "hrs" },
-          "lanes:priority": "Normal"
+          "ind": { "val": 0 },
+          "lanes:priority": "Default"
         },
         "rPr": {
           "sz": 11,
@@ -45,14 +47,15 @@
           "lang": { "val": "en-AGI" },
           "react:memoize": true,
           "fiber:workTag": "HostComponent",
-          "scheduler:priorityLevel": "Immediate"
+          "scheduler:priorityLevel": "Normal"
         }
       }
     },
     "concurrency_settings": {
       "enable_suspense": true,
       "transition_timeout_ms": 5000,
-      "hydration_strategy": "Progressive"
+      "hydration_strategy": "Progressive",
+      "batch_updates": true
     }
   },
   "relationships": [
@@ -85,6 +88,12 @@
       "type": "https://react.dev/core/scheduler-registry",
       "target": "GACR/lib/scheduler_runtime.ts",
       "targetMode": "Internal"
+    },
+    {
+      "rId": "rId_Styles",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
+      "target": "GACR/MQM_StyleSheet.json",
+      "targetMode": "Internal"
     }
   ],
   "metric_parts": [
@@ -97,8 +106,11 @@
       "atomized_layers": [
         {
           "layer_type": "Block",
-          "pStyle": "StandardMetricContainer",
-          "pPr": { "jc": "left" },
+          "pStyle": "MetricContainer_Primary",
+          "pPr": {
+            "jc": "left",
+            "spacing": { "val": 24 }
+          },
           "content_ref": "Storage Latency Subsystem"
         },
         {
@@ -110,7 +122,7 @@
           },
           "rPr": {
             "key": "p99_read_ms",
-            "unit": "Percentage Violation",
+            "unit": "ms",
             "react:useHook": "useDeferredValue",
             "lanes:assignment": "0b0000000000000000000000000000010"
           },
@@ -129,7 +141,7 @@
           "layer_type": "Block",
           "pPr": {
             "jc": "both",
-            "spacing": { "val": 24 }
+            "spacing": { "val": 12 }
           },
           "content_ref": "Statistical Drift Detection"
         },
@@ -143,9 +155,16 @@
           "rPr": {
             "key": "drift_alarm_count",
             "effect": "useDriftReconciliation",
-            "fiber:updateQueue": "Immediate"
-          },
-          "description": "Number of confirmed severe statistical model drift alarms."
+            "fiber:updateQueue": "Immediate",
+            "bold": true
+          }
+        },
+        {
+          "layer_type": "Terminal",
+          "is_field": true,
+          "field_type": "DynamicCounter",
+          "field_logic": "ABSOLUTE_COUNT_MAX(1)",
+          "content_ref": "DRIFT_RECONCILIATION_STATE"
         }
       ]
     },
@@ -157,6 +176,11 @@
       "numId": "1",
       "ilvl": 0,
       "atomized_layers": [
+        {
+          "layer_type": "Block",
+          "inheritance": "Inherit",
+          "content_ref": "Demographic Parity Guardrail"
+        },
         {
           "layer_type": "Terminal",
           "is_field": true,
@@ -213,6 +237,25 @@
         "Idle": "0b1000000000000000000000000000000"
       },
       "work_loop": "RequestIdleCallback"
+    }
+  },
+  "diagnostics_engine": {
+    "semantic_drift_threshold": 0.35,
+    "saturation_level": 2,
+    "validation_rules": [
+      "NoOrphanedRIds",
+      "StyleChainResolution",
+      "NamespaceValidityCheck",
+      "ProjectBoundaryCheck",
+      "StrictHHHCompliance",
+      "SemanticContinuityCheck",
+      "MceCompatibilityCheck",
+      "FiberTreeIntegrity"
+    ],
+    "emergency_brake": {
+      "corruption_threshold": 5,
+      "auto_halt": true,
+      "log_target": "NEXUS_LOG.txt"
     }
   }
 }
