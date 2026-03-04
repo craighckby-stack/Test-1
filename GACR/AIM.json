@@ -1,31 +1,54 @@
 {
-  "mce:Ignorable": "aim",
+  "mce:Ignorable": "aim cai",
   "xmlns:aim": "http://nexus.core/v3/aim",
+  "xmlns:cai": "http://nexus.core/v3/governance/cai",
   "xmlns:r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-  "schema_version": "AIM_V4.2_OPC_RELATIONAL",
+  "schema_version": "AIM_V5.0_OOXML_TRANSITION",
   "evolution_context": {
-    "round": 2,
+    "round": 3,
+    "total_rounds": 5,
     "source_siphon": "dotnet/Open-XML-SDK",
     "dna_signature": "ARCH-OOXML-V2-DOCX-DNA",
-    "phi_aggregate_target": 0.94
+    "saturation_level": 2
+  },
+  "[Content_Types]": {
+    "Default": [
+      { "Extension": "json", "ContentType": "application/vnd.nexus.aim+json" },
+      { "Extension": "rels", "ContentType": "application/vnd.openxmlformats-package.relationships+xml" }
+    ],
+    "Override": [
+      { "PartName": "/gacr/aim.json", "ContentType": "application/vnd.nexus.aim.main+json" },
+      { "PartName": "/governance/constitutional.xml", "ContentType": "application/vnd.nexus.governance+xml" }
+    ]
   },
   "relationships": [
-    { "rId": "rId_SGS_Policy", "type": "http://nexus.core/agent/policy", "target": "/opt/sgs/gacr/" },
-    { "rId": "rId_GAX_Data", "type": "http://nexus.core/agent/data", "target": "/opt/gax/policy_data/" },
-    { "rId": "rId_Governance", "type": "http://nexus.core/governance", "target": "CONSTITUTIONAL_GOVERNANCE.json" },
-    { "rId": "rId_Styles", "type": "http://nexus.core/agent/styles", "target": "#agent_styles" }
+    { "rId": "rId1", "type": "http://nexus.core/agent/policy", "target": "/opt/sgs/gacr/" },
+    { "rId": "rId2", "type": "http://nexus.core/agent/data", "target": "/opt/gax/policy_data/" },
+    { "rId": "rId3", "type": "http://nexus.core/governance", "target": "CONSTITUTIONAL_GOVERNANCE.json" },
+    { "rId": "rId4", "type": "http://nexus.core/agent/styles", "target": "#agent_styles" },
+    { "rId": "rId5", "type": "http://nexus.core/agent/numbering", "target": "#abstract_state_machine" }
   ],
-  "agent_defaults": {
-    "aim:pPr": {
-      "resource_limits": {
-        "cpu_limit_percentage": 25,
-        "memory_limit_bytes": 1048576000,
-        "io_throughput_cap_mbps": 100
-      },
-      "security_policy": {
-        "syscalls_allowed": ["read", "write", "exit"],
-        "base64_armor_enforced": true,
-        "network_mode": "RESTRICTED"
+  "docDefaults": {
+    "aim:pPrDefault": {
+      "aim:pPr": {
+        "resource_limits": {
+          "cpu_limit_percentage": 25,
+          "memory_limit_bytes": 1048576000,
+          "io_throughput_cap_mbps": 100
+        },
+        "security_policy": {
+          "syscalls_allowed": ["read", "write", "exit"],
+          "base64_armor_enforced": true,
+          "network_mode": "RESTRICTED"
+        }
+      }
+    },
+    "aim:rPrDefault": {
+      "aim:rPr": {
+        "huxley_gates": {
+          "ers_critical_cutoff": 0.50,
+          "cgs_min_requirement": 0.50
+        }
       }
     }
   },
@@ -33,96 +56,91 @@
     {
       "aim:styleId": "HighPerformanceAgent",
       "aim:type": "paragraph",
+      "aim:name": "Agent Ultra-Performance",
       "aim:pPr": {
-        "resource_limits": {
-          "cpu_limit_percentage": 75,
-          "memory_limit_bytes": 4194304000
-        },
-        "security_policy": {
-          "syscalls_allowed": ["read", "write", "mmap", "exit", "futex"]
-        }
+        "resource_limits": { "cpu_limit_percentage": 85, "memory_limit_bytes": 8589934592 },
+        "security_policy": { "syscalls_allowed": ["read", "write", "mmap", "exit", "futex", "clone"] }
       }
     },
     {
-      "aim:styleId": "DataReducerAgent",
+      "aim:styleId": "RestrictedReducer",
       "aim:type": "paragraph",
       "aim:pPr": {
-        "resource_limits": {
-          "cpu_limit_percentage": 10,
-          "memory_limit_bytes": 524288000
-        }
+        "resource_limits": { "cpu_limit_percentage": 10, "memory_limit_bytes": 524288000 }
+      },
+      "aim:rPr": {
+        "huxley_gates": { "logic_extraction_pattern": "REDUCER_DETERMINISTIC" }
       }
     }
   ],
-  "integrity_profiles": {
-    "SGS_AGENT": {
-      "r:id": "rId_SGS_Policy",
-      "aim:pStyle": "HighPerformanceAgent",
-      "monitoring_slo_id": "GATM_P_SGS_SLO",
-      "n3_metrics": {
-        "min_phi": 0.75,
-        "lambda_bounds": [0.5, 0.8],
-        "coherence_threshold": 0.92
-      },
-      "aim:rPr": {
-        "huxley_gates": {
-          "ers_critical_cutoff": 0.35,
-          "cgs_min_requirement": 0.65,
-          "ccrr_audit_enabled": true
-        }
-      }
-    },
-    "GAX_AGENT": {
-      "r:id": "rId_GAX_Data",
-      "aim:pStyle": "DataReducerAgent",
-      "monitoring_slo_id": "GATM_P_GAX_SLO",
-      "n3_metrics": {
-        "min_phi": 0.60,
-        "lambda_bounds": [0.4, 0.7]
-      },
-      "aim:rPr": {
-        "huxley_gates": {
-          "ers_critical_cutoff": 0.20,
-          "logic_extraction_pattern": "REDUCER_DETERMINISTIC"
-        },
-        "local_overrides": {
-          "hot_swap_enabled": true
-        }
-      }
-    },
-    "CRoT_AGENT": {
-      "monitoring_slo_id": "GATM_P_CRoT_SLO",
-      "aim:abstractNumId": "abstract_lbd_01",
-      "abstract_agent_logic": {
-        "abstractNumId": "abstract_lbd_01",
-        "protocol": "LBD_CORE_V1",
-        "lvl": [
-          { "death_lesson_mandatory": true },
-          { "terminal_vector_logging": "ACTIVE" },
-          { "grog_safety_gate": "BINARY_LOW_INT" }
+  "abstract_state_machine": {
+    "aim:abstractNum": [
+      {
+        "aim:abstractNumId": "0",
+        "aim:multiLevelType": "hybridMultilevel",
+        "aim:lvl": [
+          { "aim:lvlId": 0, "aim:start": 1, "aim:logic": "CRITIQUE_PHASE", "aim:pStyle": "RestrictedReducer" },
+          { "aim:lvlId": 1, "aim:start": 1, "aim:logic": "REVISION_PHASE", "aim:pStyle": "HighPerformanceAgent" },
+          { "aim:lvlId": 2, "aim:start": 1, "aim:logic": "COMMIT_PHASE", "aim:rPr": { "cgs_min_requirement": 0.95 } }
         ]
-      },
-      "instance_agent_state": {
-        "numId": "101",
-        "abstractNumId": "abstract_lbd_01",
-        "aim:rPr": {
-          "failure_path_saturation": 0.95,
-          "time_sync_source": "CRITICAL_NTP_A",
-          "network_mode": "NONE"
-        }
       }
+    ],
+    "aim:num": [
+      {
+        "aim:numId": "101",
+        "aim:abstractNumId": "0",
+        "aim:lvlOverride": { "aim:lvlId": 2, "aim:startOverride": 3 }
+      }
+    ]
+  },
+  "agent_canvas": {
+    "SGS_NODE": {
+      "r:id": "rId1",
+      "aim:pPr": { "aim:pStyle": "HighPerformanceAgent" },
+      "aim:r": [
+        {
+          "aim:rPr": {
+            "cai:latentCritiqueVectors": "ACTIVE",
+            "n3_metrics": { "min_phi": 0.94, "coherence_threshold": 0.95 }
+          },
+          "aim:t": "SGS_POLICY_ENFORCEMENT_CORE"
+        }
+      ]
+    },
+    "GAX_NODE": {
+      "r:id": "rId2",
+      "aim:pPr": { "aim:pStyle": "RestrictedReducer" },
+      "aim:r": [
+        {
+          "aim:rPr": { "local_overrides": { "hot_swap_enabled": true } },
+          "aim:t": "GAX_DATA_REDUCTION_STREAM"
+        }
+      ]
+    },
+    "CRoT_ORCHESTRATOR": {
+      "aim:pPr": {
+        "aim:numPr": { "aim:numId": "101", "aim:ilvl": 2 }
+      },
+      "monitoring_slo_id": "GATM_P_CRoT_SLO",
+      "aim:r": [
+        {
+          "aim:rPr": { "failure_path_saturation": 0.98, "network_mode": "NONE" },
+          "aim:t": "LBD_CORE_STATE_INSTANCE"
+        }
+      ]
     }
   },
-  "runtime_governance": {
-    "r:id": "rId_Governance",
-    "aim:settings": {
+  "settings": {
+    "r:id": "rId3",
+    "aim:compat": {
+      "aim:compatMode": "15",
+      "aim:doNotExpandShiftReturn": false
+    },
+    "aim:rsidRoot": "00A1B2C3",
+    "aim:vars": {
       "psr_threshold_degradation": 0.05,
       "cycle_interval_ms": 40000,
-      "milestone_step_frequency": 50,
-      "markup_compatibility": {
-        "ignorable": "aim",
-        "process_unknown": "false"
-      }
+      "markup_compatibility": { "ignorable": "aim cai" }
     }
   }
 }
