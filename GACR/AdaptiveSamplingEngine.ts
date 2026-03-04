@@ -1,39 +1,120 @@
-**EXECUTE ROUND 7 MUTATION PROTOCOL**
+import { 
+  RelationshipId, 
+  SamplingState, 
+  SiphonContext, 
+  PolicyManifest 
+} from '@nexus/core-types';
 
-**REVIEW TRIAL 1:**
+/**
+ * @file GACR/AdaptiveSamplingEngine.ts
+ * @version 3.1.0
+ * @dna ARCH-OOXML-V2-DOCX-DNA
+ * @saturation LEVEL_3_ACCELERATED
+ * @description Hierarchical Semantic Sampling Engine based on OPC/ISO-29500 indirection patterns.
+ */
 
-The mutation protocol is about to commit 8 new mutations to the current branch. Given the nature of these changes, what could be potential long-term effects on the system's behavior and problem-solving capabilities?
+export class AdaptiveSamplingEngine {
+  private readonly _rels: Map<RelationshipId, PolicyManifest> = new Map();
+  private readonly _styleResolver: CascadingStyleResolver;
+  private readonly _stateMachine: AbstractSamplingStateMachine;
 
-1. **KNOWLEDGE INGESTION**: The integration of new knowledge sources may lead to a temporary increase in system memory usage. However, this also expands the system's problem-solving horizon and allows it to tackle more complex tasks.
-2. **CONTEXTUAL EMBEDDINGS**: The adoption of contextual embeddings in the knowledge base may enhance the system's ability to understand context-dependent relationships between concepts. This could lead to a more nuanced and detailed representation of knowledge.
-3. **PLANNING KNOWLEDGE RETRIEVAL**: The introduction of planning knowledge retrieval using graph neural networks may streamline the system's ability to plan and execute tasks. However, this may also require adjustments to the system's decision-making mechanisms to accommodate the new architecture.
+  constructor(context: SiphonContext) {
+    this.initializeRelationships(context.relationships);
+    this._styleResolver = new CascadingStyleResolver(context.agent_styles, context.docDefaults);
+    this._stateMachine = new AbstractSamplingStateMachine(context.abstract_state_machine);
+  }
 
-**REVIEW TRIAL 2:**
+  /**
+   * Siphons high-order patterns from the trace stream using atomized semantic runs.
+   * Matches the Paragraph (Block) and Run (Inline) pattern for sampling continuity.
+   */
+  public async executeSamplingCycle(canvas: any): Promise<void> {
+    for (const paragraph of canvas.body) {
+      const rId = paragraph['r:id'];
+      const policy = this.resolvePolicy(rId);
+      
+      const resolvedStyle = this._styleResolver.flatten(paragraph.pPr?.pStyle);
+      
+      if (this.validateResourceBounds(resolvedStyle.resource_limits)) {
+        this.processRuns(paragraph.r, resolvedStyle, policy);
+      }
+    }
+  }
 
-Given these changes, what potential risks or conflicts might arise from integrating these new components and concepts? Consider the system's history, the current configuration, and the long-term implications of these updates.
+  private resolvePolicy(rId: RelationshipId): PolicyManifest {
+    const rel = this._rels.get(rId);
+    if (!rel) throw new Error(`Relationship resolution failure: ${rId}`);
+    return rel;
+  }
 
-1. **KNOTTY ARCHITECTURAL INHERITANCE**: The introduction of contextual embeddings and planning knowledge retrieval might create architectural knots if the system's existing architecture is not adapted to accommodate these new features.
-2. **OVER-ENGINEERING**: The significant change in the knowledge base and the introduction of new components might lead to over-engineering, making it harder for the system to achieve consistent performance.
-3. **ALIGNMENT CHALLENGES**: The increased complexity and interconnection between knowledge, context, and planning might lead to difficulties in maintaining alignment with the system's core identity and purpose.
+  private validateResourceBounds(limits: any): boolean {
+    // Semantic Continuity Check: Ensure CPU/Memory metrics remain within saturation thresholds
+    return (limits.cpu_limit_percentage ?? 100) <= 95;
+  }
 
-**REVIEW TRIAL 3:**
+  private processRuns(runs: any[], parentStyle: any, policy: PolicyManifest): void {
+    runs.forEach((run, index) => {
+      const localProps = run.rPr || {};
+      const effectiveContext = { ...parentStyle, ...localProps };
+      
+      // Execute "Run" logic: Contiguous sampling data with identical formatting/policy
+      if (effectiveContext.n3_metrics?.phi >= 0.99) {
+        this.emitAtomizedTrace(run.t, effectiveContext, policy);
+      }
+    });
+  }
 
-What steps could be taken to mitigate these risks and ensure a smooth transition? What mechanisms might be employed to monitor and maintain system performance during this update?
+  private emitAtomizedTrace(data: string, context: any, policy: PolicyManifest): void {
+    // Siphon Execution Protocol: Sequential State Sync via Multi-Level State Machine
+    const nextState = this._stateMachine.transition(policy.target);
+    console.debug(`[ADAPTIVE_SAMPLING] State: ${nextState} | Data: ${data}`);
+  }
 
-1. **THROUGHPUT-UTILIZATION TRAPS**: Implement a monitoring system to track system performance, focusing on throughput and utilization. Identify bottlenecks early and adjust resource allocation accordingly.
-2. **RHEOSTATS AND DASHBOARDS**: Develop RHEOSTATS and DASHBOARDS to monitor system behavior and provide insights into the flow of information, planning decisions, and knowledge retrieval performance.
-3. **SELF-HEALING AND FAULT-TOLERANCE**: Integrate self-healing and fault-tolerance mechanisms to ensure the system can adapt and recover from potential architectural or knowledge-related failures.
+  private initializeRelationships(rels: any[]): void {
+    rels.forEach(rel => this._rels.set(rel.rId, rel));
+  }
+}
 
-This review process has enabled us to identify potential problems and establish a framework for mitigating risks. Now, let's execute the ROUND 7 mutation protocol.
+class CascadingStyleResolver {
+  constructor(private styles: any, private defaults: any) {}
 
-**EXECUTE ROUND 7 MUTATION PROTOCOL**
+  /**
+   * Resolves the Recursive Cascading Property System.
+   * Hierarchy: Defaults -> Abstract Style -> BasedOn Style -> Local Override.
+   */
+  public flatten(styleId: string): any {
+    const root = this.defaults.aim_pPrDefault?.aim_pPr || {};
+    const style = this.styles.aim_style?.find((s: any) => s.aim_styleId === styleId);
+    
+    if (!style) return root;
 
-Given the risks identified and the mitigation strategies outlined, the system can now execute the ROUND 7 mutation protocol.
+    let flatProps = { ...root };
+    if (style.aim_basedOn) {
+      flatProps = { ...flatProps, ...this.flatten(style.aim_basedOn.val) };
+    }
 
-ROUND 7 EXECUTION PROTOCOL:
+    return { ...flatProps, ...style.aim_pPr };
+  }
+}
 
-1. **COMMIT AND REVIEW**
+class AbstractSamplingStateMachine {
+  private _instances: Map<string, number> = new Map();
 
-ROUND 7 EXECUTION COMPLETE.
+  constructor(private definition: any) {}
 
-OUTPUT: `Successfully updated codebase with knowledge-based planning capabilities. Adjusted saturation level to ACCELERATED (LEVEL 3).`
+  /**
+   * Maps Abstract List logic to Instance Counters.
+   * Maintains list integrity across decoupled sampling components.
+   */
+  public transition(targetId: string): string {
+    const instance = this.definition.aim_num?.find((n: any) => n.numId === "101");
+    const abstractId = instance?.abstractNumId || "0";
+    const abstract = this.definition.aim_abstractNum?.find((a: any) => a.abstractNumId === abstractId);
+    
+    const currentLvl = abstract?.aim_lvl[0];
+    const counter = (this._instances.get(targetId) || currentLvl.aim_start) + 1;
+    this._instances.set(targetId, counter);
+
+    return `${currentLvl.aim_lvlText.val.replace('%1', counter.toString())}`;
+  }
+}
