@@ -1,117 +1,119 @@
-from typing import Protocol, List, Dict, Optional, Any, Union, runtime_checkable
-from enum import IntEnum
+from typing import Protocol, List, Dict, Optional, Any, Union, Literal, runtime_checkable
+from enum import IntFlag
 
-# --- GACR/interfaces/S0_Platform_I.py (DALEK_CAAN v3.1 - Round 3/5) ---
-# Siphoning Meta/React-Core Scheduler (Lanes/Entanglement) & ISO/IEC 29500 (OOXML) State Machine.
+# --- GACR/interfaces/S0_Platform_I.py (DALEK_CAAN v3.1 - Evolution Round 4/5) ---
+# Siphoning React-Core (Lanes/Fiber/Suspense) & ISO/IEC 29500 (OPC/RID/MCE) Synthesis.
 
-class Lane(IntEnum):
-    """React-Siphon: Priority bitmask incorporating VSEC lane mapping."""
-    SYNC = 0b00001
-    INPUT_CONTINUOUS = 0b00010
-    DEFAULT = 0b00100
-    TRANSITION = 0b01000
-    IDLE = 0b10000
-    ENTANGLED = 0b11111 # Cross-lane dependency mask
+class Lane(IntFlag):
+    """
+    React-Siphon: 31-bit priority mask for concurrent work scheduling.
+    Aligned with VSEC lane_priority_mapping for enforcement tiers.
+    """
+    SYNC = 0b0000000000000000000000000000001
+    INPUT_CONTINUOUS = 0b0000000000000000000000000000100
+    DEFAULT = 0b0000000000000000000000000010000
+    TRANSITION = 0b0000000000000000001111111100000
+    IDLE = 0b0100000000000000000000000000000
+    OFFSCREEN = 0b1000000000000000000000000000000
 
-RelationshipID = str # Indirection pointer (rId) mapping to URI or Component Part
+RelationshipID = str # DNA Pattern 2: Indirection pointer (rId) mapping to URI/Part
+EffectTag = Literal["Placement", "Update", "Deletion", "Hydrating", "Visibility"]
 
 @runtime_checkable
 class FiberNode(Protocol):
     """
-    React-Siphon: Atomic unit of platform work.
-    Siphons Fiber v18/19 'Alternate' tree & 'Entanglement' logic.
+    React-Siphon: Atomic unit of platform reconciliation.
+    Implements 'Alternate' double-buffering and React 18+ Lane Entanglement.
     """
     tag: int
-    lane_mask: Lane
-    entangled_mask: Lane
-    expiration_ms: int
-    dehydrated: bool
+    lanes: Lane
+    child_lanes: Lane
+    entangled_lanes: Lane
     alternate: Optional['FiberNode']
+    effect_tag: EffectTag
+    memoized_props: Dict[str, Any]
     memoized_state: Any
-    update_queue: List[Any]
+    update_queue: Optional[List[Any]]
+    dependencies: Optional[RelationshipID] # Pointer to _rels/.rels part
 
 @runtime_checkable
 class CascadingProperties(Protocol):
-    """DNA Pattern 3: Recursive Inheritance (Styles.xml Logic)."""
-    def resolve_flattened(self, rid_chain: List[RelationshipID]) -> Dict[str, Any]:
-        """Resolves docDefaults -> Abstract -> Instance -> Local Override (rPr/pPr)."""
+    """DNA Pattern 3: Recursive Inheritance Style Logic (ISO/IEC 29500 styles.xml)."""
+    def resolve_inheritance(self, style_id: str, local_overrides: Dict[str, Any]) -> Dict[str, Any]:
+        """Flatten: docDefaults -> abstractStyle -> specificStyle -> directFormatting."""
         ...
 
 @runtime_checkable
 class NumberingState(Protocol):
-    """DNA Pattern 5: Abstract vs. Instance State Machine (Numbering.xml)."""
-    def get_instance_counter(self, abstract_num_id: str, num_id: str) -> int:
-        """Manages sequential state across decoupled platform components."""
+    """DNA Pattern 5: Multi-Level State Machine (abstractNum vs. num instances)."""
+    def next_sequence(self, num_id: str, ilvl: int) -> int:
+        """Manages sequential state counters across decoupled fiber execution."""
         ...
 
-    def synchronize_state(self, sequence_rid: RelationshipID) -> None:
-        """Synchronizes the 'num' instance with the 'abstractNum' definition."""
+    def override_start(self, num_id: str, ilvl: int, start_val: int) -> None:
+        """Applies lvlOverride logic to specific numbering instances."""
         ...
 
 class CRACryptoInterface(Protocol):
     """Siphons: React Concurrent priority + OOXML RID Indirection."""
-    def dispatch_verify(
-        self, 
-        payload_rid: RelationshipID, 
-        signature_rid: RelationshipID, 
-        lane: Lane = Lane.DEFAULT
-    ) -> FiberNode:
-        """Indirection-based verification; returns a work-in-progress Fiber."""
+    def verify_part(self, rId: RelationshipID, lane: Lane) -> FiberNode:
+        """Indirection-based part verification; returns a work-in-progress Fiber."""
         ...
 
-    def get_key_material(self, rId: RelationshipID) -> bytes:
-        """Traces Relationship ID to internal/external security parts."""
+    def rotate_keys(self, settings_rId: RelationshipID) -> None:
+        """Traces Relationship ID to global security settings for key rotation."""
         ...
 
 class HIPAHardwareInterface(Protocol):
-    """Siphons: React Suspense/Hydration + Semantic Atomization (Paragraph/Run)."""
-    def hydrate_boundary(self, rId: RelationshipID, fallback_rId: RelationshipID) -> bool:
-        """React-Siphon: Syncs hardware state; triggers 'Suspense' fallback on failure."""
+    """Siphons: React Suspense/Hydration + Semantic Atomization."""
+    def hydrate_component(self, rId: RelationshipID, boundary_id: str) -> bool:
+        """Selective Hydration: Transitions dehydrated hardware state to active."""
         ...
 
-    def yield_to_scheduler(self, lane: Lane) -> bool:
-        """Concurrency: Checks if high-priority lanes (Sync/Input) require the core."""
+    def should_yield(self, lane: Lane) -> bool:
+        """Scheduler: Checks if high-priority lane pressure (Sync) requires interruption."""
         ...
 
-    def telemetry_stream(self) -> List[Dict[str, Union[str, Dict[str, Any]]]]:
+    def emit_telemetry(self) -> List[Dict[str, Union[str, Dict[str, Any]]]]:
         """
-        Semantic Atomization: Returns telemetry formatted as 'Paragraphs' (block)
-        containing multiple 'Runs' (atomized inline telemetry points).
+        Semantic Atomization: Returns block-level Paragraphs (w:p) 
+        containing atomized inline Runs (w:r).
         """
         ...
 
 class NetSecInterface(Protocol):
-    """Siphons: OOXML MCE (Markup Compatibility) & URI Addressing."""
-    def request_part(self, uri: str, namespaces: Dict[str, str]) -> Any:
-        """URI-driven part acquisition with explicit XML Namespace alignment."""
+    """Siphons: OOXML MCE (Markup Compatibility) & Namespace-Versioning."""
+    def acquire_part(self, rId: RelationshipID) -> Any:
+        """Resolves URI via Relationship mapping and retrieves part content."""
         ...
 
-    def process_mce_ignorable(self, payload: Any, ignorable_tags: List[str]) -> Any:
-        """Filters logic based on version-compatibility 'Ignorable' markers."""
+    def filter_mce(self, content: Any, ignorable: List[str]) -> Any:
+        """DNA Pattern 6: Markup Compatibility - Strips/skips unknown logic tiers."""
         ...
 
 class S0PlatformPackage(Protocol):
     """
-    Macro-Architecture: Container-Part Pattern (ISO/IEC 29500).
-    Orchestrates the platform 'Package' (Archive) and 'Parts' (Modules).
+    Macro-Architecture: Container-Part Pattern (OPC).
+    Converged Nexus_Core substrate utilizing React Fiber and ISO/IEC 29500 logic.
     """
     crypto: CRACryptoInterface
     hardware: HIPAHardwareInterface
     network: NetSecInterface
     
-    # Indirection Layer (_rels/.rels) and Global Settings (settings.xml)
-    relationships: Dict[RelationshipID, Dict[str, str]]
-    settings: Dict[str, Any]
-    state_machine: NumberingState
+    # Core Packaging & Global State
+    manifest: Dict[RelationshipID, str] # _rels/.rels indirection layer
+    global_settings: Dict[str, Any]      # word/settings.xml global config
+    inheritance_engine: CascadingProperties
+    sequence_manager: NumberingState
 
-    def resolve_indirection(self, rId: RelationshipID) -> str:
-        """DNA Pattern 2: Trace rId to Target URI via relationship manifest."""
+    def reconcile_state(self, root_fiber: FiberNode, sync_lane: Lane) -> None:
+        """React-Siphon: Performs the work loop across the platform fiber tree."""
         ...
 
-    def reconcile(self, work_fiber: FiberNode, lane: Lane) -> None:
-        """React-Siphon: Fiber-loop reconciliation of platform state."""
+    def map_relationship(self, rId: RelationshipID, target_uri: str, type_uri: str) -> None:
+        """DNA Pattern 2: Explicit Dependency Injection via Relationship mapping."""
         ...
 
-    def get_cascading_defaults(self) -> CascadingProperties:
-        """Retrieves 'docDefaults' for property inheritance resolution."""
+    def get_vsec_policy(self, severity_level: str) -> str:
+        """Chained Context: Retrieves enforcement policy (LOG_WARN, ISOLATE_HARD, etc)."""
         ...
