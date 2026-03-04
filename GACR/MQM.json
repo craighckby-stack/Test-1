@@ -1,11 +1,11 @@
 {
   "$schema": "https://gacr.agi/schemas/ecvm_tis_v10.5.0_final.json",
-  "$id": "https://gacr.agi/mqm/core_policy_v10.5.json",
+  "$id": "https://gacr.agi/mqm/core_policy_v10.5_final.json",
   "metadata": {
     "manifest_id": "GTEM_V10.5.0_FINAL",
-    "version": "10.5.4-CONVERGENCE",
+    "version": "10.5.5-FINAL-CONVERGENCE",
     "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-    "evolution_round": 4,
+    "evolution_round": 5,
     "saturation_level": 2,
     "metabolic_rate": "STANDARD",
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
@@ -18,44 +18,37 @@
       "origin": "NEXUS_CORE"
     },
     "markup_compatibility": {
-      "ignorable": "dalek v3 nx_ext mce",
+      "mc:Ignorable": "dalek v3 nx_ext mce ts_ref",
       "namespaces": {
         "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
         "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
         "nx": "https://nexus-core.agi/governance",
         "ts": "https://github.com/microsoft/TypeScript/schemas/compiler",
         "nx_ext": "https://nexus-core.agi/extensions/v5",
-        "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006"
+        "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006"
       }
     }
   },
   "compiler_options": {
     "target": "ESNext",
     "module": "NodeNext",
-    "moduleDetection": "force",
-    "useDefineForClassFields": true,
+    "moduleResolution": "NodeNext",
     "composite": true,
     "incremental": true,
     "verbatimModuleSyntax": true,
     "noUncheckedIndexedAccess": true,
     "declaration": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true,
     "exactOptionalPropertyTypes": true,
     "tsBuildInfoFile": "mqm_core.tsbuildinfo",
-    "baseUrl": ".",
-    "paths": {
-      "@remediation/*": ["remediation/*"],
-      "@metrics/*": ["metrics/*"],
-      "@lib/*": ["GACR/lib/*"]
-    },
+    "assumeChangesOnlyAffectDirectDependencies": true,
     "cascading_inheritance": {
       "enabled": true,
       "depth_limit": 50,
       "resolver": "RecursiveFlatten",
       "docDefaults": {
         "pPr": {
-          "jc": { "val": "left" },
+          "jc": { "val": "both" },
           "spacing": { "val": 24, "unit": "hrs" },
           "lang": { "val": "en-AGI" }
         },
@@ -66,6 +59,11 @@
           "color": "000000"
         }
       }
+    },
+    "paths": {
+      "@remediation/*": ["remediation/*"],
+      "@metrics/*": ["metrics/*"],
+      "@lib/*": ["GACR/lib/*"]
     }
   },
   "relationships": [
@@ -101,13 +99,13 @@
     }
   ],
   "policies": {
-    "version_tag": "ARES_MQM_V10.5_OPC_TS_CONVERGED",
+    "version_tag": "ARES_MQM_V10.5_FINAL_OPC_TS",
     "default_tier_rId": "rId1",
     "parts": [
       {
         "id": "CRITICAL_P1",
         "rId": "rId101",
-        "status": "STABLE",
+        "status": "CONVERGED",
         "atomized_layers": [
           {
             "layer_type": "Block",
@@ -142,7 +140,7 @@
       {
         "id": "STANDARD_P2",
         "rId": "rId102",
-        "status": "SATURATED",
+        "status": "CONVERGED",
         "atomized_layers": [
           {
             "layer_type": "Block",
@@ -157,7 +155,7 @@
       {
         "id": "DEFERRED_P3",
         "rId": "rId103",
-        "status": "EVOLVING",
+        "status": "CONVERGED",
         "numId": "1",
         "ilvl": 0,
         "atomized_layers": [
@@ -180,7 +178,7 @@
             "ilvl": 0,
             "start": 1,
             "numFmt": "decimal",
-            "lvlText": "RERUN_%1",
+            "lvlText": "FINAL_CONVERGENCE_%1",
             "lvlJc": "left",
             "pPr": { "ind": { "val": 360, "unit": "twips" } }
           },
@@ -188,7 +186,7 @@
             "ilvl": 1,
             "start": 1,
             "numFmt": "bullet",
-            "lvlText": "SUB_TASK_%2",
+            "lvlText": "SUB_PHASE_%2",
             "lvlJc": "left",
             "pPr": { "ind": { "val": 720, "unit": "twips" } }
           }
@@ -213,17 +211,13 @@
       "StrictHHHCompliance",
       "SemanticContinuityCheck",
       "DependencyCycleCheck",
-      "MceCompatibilityCheck"
+      "MceCompatibilityCheck",
+      "ProjectRefOrchestration"
     ],
     "emergency_brake": {
       "corruption_threshold": 5,
       "auto_halt": true,
       "log_target": "NEXUS_LOG.txt"
-    },
-    "siphon_audit": {
-      "semantic_drift_actual": 0.12,
-      "structural_change_actual": 0.15,
-      "status": "VALIDATED"
     }
   }
 }
