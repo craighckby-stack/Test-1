@@ -1,23 +1,25 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.5.0_final.json",
-  "title": "NEXUS_CORE Host Environment Trust Manifest (HETM) - Converged Substrate",
-  "description": "Architectural Trust Manifest utilizing OOXML indirection (ISO/IEC 29500) and TypeScript 5.4+ project-reference orchestration for metabolic state governance.",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.5.0_round_2.json",
+  "title": "NEXUS_CORE Host Environment Trust Manifest (HETM) - Evolutionary Round 2",
+  "description": "Siphoned Architectural Trust Manifest. Integrates OOXML RID-indirection and TypeScript project-reference hierarchies for metabolic state governance.",
   "type": "object",
   "required": [
     "manifest_id",
     "version",
     "relationships",
-    "required_platform_measurement",
     "parts",
+    "state_machine",
     "attestation_signature"
   ],
   "markup_compatibility": {
-    "ignorable": "dalek v3 nx_ext",
+    "ignorable": "dalek v3 nx_ext mce",
     "namespaces": {
       "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+      "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
       "nx": "https://nexus-core.agi/governance",
-      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006"
+      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+      "nx_ext": "https://nexus-core.agi/extensions/v5"
     }
   },
   "properties": {
@@ -31,7 +33,7 @@
     },
     "relationships": {
       "type": "array",
-      "description": "Indirection Dependency Layer (RID Logic). Maps internal logic IDs to URI targets.",
+      "description": "Indirection Dependency Layer (RID). Traceable to .rels manifest logic.",
       "items": {
         "type": "object",
         "properties": {
@@ -45,28 +47,31 @@
     },
     "compiler_options": {
       "type": "object",
-      "description": "TypeScript-grade state orchestration parameters.",
+      "description": "TS-grade orchestration for composite substrate compilation.",
       "properties": {
         "composite": { "type": "boolean", "default": true },
         "incremental": { "type": "boolean", "default": true },
         "noUncheckedIndexedAccess": { "type": "boolean", "default": true },
-        "verbatimModuleSyntax": { "type": "boolean", "default": true }
+        "verbatimModuleSyntax": { "type": "boolean", "default": true },
+        "cascading_inheritance": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "depth_limit": { "type": "integer", "maximum": 50 },
+            "resolver": { "type": "string", "const": "RecursiveFlatten" }
+          }
+        }
       }
-    },
-    "required_platform_measurement": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{96}$",
-      "description": "SHA384 cryptographic attestation of the host boot state."
     },
     "parts": {
       "type": "array",
-      "description": "Modular Container-Part architecture for trust segments.",
+      "description": "Atomized Semantic Tree: Blocks, Inlines, and Terminals.",
       "items": {
         "type": "object",
         "properties": {
           "id": { "type": "string" },
           "rId": { "type": "string" },
-          "status": { "type": "string", "enum": ["STABLE", "EVOLVING", "SATURATED", "DEGRADED"] },
+          "status": { "type": "string", "enum": ["STABLE", "EVOLVING", "SATURATED", "DEGRADED", "CONVERGED"] },
           "atomized_layers": {
             "type": "array",
             "items": {
@@ -74,14 +79,9 @@
               "properties": {
                 "layer_type": { "type": "string", "enum": ["Block", "Inline", "Terminal"] },
                 "inheritance": { "type": "string", "enum": ["Inherit", "Override", "Final"] },
-                "metrics": {
-                  "type": "object",
-                  "properties": {
-                    "phi": { "type": "number" },
-                    "lambda": { "type": "number", "minimum": 0.5, "maximum": 0.8 },
-                    "efficacy": { "type": "number", "minimum": 0, "maximum": 1 }
-                  }
-                }
+                "pPr": { "$ref": "#/definitions/StyleProperties" },
+                "rPr": { "$ref": "#/definitions/StyleProperties" },
+                "content_ref": { "type": "string" }
               }
             }
           }
@@ -89,21 +89,64 @@
         "required": ["id", "rId", "status"]
       }
     },
-    "global_settings": {
+    "state_machine": {
+      "type": "object",
+      "description": "Multi-Level Sequential State (OOXML Numbering Logic).",
+      "properties": {
+        "abstract_num_definitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "abstractNumId": { "type": "string" },
+              "levels": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ilvl": { "type": "integer" },
+                    "start": { "type": "integer" },
+                    "numFmt": { "type": "string" },
+                    "lvlText": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "instance_mapping": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "numId": { "type": "string" },
+              "abstractNumId": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "diagnostics_engine": {
       "type": "object",
       "properties": {
-        "conformance_level": { "type": "string", "const": "transitional" },
-        "strict_rid_validation": { "type": "boolean", "default": true },
-        "cascading_inheritance": { "type": "boolean", "default": true }
+        "drift_threshold": { "type": "number", "const": 0.35 },
+        "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4] },
+        "validation_rules": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "emergency_brake": {
+          "type": "object",
+          "properties": {
+            "corruption_threshold": { "type": "integer", "const": 5 },
+            "auto_halt": { "type": "boolean", "default": true }
+          }
+        }
       }
     },
     "attestation_signature": {
       "type": "object",
-      "required": [
-        "algorithm",
-        "payload_hash",
-        "crot_signature"
-      ],
+      "required": ["algorithm", "payload_hash", "crot_signature"],
       "properties": {
         "algorithm": { "type": "string", "const": "SHA3-256" },
         "payload_hash": { "type": "string" },
@@ -111,11 +154,33 @@
       }
     }
   },
-  "additionalProperties": false,
+  "definitions": {
+    "StyleProperties": {
+      "type": "object",
+      "properties": {
+        "val": { "type": ["string", "integer", "boolean"] },
+        "inheritance": { "type": "string", "enum": ["Inherit", "Override", "Final"], "default": "Inherit" },
+        "sz": { "type": "integer" },
+        "color": { "type": "string", "pattern": "^[0-9A-F]{6}$" },
+        "bold": { "type": "boolean" },
+        "spacing": { 
+          "type": "object", 
+          "properties": { "val": { "type": "integer" }, "unit": { "type": "string", "enum": ["twips", "pts", "px"] } }
+        },
+        "ind": { 
+          "type": "object", 
+          "properties": { "val": { "type": "integer" }, "unit": { "type": "string", "enum": ["twips", "pts", "px"] } }
+        },
+        "jc": { "type": "object", "properties": { "val": { "type": "string", "enum": ["left", "center", "right", "both"] } } }
+      }
+    }
+  },
   "metadata": {
     "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-    "evolution_round": 1,
+    "evolution_round": 2,
     "saturation_level": 2,
-    "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE"
+    "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
+    "identity_anchors_enforced": true,
+    "last_mutation": "2026-03-02T18:15:00Z"
   }
 }
