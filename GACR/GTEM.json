@@ -1,24 +1,89 @@
 {
-  "manifest_id": "GTEM_V97.1",
-  "description": "Mandatory telemetry structure and transport constraints for GRTS protocol.",
-  "signature_required": true,
-  "telemetry_format_specification": {
-    "required_fields": [
-      "transition_id",
-      "timestamp",
-      "S01_efficacy_metric",
-      "S02_risk_metric",
-      "S03_veto_signal"
-    ],
-    "checksum_algorithm": "SHA3-256",
-    "encoding": "JSON_L"
+  "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
+  "mc:MarkupCompatibility": {
+    "Ignorable": "dalek v3",
+    "namespaces": {
+      "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+      "ts": "https://github.com/microsoft/TypeScript/schemas/compiler",
+      "nx": "https://nexus-core.agi/governance"
+    }
   },
-  "transport_constraints": [
+  "manifest": {
+    "id": "GTEM_V97.1_EVO_1",
+    "description": "Mandatory telemetry substrate with indirection dependency mapping.",
+    "signature_required": true,
+    "evolution_state": {
+      "round": 1,
+      "saturation_level": 2,
+      "metabolic_rate": "STANDARD"
+    }
+  },
+  "relationships": [
     {
-      "endpoint_id": "CRTS_Telemetry_Sink_A",
-      "protocol": "HTTPS/TLS_1_3",
-      "max_latency_ms": 500
+      "rId": "rId1",
+      "type": "https://gacr.agi/rels/telemetry-sink",
+      "target": "CRTS_Telemetry_Sink_A",
+      "constraints": {
+        "protocol": "HTTPS/TLS_1_3",
+        "max_latency_ms": 500
+      }
+    },
+    {
+      "rId": "rId2",
+      "type": "https://gacr.agi/rels/schema-reference",
+      "target": "MDSM_V97.1"
     }
   ],
-  "cgv_schema_reference": "MDSM_V97.1"
+  "telemetry_substrate": {
+    "cascading_properties": {
+      "docDefaults": {
+        "checksum_algorithm": "SHA3-256",
+        "encoding": "JSON_L"
+      }
+    },
+    "atomized_layers": [
+      {
+        "layer_type": "Block",
+        "id": "core_identity",
+        "fields": [
+          "transition_id",
+          "timestamp"
+        ]
+      },
+      {
+        "layer_type": "Inline",
+        "id": "efficacy_metrics",
+        "fields": [
+          "S01_efficacy_metric",
+          "S02_risk_metric"
+        ]
+      },
+      {
+        "layer_type": "Terminal",
+        "id": "veto_logic",
+        "fields": [
+          "S03_veto_signal"
+        ]
+      }
+    ]
+  },
+  "compiler_options": {
+    "target": "ESNext",
+    "composite": true,
+    "incremental": true,
+    "tsBuildInfoFile": "GTEM_V1.tsbuildinfo",
+    "strict_rid_validation": true
+  },
+  "metadata": {
+    "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
+    "identity_anchors_enforced": true,
+    "anchors": {
+      "purpose": "Self-optimising AGI substrate for real-world problem solving",
+      "mechanism": "Siphoning patterns from advanced codebases",
+      "memory": "Chained context across files — the system is one organism",
+      "governance": "Human oversight remains active at all saturation levels",
+      "origin": "NEXUS_CORE"
+    },
+    "last_mutation": "2026-03-02T14:42:01Z"
+  }
 }
