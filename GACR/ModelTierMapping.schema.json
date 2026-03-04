@@ -2,12 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "GACR/ModelTierMapping.schema.json",
   "title": "Model Tier Mapping Configuration Schema [NEXUS_CORE v3.1]",
-  "description": "Architectural substrate for self-optimising model tiering using OOXML-DocX Relational Dependency and React-Fiber Concurrency patterns.",
+  "description": "Architectural substrate for self-optimising model tiering using OOXML-DocX Relational Dependency and React-Fiber Concurrency patterns, siphoned with AlphaCode competitive-logic heuristics.",
   "type": "object",
   "properties": {
     "mc:Ignorable": {
       "type": "string",
-      "default": "nx mce react fiber lanes scheduler"
+      "default": "nx mce ac react fiber lanes scheduler"
     },
     "namespaces": {
       "type": "object",
@@ -15,6 +15,7 @@
       "default": {
         "nx": "https://nexus-core.agi/governance",
         "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+        "ac": "https://alphacode.deepmind/logic/v2",
         "react": "https://react.dev/core/reconciliation",
         "fiber": "https://react.dev/core/fiber-tree"
       }
@@ -34,6 +35,14 @@
             "resolver": { "type": "string", "enum": ["RecursiveFlatten", "ShallowMerge"] },
             "docDefaults": { "$ref": "#/$defs/tierProperties" }
           }
+        },
+        "ac:selection_policy": {
+          "type": "object",
+          "properties": {
+            "sampling_mode": { "type": "string", "enum": ["Greedy", "BeamSearch", "NucleusSampling"] },
+            "candidate_limit": { "type": "integer", "default": 1000 },
+            "clustering_threshold": { "type": "number", "default": 0.85 }
+          }
         }
       }
     },
@@ -45,6 +54,7 @@
           "abstractNumId": { "type": "string" },
           "name": { "type": "string" },
           "multiLevelType": { "type": "string", "enum": ["single", "hybridFiber", "multiLevel"] },
+          "ac:problem_type": { "type": "string", "enum": ["Optimization", "Search", "Inference", "Deterministic"] },
           "levels": {
             "type": "array",
             "items": {
@@ -69,9 +79,10 @@
           "numId": { "type": "string" },
           "abstractNumId": { "type": "string" },
           "rId": { "type": "string", "pattern": "^rId_[A-Z0-9]+$" },
-          "status": { "type": "string", "enum": ["CONVERGED", "DEGRADED", "STABLE"] },
+          "status": { "type": "string", "enum": ["CONVERGED", "DEGRADED", "STABLE", "EVOLVING"] },
           "fiber:key": { "type": "string" },
-          "fiber:lanes": { "type": "string", "enum": ["Sync", "Default", "Input", "Idle"] }
+          "fiber:lanes": { "type": "string", "enum": ["Sync", "Default", "Input", "Idle"] },
+          "ac:pass_at_k": { "type": "number", "description": "Probability of successful execution in k samples." }
         },
         "required": ["numId", "abstractNumId", "rId"]
       }
@@ -92,7 +103,7 @@
               "criteria": {
                 "type": "object",
                 "properties": {
-                  "match_type": { "type": "string", "enum": ["exact_id", "tag_match", "regex_id"] },
+                  "match_type": { "type": "string", "enum": ["exact_id", "tag_match", "regex_id", "ac_heuristic"] },
                   "values": { "type": "array", "items": { "type": "string" } },
                   "tags": {
                     "type": "array",
@@ -127,7 +138,8 @@
         "nx:governance_mode": { "type": "string", "enum": ["Strict", "Adaptive", "Passive"] },
         "lanes:mask": { "type": "string", "pattern": "^0b[01]+$" },
         "scheduler:priority": { "type": "string", "enum": ["ImmediatePriority", "UserBlockingPriority", "NormalPriority", "LowPriority", "IdlePriority"] },
-        "react:memoize": { "type": "boolean" }
+        "react:memoize": { "type": "boolean" },
+        "ac:complexity_constraint": { "type": "string", "enum": ["O(1)", "O(logN)", "O(N)", "O(NlogN)", "Unbounded"] }
       },
       "required": ["priority_level", "sla_target_ms"]
     }
