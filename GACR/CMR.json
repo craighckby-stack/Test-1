@@ -1,6 +1,6 @@
 {
   "nexus_core": {
-    "version": "3.3.0",
+    "version": "3.4.0",
     "signature": "ARCH-OOXML-V2-DOCX-DNA",
     "identity": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
@@ -11,7 +11,9 @@
     "evolution_state": {
       "composite": true,
       "incremental": true,
-      "tsBuildInfoFile": "/GACR/.tsbuildinfo"
+      "tsBuildInfoFile": "/GACR/.tsbuildinfo",
+      "program_hash": "SHA256:8C2D4A...",
+      "semantic_drift": 0.08
     }
   },
   "package_manifest": {
@@ -24,7 +26,8 @@
           "kind": "source",
           "emit": "ESNext",
           "checkJs": true,
-          "declaration": true
+          "declaration": true,
+          "composite": true
         }
       },
       {
@@ -35,15 +38,27 @@
           "kind": "config",
           "immutable": true
         }
+      },
+      {
+        "uri": "/GACR/styles.json",
+        "contentType": "application/vnd.nexus.styles+json",
+        "rId": "rId3",
+        "metadata": {
+          "kind": "style",
+          "cascading": true
+        }
       }
     ],
     "project_graph": {
-      "roots": ["rId1"],
+      "roots": [
+        "rId1"
+      ],
       "references": [
         {
           "path": "../NEXUS_CORE/Types",
           "rId": "rIdRef1",
-          "prepend": true
+          "prepend": true,
+          "circular_dependency_gate": "Strict"
         }
       ],
       "dependency_resolution": "RelationalDependencyMapping"
@@ -60,6 +75,12 @@
         "type": "http://schemas.nexus.org/core/2026/relationships/governance",
         "target": "SATURATION.md",
         "targetMode": "Internal"
+      },
+      {
+        "id": "rId3",
+        "type": "http://schemas.nexus.org/core/2026/relationships/styles",
+        "target": "styles.json",
+        "targetMode": "Internal"
       }
     ]
   },
@@ -71,14 +92,18 @@
     "composite": true,
     "incremental": true,
     "experimentalDecorators": true,
+    "emitDeclarationOnly": false,
     "typeAcquisition": {
       "enable": true,
-      "include": ["@nexus/core-types"]
+      "include": [
+        "@nexus/core-types"
+      ]
     },
     "cascading_inheritance": {
       "enabled": true,
       "resolver": "CascadingStyleResolver",
-      "inheritance_depth_limit": 10
+      "inheritance_depth_limit": 10,
+      "flatten_strategy": "RecursiveFlatten"
     }
   },
   "diagnostics_engine": {
@@ -92,8 +117,10 @@
     },
     "emergency_brake": {
       "corruption_threshold": 5,
-      "log_target": "NEXUS_LOG.txt"
-    }
+      "log_target": "NEXUS_LOG.txt",
+      "auto_halt": true
+    },
+    "identity_anchors_enforced": true
   },
   "state_machine": {
     "abstract_num_definitions": [
@@ -106,6 +133,13 @@
             "numFmt": "decimal",
             "lvlText": "%1.",
             "lvlJc": "left"
+          },
+          {
+            "ilvl": 1,
+            "start": 1,
+            "numFmt": "lowerLetter",
+            "lvlText": "%2)",
+            "lvlJc": "left"
           }
         ]
       }
@@ -113,34 +147,42 @@
     "instance_mapping": [
       {
         "numId": "101",
-        "abstractNumId": "0"
+        "abstractNumId": "0",
+        "lvlOverride": {
+          "ilvl": 0,
+          "startOverride": 1
+        }
       }
     ],
     "symbol_table": {
       "rId1": "EngineCore",
       "rId2": "GovSaturate",
+      "rId3": "StyleManifest",
       "rIdRef1": "TypeDefinitions",
       "aliasing": {
         "SiphonCore": "rId1",
-        "PolicyRoot": "rId2"
+        "PolicyRoot": "rId2",
+        "ThemeDefinition": "rId3"
       }
     }
   },
   "markup_compatibility": {
-    "ignorable": "ve o r v ts mce",
+    "ignorable": "ve o r v ts mce apx",
     "namespaces": {
       "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
       "aim": "http://schemas.nexus.org/agi/instantiation/2026/main",
       "ts": "http://schemas.microsoft.com/typescript/2026/main",
-      "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006"
+      "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+      "apx": "http://schemas.nexus.org/agi/extension/v4/patterns"
     }
   },
   "metadata": {
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
-    "last_mutation": "2026-03-02T12:00:00Z",
-    "evolution_round": 3,
+    "last_mutation": "2026-03-02T14:45:12Z",
+    "evolution_round": 4,
     "status": "MUTATED_STABLE",
-    "integrity_hash": "SHA256:7B9E2F..."
+    "integrity_hash": "SHA256:A8F4D2...",
+    "opc_compliant": true
   }
 }
