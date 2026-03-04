@@ -1,23 +1,27 @@
 {
-  "mc:Ignorable": "dalek_ext nx_mce react fiber lanes mce",
+  "mc:Ignorable": "dalek_ext nx_mce react fiber lanes mce scheduler ts_ref",
   "namespaces": {
     "nx": "https://nexus-core.agi/governance",
     "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006",
     "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
     "react": "https://react.dev/core/reconciliation",
-    "fiber": "https://react.dev/core/fiber-tree"
+    "fiber": "https://react.dev/core/fiber-tree",
+    "scheduler": "https://react.dev/core/scheduler",
+    "lanes": "https://react.dev/core/concurrent-lanes"
   },
   "metadata": {
-    "manifest_id": "GACR_MODEL_TIER_MAPPING_V2.2",
-    "version": "2.2.0-EVOLVE-2",
+    "manifest_id": "GACR_MODEL_TIER_MAPPING_V2.3",
+    "version": "2.3.0-EVOLVE-3",
     "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-    "evolution_round": 2,
+    "evolution_round": 3,
     "saturation_level": 2,
+    "metabolic_rate": "STANDARD",
     "identity_anchors": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
       "origin": "NEXUS_CORE",
       "mechanism": "Siphoning patterns from DeepSeek-Coder / OOXML-DocX",
-      "memory": "Chained context across files — the system is one organism"
+      "memory": "Chained context across files — the system is one organism",
+      "governance": "Human oversight remains active"
     }
   },
   "settings": {
@@ -25,13 +29,17 @@
       "enabled": true,
       "resolver_logic": "RecursiveFlatten",
       "docDefaults": {
-        "tierPr": {
-          "priority_level": 3,
-          "sla_target_ms": 500,
-          "redundancy_level": "SingleRegion",
-          "availability": 0.995,
+        "pPr": {
+          "jc": { "val": "both" },
+          "spacing": { "val": 24 },
           "nx:governance_mode": "Passive",
-          "fiber:workTag": "HostComponent"
+          "lanes:priority": "Default"
+        },
+        "rPr": {
+          "sz": 11,
+          "react:memoize": true,
+          "fiber:workTag": "HostComponent",
+          "scheduler:priorityLevel": "NormalPriority"
         }
       }
     },
@@ -40,47 +48,61 @@
       "fallback_logic": "DeepSeek_Heuristic_Match"
     }
   },
-  "abstractTierDefinitions": [
+  "abstract_tier_definitions": [
     {
-      "abstractId": "0",
+      "abstractNumId": "0",
       "name": "CRITICAL_CORE_P1",
-      "ilvl": 0,
-      "tierPr": {
-        "priority_level": 1,
-        "sla_target_ms": 50,
-        "redundancy_level": "GeoRedundant",
-        "availability": 0.9999,
-        "nx:governance_mode": "Strict",
-        "lanes:priority": "Sync"
-      }
+      "multiLevelType": "hybridFiber",
+      "levels": [
+        {
+          "ilvl": 0,
+          "tierPr": {
+            "priority_level": 1,
+            "sla_target_ms": 50,
+            "redundancy_level": "GeoRedundant",
+            "availability": 0.9999,
+            "nx:governance_mode": "Strict",
+            "lanes:mask": "0b0000000000000000000000000000001",
+            "scheduler:priority": "ImmediatePriority"
+          }
+        }
+      ]
     },
     {
-      "abstractId": "1",
+      "abstractNumId": "1",
       "name": "STANDARD_PROD_P2",
-      "ilvl": 0,
-      "tierPr": {
-        "priority_level": 2,
-        "sla_target_ms": 200,
-        "redundancy_level": "RegionalActivePassive",
-        "availability": 0.999,
-        "lanes:priority": "Default"
-      }
+      "multiLevelType": "hybridFiber",
+      "levels": [
+        {
+          "ilvl": 0,
+          "tierPr": {
+            "priority_level": 2,
+            "sla_target_ms": 200,
+            "redundancy_level": "RegionalActivePassive",
+            "availability": 0.999,
+            "lanes:mask": "0b0000000000000000000000000010000",
+            "scheduler:priority": "NormalPriority"
+          }
+        }
+      ]
     }
   ],
-  "tierInstanceMapping": [
+  "tier_instance_mapping": [
     {
       "numId": "101",
-      "abstractId": "0",
+      "abstractNumId": "0",
       "rId": "rId_R001",
       "status": "ACTIVE",
-      "fiber:key": "tier-critical-01"
+      "fiber:key": "tier-critical-01",
+      "fiber:mode": "Concurrent"
     },
     {
       "numId": "102",
-      "abstractId": "1",
+      "abstractNumId": "1",
       "rId": "rId_R002",
       "status": "ACTIVE",
-      "fiber:key": "tier-standard-02"
+      "fiber:key": "tier-standard-02",
+      "fiber:mode": "Concurrent"
     }
   ],
   "logical_structure": {
@@ -88,22 +110,26 @@
       {
         "type": "Block",
         "pStyle": "TierContainer_Primary",
-        "content_ref": "Core Model Routing Logic",
         "pPr": {
           "jc": "both",
-          "react:context": "TierRoutingProvider"
-        }
+          "react:useContext": "TierRoutingProvider",
+          "fiber:updateQueue": "Immediate"
+        },
+        "content_ref": "Core Model Routing Logic"
       },
       {
         "type": "Inline",
         "rStyle": "LogicRun_HighPriority",
         "rPr": {
           "bold": true,
-          "react:useHook": "useTierReconciliation"
+          "react:useHook": "useTierReconciliation",
+          "lanes:assignment": "Sync"
         },
         "terminal": {
           "is_field": true,
-          "field_logic": "DYNAMIC_SLA_CHECK",
+          "field_type": "DynamicSlaCheck",
+          "field_logic": "ABSOLUTE_SLA_ENFORCEMENT(50ms)",
+          "react:useReducer": "tierStateReducer",
           "value": "ACTIVE_LOAD_BALANCING"
         }
       }
@@ -117,13 +143,7 @@
       "targetMode": "Internal",
       "rule": {
         "rule_id": "R001_CoreFinancial",
-        "criteria": {
-          "match_type": "exact_id",
-          "values": [
-            "UUID_CORE_SERVICE_X"
-          ]
-        },
-        "rationale": "Explicit core engine siphoning with Fiber reconciliation."
+        "criteria": { "match_type": "exact_id", "values": ["UUID_CORE_SERVICE_X"] }
       }
     },
     {
@@ -136,16 +156,8 @@
         "criteria": {
           "match_type": "tag_match",
           "tags": [
-            {
-              "key": "environment",
-              "operator": "equals",
-              "value": "production"
-            },
-            {
-              "key": "system_sensitivity",
-              "operator": "not_equals",
-              "value": "low"
-            }
+            { "key": "environment", "operator": "equals", "value": "production" },
+            { "key": "system_sensitivity", "operator": "not_equals", "value": "low" }
           ]
         }
       }
@@ -155,12 +167,19 @@
       "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings",
       "target": "word/settings.xml",
       "targetMode": "Internal"
+    },
+    {
+      "rId": "rId_Scheduler",
+      "type": "https://react.dev/core/scheduler-registry",
+      "target": "GACR/lib/scheduler_runtime.ts",
+      "targetMode": "Internal"
     }
   ],
   "diagnostics": {
-    "semantic_drift_check": 0.18,
+    "semantic_drift_check": 0.21,
     "structure_integrity": "OK",
     "mce_compatibility": "PASS",
-    "fiber_tree_health": "OPTIMAL"
+    "fiber_tree_health": "OPTIMAL",
+    "lane_concurrency_check": "VALIDATED"
   }
 }
