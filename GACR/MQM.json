@@ -1,60 +1,136 @@
 {
-  "$schema": "http://sgs-v97.5/schema/mqm",
+  "$schema": "https://gacr.agi/schemas/ecvm_tis_v10.5.0_final.json",
+  "$id": "https://gacr.agi/mqm/core_policy_v10.5.json",
   "metadata": {
-    "version": "3.0-STRUCTURAL_ALIGNMENT",
-    "owner": "GAX/MQM_Core",
-    "description": "Defines core Model Quality Management policies and remediation protocols."
+    "manifest_id": "GTEM_V10.5.0_FINAL",
+    "version": "10.5.0-FINAL",
+    "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
+    "evolution_round": 1,
+    "saturation_level": 2,
+    "metabolic_rate": "STANDARD",
+    "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
+    "identity_anchors_enforced": true,
+    "anchors": {
+      "purpose": "Self-optimising AGI substrate for real-world problem solving",
+      "mechanism": "Siphoning patterns from advanced codebases",
+      "memory": "Chained context across files — the system is one organism",
+      "governance": "Human oversight remains active at all saturation levels",
+      "origin": "NEXUS_CORE"
+    },
+    "markup_compatibility": {
+      "ignorable": "dalek v3 nx_ext mce",
+      "namespaces": {
+        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+        "nx": "https://nexus-core.agi/governance"
+      }
+    }
   },
+  "relationships": [
+    {
+      "rId": "rId1",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/remediation",
+      "target": "remediation/protocol_v1_1.json",
+      "targetMode": "Internal"
+    },
+    {
+      "rId": "rId2",
+      "type": "https://nexus-core.agi/metrics/storage",
+      "target": "metrics/S03_LATENCY",
+      "targetMode": "External"
+    }
+  ],
   "policies": {
-    "version_tag": "ARES_MQM_V3.0_SA",
-    "enforcement_tiers": {
-      "CRITICAL_P1": {
-        "description": "High business impact models. Fast quarantine, extremely low tolerance (SLR/SLO aligned).",
-        "failure_criteria": {
-          "max_consecutive_reruns": 2,
-          "window_hrs": 12
-        },
-        "monitoring_rules": [
+    "version_tag": "ARES_MQM_V10.5_OPC",
+    "default_tier_rId": "rId1",
+    "parts": [
+      {
+        "id": "CRITICAL_P1",
+        "rId": "rId101",
+        "status": "STABLE",
+        "atomized_layers": [
           {
-            "metric_id": "MQM_S03_STORAGE_LATENCY",
-            "type": "PERCENTILE_LIMIT",
-            "limit": 0.10
+            "layer_type": "Block",
+            "inheritance": "Override",
+            "pPr": {
+              "jc": { "val": "both" },
+              "spacing": { "val": 12, "unit": "hrs" }
+            },
+            "content_ref": "High business impact models. Fast quarantine."
           },
           {
-            "metric_id": "MQM_S04_MODEL_DRIFT_COUNT",
-            "type": "ABSOLUTE_COUNT_MAX",
-            "limit": 1
+            "layer_type": "Inline",
+            "inheritance": "Final",
+            "rPr": {
+              "sz": 10,
+              "color": "FF0000",
+              "bold": true
+            },
+            "content_ref": "MQM_S04_MODEL_DRIFT_COUNT: ABSOLUTE_COUNT_MAX(1)"
           }
         ]
       },
-      "STANDARD_P2": {
-        "description": "Default operational models. Standard tolerance and recovery window.",
-        "failure_criteria": {
-          "max_consecutive_reruns": 4,
-          "window_hrs": 72
-        },
-        "monitoring_rules": [
+      {
+        "id": "STANDARD_P2",
+        "rId": "rId102",
+        "status": "SATURATED",
+        "atomized_layers": [
           {
-            "metric_id": "MQM_S03_STORAGE_LATENCY",
-            "type": "PERCENTILE_LIMIT",
-            "limit": 0.20
-          },
-          {
-            "metric_id": "MQM_S04_MODEL_DRIFT_COUNT",
-            "type": "ABSOLUTE_COUNT_MAX",
-            "limit": 3
+            "layer_type": "Block",
+            "inheritance": "Inherit",
+            "pPr": {
+              "spacing": { "val": 72, "unit": "hrs" }
+            },
+            "content_ref": "Default operational models."
           }
         ]
       }
-    },
-    "default_tier": "STANDARD_P2"
+    ]
+  },
+  "state_machine": {
+    "abstract_num_definitions": [
+      {
+        "abstractNumId": "0",
+        "levels": [
+          {
+            "ilvl": 0,
+            "start": 1,
+            "numFmt": "decimal",
+            "lvlText": "RERUN_%1",
+            "lvlJc": "left"
+          }
+        ]
+      }
+    ],
+    "instance_mapping": [
+      {
+        "numId": "1",
+        "abstractNumId": "0"
+      }
+    ]
   },
   "certified_remediation_protocols": [
     {
       "protocol_id": "Model_Remediation_Protocol_V1.1",
+      "rId": "rId1",
       "activation_priority": 100,
-      "description": "Standard retraining/recalibration sequence based on V97.5 standards.",
+      "description": "Standard retraining/recalibration sequence.",
       "remediation_playbook": "PLAYBOOK_MLOP_RETRAIN_V975"
     }
-  ]
+  ],
+  "diagnostics_engine": {
+    "drift_threshold": 0.35,
+    "saturation_level": 2,
+    "validation_rules": [
+      "NoOrphanedRIds",
+      "StyleChainResolution",
+      "NamespaceValidityCheck",
+      "StrictHHHCompliance"
+    ],
+    "emergency_brake": {
+      "corruption_threshold": 5,
+      "auto_halt": true,
+      "log_target": "NEXUS_LOG.txt"
+    }
+  }
 }
