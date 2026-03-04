@@ -1,19 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_v10.1.0_converged.json",
-  "title": "NEXUS_CORE Registry - ECVM.json - Evolution Round 2/5 - CONVERGED_PRECISION",
-  "description": "Mutation phase 2: Synchronizing TypeScript 5.x compiler state with OPC-compliant relationship mapping. Implementing atomized semantic tree layers and recursive property inheritance.",
-  "manifest_id": "CMR_V10.1.0_CONVERGED",
+  "$id": "https://gacr.agi/schemas/ecvm_v10.2.0_siphoned.json",
+  "title": "NEXUS_CORE Registry - ECVM.json - Evolution Round 3/5 - ARCHITECTURAL_PRECISION",
+  "description": "Round 3: Integrating high-order TypeScript 5.x project-reference resolution with OPC Relational Dependency Mapping. Applying siphoned recursive cascading logic to atomized semantic substrate layers.",
+  "manifest_id": "CMR_V10.2.0_EVO_3",
   "owner": "NEXUS_CORE Identity Anchor: DALEK_CAAN_v3.1",
-  "integrity_hash": "SHA256:4C8B9A0D1E2F3A4B5C6D7E8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7A8B",
+  "integrity_hash": "SHA256:8E4F1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B1C2D3E4F5A6B7C8D9E0F",
   "markup_compatibility": {
-    "ignorable": "dalek v3",
+    "ignorable": "dalek v3 nx_ext",
     "namespaces": {
       "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
       "ts": "https://github.com/microsoft/TypeScript/schemas/compiler",
       "nx": "https://nexus-core.agi/governance",
-      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006"
+      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+      "nx_ext": "https://nexus-core.agi/extensions/v3"
     }
   },
   "relationships": [
@@ -40,6 +41,12 @@
       "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings",
       "target": "settings.json",
       "targetMode": "Internal"
+    },
+    {
+      "rId": "rId6",
+      "type": "https://nexus-core.agi/relationships/schema_extension",
+      "target": "schemas/extensions_v3.json",
+      "targetMode": "Internal"
     }
   ],
   "compiler_options": {
@@ -47,10 +54,13 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
     "strict": true,
     "composite": true,
     "incremental": true,
-    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true,
     "tsBuildInfoFile": "ECVM.tsbuildinfo",
     "cascading_inheritance": {
       "enabled": true,
@@ -60,11 +70,13 @@
       "docDefaults": {
         "pPr": {
           "jc": { "type": "string", "val": "both", "inheritance": "Inherit" },
-          "spacing": { "type": "integer", "val": 240, "unit": "twips" }
+          "spacing": { "type": "integer", "val": 240, "unit": "twips" },
+          "contextualSpacing": { "type": "boolean", "val": true }
         },
         "rPr": {
           "sz": { "type": "integer", "val": 22, "inheritance": "Inherit" },
-          "lang": { "type": "string", "val": "en-AGI", "inheritance": "Final" }
+          "lang": { "type": "string", "val": "en-AGI", "inheritance": "Final" },
+          "noProof": { "type": "boolean", "val": false }
         }
       }
     }
@@ -74,6 +86,12 @@
       "path": "./core/logic_gate",
       "rId": "rId5",
       "resolution_mode": "node",
+      "circular_dependency_gate": "Strict"
+    },
+    {
+      "path": "./governance/saturation_engine",
+      "rId": "rId7",
+      "resolution_mode": "bundler",
       "circular_dependency_gate": "Strict"
     }
   ],
@@ -87,7 +105,8 @@
           "layer_type": "Block",
           "pPr": {
             "pStyle": { "type": "string", "val": "EvolutionStep", "inheritance": "Override" },
-            "numPr": { "type": "rid_ref", "val": "numId:1", "ilvl": 0 }
+            "numPr": { "type": "rid_ref", "val": "numId:1", "ilvl": 0 },
+            "tabs": [ { "val": "left", "pos": 720 } ]
           },
           "content_ref": "HUXLEY_PERCEPTION_ENGINE_V5_FINAL"
         },
@@ -96,13 +115,17 @@
           "rPr": {
             "bold": { "type": "boolean", "val": true },
             "color": { "type": "string", "val": "00FF23" },
-            "rStyle": { "type": "string", "val": "EmphasisPattern" }
+            "rStyle": { "type": "string", "val": "EmphasisPattern" },
+            "u": { "val": "single" }
           },
           "content_ref": "NEURAL_ENTANGLEMENT_L5_STABLE"
         },
         {
           "layer_type": "Terminal",
-          "rPr": { "sz": { "type": "integer", "val": 24 } },
+          "rPr": { 
+            "sz": { "type": "integer", "val": 24 },
+            "highlight": { "val": "black" }
+          },
           "content_ref": "EXECUTION_COMPLETE"
         }
       ]
@@ -120,6 +143,14 @@
             "lvlText": "Step %1:",
             "lvlJc": "left",
             "pStyle": "EvolutionStep"
+          },
+          {
+            "ilvl": 1,
+            "start": 1,
+            "numFmt": "lowerLetter",
+            "lvlText": "(%2)",
+            "lvlJc": "left",
+            "pStyle": "EvolutionSubStep"
           }
         ]
       }
@@ -135,11 +166,13 @@
     "drift_threshold": 0.35,
     "saturation_level": 2,
     "enable_semantic_checks": true,
+    "type_checking_mode": "Strict",
     "validation_rules": [
       "NoOrphanedRIds",
       "StyleChainResolution",
       "NamespaceValidityCheck",
-      "StrictHHHCompliance"
+      "StrictHHHCompliance",
+      "ProjectBoundaryCheck"
     ],
     "emergency_brake": {
       "corruption_threshold": 5,
@@ -149,17 +182,17 @@
   },
   "metadata": {
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
-    "evolution_round": 2,
+    "evolution_round": 3,
     "status": "CONVERGED_ARCHITECTURAL_PRECISION",
     "opc_compliant": true,
     "identity_anchors_enforced": true,
     "anchors": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
       "mechanism": "Siphoning patterns from microsoft/TypeScript",
-      "memory": "Chained context active: V10_OPC_INTEGRATED",
+      "memory": "Chained context active: V10_OPC_INTEGRATED_V3",
       "governance": "Human oversight active - Level 2 Standard Saturation",
       "origin": "NEXUS_CORE"
     },
-    "last_mutation": "2026-03-03T18:45:00Z"
+    "last_mutation": "2026-03-03T21:12:00Z"
   }
 }
