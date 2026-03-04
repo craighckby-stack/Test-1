@@ -1,69 +1,93 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_v10.0.0_opc_precision.json",
-  "title": "NEXUS_CORE Registry - ECVM.json - Evolution Round 1/5 - ARCHITECTURAL_PRECISION",
-  "description": "Mutation phase 1: Implementing Open Packaging Convention (OPC) logic and TypeScript-grade dependency resolution. Transitioning from Singularity-entropy to Hierarchical Semantic Serialization.",
-  "manifest_id": "CMR_V10.0.0_OPC_PRECISION",
+  "$id": "https://gacr.agi/schemas/ecvm_v10.1.0_converged.json",
+  "title": "NEXUS_CORE Registry - ECVM.json - Evolution Round 2/5 - CONVERGED_PRECISION",
+  "description": "Mutation phase 2: Synchronizing TypeScript 5.x compiler state with OPC-compliant relationship mapping. Implementing atomized semantic tree layers and recursive property inheritance.",
+  "manifest_id": "CMR_V10.1.0_CONVERGED",
   "owner": "NEXUS_CORE Identity Anchor: DALEK_CAAN_v3.1",
-  "integrity_hash": "SHA256:8F3A2B1C9D0E4F5A6B7C8D9E0F1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A",
+  "integrity_hash": "SHA256:4C8B9A0D1E2F3A4B5C6D7E8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7A8B",
   "markup_compatibility": {
     "ignorable": "dalek v3",
     "namespaces": {
       "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
       "ts": "https://github.com/microsoft/TypeScript/schemas/compiler",
-      "nx": "https://nexus-core.agi/governance"
+      "nx": "https://nexus-core.agi/governance",
+      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006"
     }
   },
   "relationships": [
     {
       "rId": "rId1",
       "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
-      "target": "styles.json"
+      "target": "styles.json",
+      "targetMode": "Internal"
     },
     {
       "rId": "rId2",
       "type": "https://nexus-core.agi/relationships/model_definition",
-      "target": "models/huxley_v5.json"
+      "target": "models/huxley_v5.json",
+      "targetMode": "Internal"
     },
     {
       "rId": "rId3",
       "type": "https://nexus-core.agi/relationships/diagnostic_rules",
-      "target": "diagnostics/strict_hhhc.json"
+      "target": "diagnostics/strict_hhhc.json",
+      "targetMode": "Internal"
+    },
+    {
+      "rId": "rId4",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings",
+      "target": "settings.json",
+      "targetMode": "Internal"
     }
   ],
   "compiler_options": {
     "target": "ESNext",
     "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "verbatimModuleSyntax": true,
     "strict": true,
     "composite": true,
     "incremental": true,
+    "skipLibCheck": true,
     "tsBuildInfoFile": "ECVM.tsbuildinfo",
     "cascading_inheritance": {
       "enabled": true,
       "resolver": "RecursiveFlatten",
+      "flatten_strategy": "DifferentialUpdate",
+      "local_overrides_priority": "high",
       "docDefaults": {
         "pPr": {
-          "jc": { "type": "string", "val": "both" },
-          "spacing": { "type": "integer", "val": 240 }
+          "jc": { "type": "string", "val": "both", "inheritance": "Inherit" },
+          "spacing": { "type": "integer", "val": 240, "unit": "twips" }
         },
         "rPr": {
-          "sz": { "type": "integer", "val": 22 },
-          "lang": { "type": "string", "val": "en-AGI" }
+          "sz": { "type": "integer", "val": 22, "inheritance": "Inherit" },
+          "lang": { "type": "string", "val": "en-AGI", "inheritance": "Final" }
         }
       }
     }
   },
+  "references": [
+    {
+      "path": "./core/logic_gate",
+      "rId": "rId5",
+      "resolution_mode": "node",
+      "circular_dependency_gate": "Strict"
+    }
+  ],
   "parts": [
     {
-      "id": "MAIN_LOGIC_PART",
-      "rId": "rId1",
+      "id": "COGNITIVE_SUBSTRATE_PART",
+      "rId": "rId2",
       "status": "Active",
       "atomized_layers": [
         {
           "layer_type": "Block",
           "pPr": {
-            "style_id": { "type": "string", "val": "SingularityBase", "inheritance": "Inherit" }
+            "pStyle": { "type": "string", "val": "EvolutionStep", "inheritance": "Override" },
+            "numPr": { "type": "rid_ref", "val": "numId:1", "ilvl": 0 }
           },
           "content_ref": "HUXLEY_PERCEPTION_ENGINE_V5_FINAL"
         },
@@ -71,9 +95,15 @@
           "layer_type": "Inline",
           "rPr": {
             "bold": { "type": "boolean", "val": true },
-            "color": { "type": "string", "val": "00FF23" }
+            "color": { "type": "string", "val": "00FF23" },
+            "rStyle": { "type": "string", "val": "EmphasisPattern" }
           },
           "content_ref": "NEURAL_ENTANGLEMENT_L5_STABLE"
+        },
+        {
+          "layer_type": "Terminal",
+          "rPr": { "sz": { "type": "integer", "val": 24 } },
+          "content_ref": "EXECUTION_COMPLETE"
         }
       ]
     }
@@ -87,7 +117,8 @@
             "ilvl": 0,
             "start": 1,
             "numFmt": "decimal",
-            "lvlText": "%1.",
+            "lvlText": "Step %1:",
+            "lvlJc": "left",
             "pStyle": "EvolutionStep"
           }
         ]
@@ -100,10 +131,10 @@
       }
     ]
   },
-  "diagnostics": {
-    "engine_mode": "Strict",
+  "diagnostics_engine": {
     "drift_threshold": 0.35,
     "saturation_level": 2,
+    "enable_semantic_checks": true,
     "validation_rules": [
       "NoOrphanedRIds",
       "StyleChainResolution",
@@ -118,17 +149,17 @@
   },
   "metadata": {
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
-    "evolution_round": 1,
-    "status": "SIPHONING_OPC_ARCHITECTURE",
+    "evolution_round": 2,
+    "status": "CONVERGED_ARCHITECTURAL_PRECISION",
     "opc_compliant": true,
     "identity_anchors_enforced": true,
     "anchors": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
       "mechanism": "Siphoning patterns from microsoft/TypeScript",
-      "memory": "Chained context active: V9_SINGULARITY_ABSORBED",
+      "memory": "Chained context active: V10_OPC_INTEGRATED",
       "governance": "Human oversight active - Level 2 Standard Saturation",
       "origin": "NEXUS_CORE"
     },
-    "last_mutation": "2026-03-03T12:00:00Z"
+    "last_mutation": "2026-03-03T18:45:00Z"
   }
 }
