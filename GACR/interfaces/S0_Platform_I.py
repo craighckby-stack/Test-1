@@ -1,86 +1,114 @@
 from typing import Protocol, List, Dict, Optional, Any, Union, runtime_checkable
+from enum import IntEnum
 
-# --- GACR/interfaces/S0_Platform_I.py (DALEK_CAAN v3.1 - Round 1/5) ---
-# Siphoning Meta/React-Core Fiber scheduling and OOXML Relationship Mapping logic.
+# --- GACR/interfaces/S0_Platform_I.py (DALEK_CAAN v3.1 - Round 2/5) ---
+# Siphoning Meta/React-Core Concurrent Fiber and ISO/IEC 29500 (OOXML) Indirection.
 
-RelationshipID = str  # Mapping to rId in _rels/ manifest
-LanePriority = int   # React-style lane priority (Sync, Input, Default, Idle)
+class Lane(IntEnum):
+    """React-Siphon: Bitmask for scheduling priority (Fiber Lanes)."""
+    SYNC = 0b00001
+    INPUT_CONTINUOUS = 0b00010
+    DEFAULT = 0b00100
+    TRANSITION = 0b01000
+    IDLE = 0b10000
+
+RelationshipID = str # Indirection pointer (rId) to external parts or keys
+
+@runtime_checkable
+class FiberNode(Protocol):
+    """
+    React-Siphon: The atomic unit of work for concurrent platform reconciliation.
+    Maintains the 'work-in-progress' tree vs 'current' tree (alternate).
+    """
+    tag: int
+    lanes: Lane
+    child_lanes: Lane
+    alternate: Optional['FiberNode']
+    memoized_state: Any
+    update_queue: List[Any]
 
 @runtime_checkable
 class CascadingProperties(Protocol):
-    """DNA Pattern: 3. Cascading Inheritance Style Logic."""
-    def get_property(self, key: str, default: Any = None) -> Any:
-        """Resolves property value through the inheritance chain: Default -> Abstract -> Local."""
+    """DNA Pattern: 3. Cascading Inheritance Style Logic (Styles.xml)."""
+    def resolve(self, key: str, rId_style: Optional[RelationshipID] = None) -> Any:
+        """Inheritance: docDefaults -> abstractStyle -> local_rPr (Run Properties)."""
         ...
 
 class CRACryptoInterface(Protocol):
     """
-    Certificate and Root of Trust Cryptography Access (CRA).
-    Siphons: React Concurrent priority lanes + OOXML Indirection (rId).
+    Siphons: React Concurrent priority + OOXML Relationship Mapping.
     """
-    def verify(
+    def dispatch_verify(
         self, 
-        payload: bytes, 
-        signature: bytes, 
-        public_key: RelationshipID, 
-        lane: LanePriority = 16 # Default lane
-    ) -> bool:
+        payload_rid: RelationshipID, 
+        signature_rid: RelationshipID, 
+        lane: Lane = Lane.DEFAULT
+    ) -> FiberNode:
         """
-        Verifies signature using indirection mapping for keys.
-        Supports non-blocking reconciliation via lane priority.
+        Non-blocking verification. Uses rId indirection to fetch artifacts 
+        from the platform container manifest.
         """
+        ...
+
+    def get_public_key(self, rId: RelationshipID) -> bytes:
+        """Trace rId to Relationship Layer to resolve cryptographic material."""
         ...
 
 class HIPAHardwareInterface(Protocol):
     """
-    Hardware Isolation and Platform Access (HIPA).
     Siphons: React Hydration/Suspense + OOXML Semantic Atomization.
     """
-    def get_platform_measurement(self, suspense_id: Optional[str] = None) -> str:
-        """
-        Returns measured root-of-trust state. 
-        If hardware is busy, triggers 'Suspense' logic via suspense_id.
-        """
+    def hydrate(self, dehydrated_part_rid: RelationshipID) -> bool:
+        """Syncs hardware state with session; equivalent to React Fiber hydration."""
         ...
 
-    def has_features(self, required_features: List[str], defaults: CascadingProperties) -> bool:
-        """Checks features against cascading local/global overrides."""
+    def yield_if_congested(self, lane: Lane) -> bool:
+        """Concurrent Logic: Yields execution if a higher-priority lane has pending work."""
         ...
 
-    def hydrate_state(self) -> bool:
-        """React-Siphon: Synchronizes dehydrated hardware metadata with active session state."""
+    def get_atomized_telemetry(self) -> List[Dict[str, Any]]:
+        """
+        Semantic Atomization: Returns telemetry in 'Runs' (inline) 
+        contained within 'Paragraphs' (block-level state).
+        """
         ...
 
 class NetSecInterface(Protocol):
     """
-    Secure Network Connectivity Verification.
     Siphons: OOXML Container-Part Pattern (Modular URI Addressing).
     """
-    def verify_endpoint_reachability(
-        self, 
-        endpoint_rid: RelationshipID, 
-        timeout: int,
-        context_namespace: str = "xmlns:vsec"
-    ) -> bool:
-        """Verifies reachability via relationship indirection mapping in a specific namespace."""
+    def open_part_stream(self, part_uri: str, mce_ignorable: List[str]) -> Any:
+        """
+        Opens a connection to a platform part using Namespace-driven extensibility.
+        Processes 'Ignorable' logic markers to maintain backwards compatibility.
+        """
         ...
 
 class S0PlatformPackage(Protocol):
     """
-    Macro-Architecture: The 'Container-Part' Pattern.
-    Acts as the 'word/document.xml' root for the Platform Interface.
+    Macro-Architecture: The 'Container-Part' Pattern (ISO/IEC 29500).
+    Acts as the 'word/document.xml' root for Nexus Platform interactions.
     """
     crypto: CRACryptoInterface
     hardware: HIPAHardwareInterface
     network: NetSecInterface
     
-    _rels: Dict[RelationshipID, Dict[str, str]]
-    settings: Dict[str, Any] # word/settings.xml Global Configuration Object
+    # Indirection Dependency Layer (_rels/.rels mapping)
+    relationships: Dict[RelationshipID, Dict[str, str]]
+    # Global Configuration Object (word/settings.xml)
+    settings: Dict[str, Any]
 
-    def resolve_relationship(self, rid: RelationshipID) -> Dict[str, str]:
-        """DNA Pattern: 2. Relationship Mapping (RID) Logic."""
+    def resolve_rid(self, rid: RelationshipID) -> str:
+        """DNA Pattern: 2. Trace Relationship ID to Target URI."""
         ...
 
-    def reconcile_platform_fiber(self) -> None:
-        """React-Siphon: Triggers the reconciliation loop for pending platform security checks."""
+    def request_reconciliation(self, root_fiber: FiberNode, lane: Lane) -> None:
+        """
+        React-Siphon: Triggers the Fiber scheduler to reconcile platform 
+        state updates across the concurrent lane priority.
+        """
+        ...
+
+    def get_doc_defaults(self) -> CascadingProperties:
+        """Retrieves root enforcement defaults for the cascading property tree."""
         ...
