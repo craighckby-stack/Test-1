@@ -14,40 +14,46 @@
   },
   "Metadata": {
     "cp:coreProperties": {
-      "dc:title": "GACR.TelemetryAggregator.v3.1",
+      "dc:title": "GACR.TelemetryAggregator.v3.1.EVO4",
       "cp:version": "3.1.0-CONVERGED",
       "cp:lastModifiedBy": "DALEK_CAAN_v3.1",
-      "cp:revision": "3",
+      "cp:revision": "4",
       "react:flags": {
         "enableSchedulingProfiler": true,
-        "enableSuspenseCallback": true
+        "enableSuspenseCallback": true,
+        "enableSyncDefaultUpdates": false
       }
     }
   },
   "Settings": {
     "w:settings": {
+      "w:mirrorMargins": true,
       "w:docDefaults": {
         "pPrDefault": {
           "scheduler:priority": "Normal",
           "nx:governance_mode": "Adaptive",
-          "lanes:mask": "0b00100"
+          "lanes:mask": "0b00100",
+          "react:transition": "deferred"
         },
         "rPrDefault": {
           "react:memoize": true,
-          "ac:complexity_limit": 1000
+          "ac:complexity_limit": 1000,
+          "fiber:expiration_ms": 300
         }
       },
       "mce:compatibility": {
         "w:compatSetting": [
           { "w:name": "compatibilityMode", "w:uri": "http://schemas.microsoft.com/office/word", "w:val": "15" },
-          { "w:name": "reactConcurrentMode", "w:val": "true" }
+          { "w:name": "reactConcurrentMode", "w:val": "true" },
+          { "w:name": "fiberReconciliationVersion", "w:val": "2" }
         ]
       }
     },
     "cascading_inheritance": {
       "resolver": "RecursiveFlatten",
-      "depth_limit": 12,
-      "hook:useStyle": "memoized"
+      "depth_limit": 16,
+      "hook:useStyle": "memoized",
+      "react:hydration": "progressive"
     }
   },
   "Styles": [
@@ -57,7 +63,8 @@
       "scheduler:priority": "UserBlocking",
       "lanes:mask": "0b00001",
       "ac:threshold_logic": "Deterministic",
-      "react:effect_tag": "Update"
+      "react:effect_tag": "Update",
+      "react:suspense_threshold": 50
     },
     {
       "styleId": "BufferedStream",
@@ -65,14 +72,16 @@
       "basedOn": "HighThroughput",
       "scheduler:priority": "Low",
       "lanes:mask": "0b10000",
-      "hook:useBatching": "Debounced"
+      "hook:useBatching": "Debounced",
+      "fiber:expiration_ms": 5000
     },
     {
       "styleId": "SchemaEnforcement",
       "type": "character",
       "react:memoize": true,
       "w:color": "FF0000",
-      "ac:complexity_limit": 2000
+      "ac:complexity_limit": 2000,
+      "react:useTransition": true
     }
   ],
   "AbstractSequences": [
@@ -80,8 +89,8 @@
       "abstractNumId": "seq0",
       "multiLevelType": "hybridFiber",
       "lvl": [
-        { "ilvl": 0, "scheduler:priority": "Immediate", "w:lvlText": "Event-%1", "w:lvlJc": "start" },
-        { "ilvl": 1, "scheduler:priority": "Normal", "w:lvlText": "SubEvent-%2", "w:lvlJc": "center" }
+        { "ilvl": 0, "scheduler:priority": "Immediate", "w:lvlText": "Event-%1", "w:lvlJc": "start", "lanes:mask": "0b00001" },
+        { "ilvl": 1, "scheduler:priority": "Normal", "w:lvlText": "SubEvent-%2", "w:lvlJc": "center", "lanes:mask": "0b00100" }
       ]
     }
   ],
@@ -105,41 +114,46 @@
         "rId": "rId3",
         "mce:compatibility_mode": "v5.0",
         "scheduler:priority": "Normal",
-        "react:lane": "Default"
+        "react:lane": "Default",
+        "fiber:memo": "PersistentS3"
       },
       {
         "rId": "rId4",
         "scheduler:priority": "Immediate",
         "lanes:mask": "0b00010",
-        "react:lane": "Sync"
+        "react:lane": "Sync",
+        "ac:verification_logic": "HMAC-SHA256"
       }
     ]
   },
   "Processing": {
     "FiberWorkLoop": {
+      "reconciliation_strategy": "DoubleBuffering",
       "current": {
         "fiber:tag": 3,
         "type": "HostRoot",
         "w:pStyle": "HighThroughput",
+        "fiber:expiration_ms": 150,
         "runs": [
           {
             "rStyle": "SchemaEnforcement",
             "react:effect_tag": "Update",
-            "terminal": { "value": "ValidateJsonSchema" }
+            "terminal": { "value": "ValidateJsonSchema", "is_field": false }
           },
           {
             "ac:complexity_limit": 500,
             "react:effect_tag": "Placement",
-            "terminal": { "value": "DynamicFilter" }
+            "terminal": { "value": "DynamicFilter", "is_field": true, "field_type": "FIBER_KEY" }
           }
         ],
         "child": [
           {
             "type": "Inline",
             "w:pStyle": "BufferedStream",
+            "w:numPr": { "w:numId": "1", "w:ilvl": 1 },
             "runs": [
               {
-                "lanes:active": "UserBlocking",
+                "lanes:active": "0b10000",
                 "terminal": { "is_field": true, "field_type": "TIMER", "value": "AggregationLat" }
               }
             ]
@@ -150,18 +164,20 @@
         "fiber:tag": 3,
         "type": "HostRoot",
         "react:effect_tag": "Mounting",
-        "fiber:pending_props": { "batch_size": 10000 }
+        "fiber:pending_props": { "batch_size": 12500, "priority_weight": 0.95 },
+        "lanes:pending_mask": "0b00111"
       }
     },
     "SchedulerConfig": {
       "Enabled": true,
-      "TargetCPUUtilization": 0.85,
-      "scheduler:frame_budget_ms": 5,
+      "TargetCPUUtilization": 0.90,
+      "scheduler:frame_budget_ms": 4,
       "Batching": {
-        "MaxEvents": 10000,
-        "MaxLatencyMS": 500,
+        "MaxEvents": 15000,
+        "MaxLatencyMS": 400,
         "Compression": "Zstd",
-        "hook:useTransition": true
+        "hook:useTransition": true,
+        "react:priority_lane_yield": true
       }
     }
   },
@@ -195,6 +211,12 @@
       "rId": "num1",
       "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering",
       "target": "abstractNumId:seq0",
+      "targetMode": "Internal"
+    },
+    {
+      "rId": "styles1",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
+      "target": "Styles",
       "targetMode": "Internal"
     }
   ]
