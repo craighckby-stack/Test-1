@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "GACR/Schemas/APITelemetry.json",
-  "title": "API Performance Metrics Telemetry Schema [NEXUS_CORE v3.1 MUTATION_4]",
-  "description": "Architectural Convergence: Siphoning OOXML-DocX Indirection Dependency Layers and React Fiber Concurrent Lanes. Implements a Recursive Cascading Property System and Multi-Level State Machines for atomized telemetry reconciliation.",
+  "title": "API Performance Metrics Telemetry Schema [NEXUS_CORE v3.1 CONVERGED]",
+  "description": "Final Evolution State: Siphoning OOXML-DocX Indirection Dependency Layers and React-Core Fiber Reconciliation. Implements Hierarchical Semantic Serialization, Recursive Cascading Property Inheritance, and Multi-Level State Machines for sub-50ms telemetry resolution across concurrent lanes.",
   "type": "object",
   "mc:Ignorable": "nx mce react fiber lanes scheduler w r ac",
   "namespaces": {
@@ -17,15 +17,17 @@
     "ac": "https://alphacode.deepmind/logic/v2"
   },
   "properties": {
+    "telemetry_version": { "type": "string", "enum": ["3.1.0-CONVERGED"] },
     "timestamp_ms": { "type": "integer" },
     "settings": {
       "type": "object",
-      "description": "Global Configuration Object (word/settings.xml) for session-wide telemetry flags.",
+      "description": "Global Configuration Object (word/settings.xml). Defines document-wide behavior for the telemetry session.",
       "properties": {
         "nx:mirror_governance": { "type": "boolean", "default": true },
         "mce:compatibility_mode": { "type": "string", "default": "v5.0" },
         "w:docDefaults": {
           "type": "object",
+          "description": "Base properties for the inheritance chain.",
           "properties": {
             "pPrDefault": { "$ref": "#/$defs/paragraphProperties" },
             "rPrDefault": { "$ref": "#/$defs/runProperties" }
@@ -35,30 +37,30 @@
           "type": "object",
           "properties": {
             "resolver": { "type": "string", "enum": ["RecursiveFlatten", "AtomizedSiphon"], "default": "RecursiveFlatten" },
-            "depth_limit": { "type": "integer", "default": 4 }
+            "depth_limit": { "type": "integer", "default": 8 }
           }
         }
       }
     },
     "styles": {
       "type": "array",
-      "description": "State Inheritance Hierarchy (word/styles.xml). Maps Latent Styling to telemetry nodes.",
+      "description": "State Inheritance Hierarchy (word/styles.xml). Supports Latent Styling and Local Overrides.",
       "items": {
         "type": "object",
         "properties": {
           "styleId": { "type": "string" },
           "type": { "type": "string", "enum": ["paragraph", "character"] },
-          "basedOn": { "type": "string", "description": "Recursive parent style reference." },
+          "basedOn": { "type": "string", "description": "Recursive parent style ID." },
           "pPr": { "$ref": "#/$defs/paragraphProperties" },
           "rPr": { "$ref": "#/$defs/runProperties" },
-          "ac:competitive_threshold": { "type": "number" }
+          "ac:threshold_logic": { "type": "string", "enum": ["Clustered", "Deterministic"] }
         },
         "required": ["styleId", "type"]
       }
     },
     "abstract_event_definitions": {
       "type": "array",
-      "description": "Multi-Level State Definitions (word/numbering.xml). Logic templates for event sequencing.",
+      "description": "Multi-Level State Definitions (word/numbering.xml). Abstract templates for telemetry sequencing logic.",
       "items": {
         "type": "object",
         "properties": {
@@ -83,28 +85,27 @@
     },
     "event_instances": {
       "type": "array",
-      "description": "Sequential State Sync. Binds telemetry events to abstract numbering templates.",
+      "description": "Sequential State Sync (word/numbering.xml instances). Binds runtime events to templates via rId indirection.",
       "items": {
         "type": "object",
         "properties": {
           "numId": { "type": "string" },
           "abstractNumId": { "type": "string" },
           "rId": { "type": "string", "pattern": "^rId[0-9]+$" },
-          "ac:cluster_id": { "type": "string" }
+          "fiber:key": { "type": "string" }
         },
-        "required": ["numId", "abstractNumId"]
+        "required": ["numId", "abstractNumId", "rId"]
       }
     },
     "telemetry_fiber_tree": {
       "type": "array",
-      "description": "Atomized Semantic Tree. Paragraph (Block Level API Context) and Run (Inline Level Metrics).",
+      "description": "Atomized Semantic Tree following the Paragraph (Block Context) & Run (Inline Metrics) pattern.",
       "items": {
         "type": "object",
         "properties": {
           "type": { "type": "string", "enum": ["Block", "Inline"] },
           "fiber:tag": { "type": "integer" },
-          "fiber:key": { "type": "string" },
-          "w:pStyle": { "type": "string", "description": "Link to styles[styleId] or event_instances[numId]." },
+          "w:pStyle": { "type": "string", "description": "Refers to styles.styleId or event_instances.numId." },
           "pPr": { "$ref": "#/$defs/paragraphProperties" },
           "runs": {
             "type": "array",
@@ -116,18 +117,14 @@
                 "lifecycle": {
                   "type": "object",
                   "properties": {
-                    "render_phase": {
-                      "type": "object",
+                    "render": {
                       "properties": {
-                        "duration_ms": { "type": "number" },
-                        "scheduler:yield_count": { "type": "integer" },
+                        "duration": { "type": "number" },
                         "lanes:active": { "type": "string" }
                       }
                     },
-                    "commit_phase": {
-                      "type": "object",
+                    "commit": {
                       "properties": {
-                        "duration_ms": { "type": "number" },
                         "mutation_count": { "type": "integer" },
                         "react:effect_tag": { "type": "string" }
                       }
@@ -136,9 +133,10 @@
                 },
                 "terminal": {
                   "type": "object",
+                  "description": "The 'Text' level data or 'Field' logic.",
                   "properties": {
                     "is_field": { "type": "boolean" },
-                    "field_type": { "type": "string", "enum": ["COUNTER", "TIMER", "REF"] },
+                    "field_type": { "type": "string", "enum": ["COUNTER", "TIMER", "REF", "FIBER_KEY"] },
                     "value": { "type": "string" }
                   }
                 }
@@ -152,7 +150,7 @@
     },
     "relationships": {
       "type": "array",
-      "description": "Indirection Dependency Layer (RID Mapping). Decouples semantic logic from physical data targets.",
+      "description": "Indirection Dependency Layer (_rels/.rels). Decouples telemetry identifiers from logical/physical targets.",
       "items": {
         "type": "object",
         "properties": {
@@ -160,18 +158,13 @@
           "type": { "type": "string", "format": "uri" },
           "target": { "type": "string" },
           "targetMode": { "type": "string", "enum": ["Internal", "External"] },
-          "ac:verification_score": { "type": "number", "minimum": 0, "maximum": 1 }
+          "ac:verification_logic": { "type": "string" }
         },
         "required": ["rId", "type", "target"]
       }
     }
   },
-  "required": [
-    "timestamp_ms",
-    "settings",
-    "telemetry_fiber_tree",
-    "relationships"
-  ],
+  "required": ["telemetry_version", "timestamp_ms", "settings", "telemetry_fiber_tree", "relationships"],
   "$defs": {
     "paragraphProperties": {
       "type": "object",
@@ -186,10 +179,10 @@
       "type": "object",
       "properties": {
         "w:color": { "type": "string" },
-        "w:sz": { "type": "integer" },
+        "w:sz": { "type": "integer", "description": "Size metric (half-points equivalent)." },
         "w:b": { "type": "boolean" },
         "react:memoize": { "type": "boolean" },
-        "ac:complexity_constraint": { "type": "string" }
+        "ac:complexity_limit": { "type": "integer" }
       }
     }
   }
