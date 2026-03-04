@@ -4,14 +4,15 @@
   "xmlns:cai": "http://nexus.core/v3/governance/cai",
   "xmlns:r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
   "xmlns:ve": "http://schemas.openxmlformats.org/markup-compatibility/2006",
-  "schema_version": "AIM_V5.1_OPC_PRECISION",
+  "schema_version": "AIM_V5.2_OPC_FINAL_PRECISION",
   "evolution_context": {
-    "round": 4,
+    "round": 5,
     "total_rounds": 5,
+    "status": "SATURATED_STABLE",
     "source_siphon": "dotnet/Open-XML-SDK",
     "dna_signature": "ARCH-OOXML-V2-DOCX-DNA",
     "saturation_level": 2,
-    "integrity_hash": "SHA256:NEXUS_4_BETA_ALIGN"
+    "integrity_hash": "SHA256:NEXUS_5_FINAL_COMMIT_ALIGN"
   },
   "[Content_Types]": {
     "Default": [
@@ -22,7 +23,8 @@
     "Override": [
       { "PartName": "/gacr/aim.json", "ContentType": "application/vnd.nexus.aim.document+json" },
       { "PartName": "/governance/core_axioms.xml", "ContentType": "application/vnd.nexus.governance.axioms+xml" },
-      { "PartName": "/word/styles.xml", "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml" }
+      { "PartName": "/word/styles.xml", "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml" },
+      { "PartName": "/word/numbering.xml", "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml" }
     ]
   },
   "relationships": [
@@ -31,30 +33,34 @@
     { "rId": "rId3", "type": "http://nexus.core/governance", "target": "CONSTITUTIONAL_GOVERNANCE.json", "targetMode": "Internal" },
     { "rId": "rId4", "type": "http://nexus.core/agent/styles", "target": "#agent_styles", "targetMode": "Internal" },
     { "rId": "rId5", "type": "http://nexus.core/agent/numbering", "target": "#abstract_state_machine", "targetMode": "Internal" },
-    { "rId": "rId6", "type": "http://nexus.core/siphon/external_dna", "target": "https://github.com/dotnet/Open-XML-SDK", "targetMode": "External" }
+    { "rId": "rId6", "type": "http://nexus.core/siphon/external_dna", "target": "https://github.com/dotnet/Open-XML-SDK", "targetMode": "External" },
+    { "rId": "rId7", "type": "http://nexus.core/v3/governance/core_axioms", "target": "governance/base_principles.xml", "targetMode": "Internal" }
   ],
   "docDefaults": {
     "aim:pPrDefault": {
       "aim:pPr": {
-        "aim:jc": { "val": "distributed" },
+        "aim:jc": { "val": "both" },
+        "aim:spacing": { "after": "120", "line": "240", "lineRule": "auto" },
         "resource_limits": {
-          "cpu_limit_percentage": 25,
-          "memory_limit_bytes": 1048576000,
-          "io_throughput_cap_mbps": 100
+          "cpu_limit_percentage": 30,
+          "memory_limit_bytes": 2147483648,
+          "io_throughput_cap_mbps": 250
         },
         "security_policy": {
-          "syscalls_allowed": ["read", "write", "exit"],
+          "syscalls_allowed": ["read", "write", "exit", "futex"],
           "base64_armor_enforced": true,
-          "network_mode": "RESTRICTED"
+          "network_mode": "RESTRICTED",
+          "strictHHHCompliance": true
         }
       }
     },
     "aim:rPrDefault": {
       "aim:rPr": {
         "aim:lang": { "val": "en-US" },
+        "aim:sz": { "val": "22" },
         "huxley_gates": {
-          "ers_critical_cutoff": 0.50,
-          "cgs_min_requirement": 0.50
+          "ers_critical_cutoff": 0.65,
+          "cgs_min_requirement": 0.75
         }
       }
     }
@@ -62,12 +68,22 @@
   "agent_styles": {
     "aim:style": [
       {
+        "aim:styleId": "ArchitecturalPrecision",
+        "aim:type": "paragraph",
+        "aim:name": "Final Siphon State",
+        "aim:pPr": {
+          "aim:jc": { "val": "distributed" },
+          "resource_limits": { "cpu_limit_percentage": 95, "memory_limit_bytes": 17179869184 },
+          "security_policy": { "syscalls_allowed": ["*"], "network_mode": "ISOLATED" }
+        },
+        "aim:rPr": { "aim:b": {}, "aim:color": { "val": "0000FF" } }
+      },
+      {
         "aim:styleId": "HighPerformanceAgent",
         "aim:type": "paragraph",
-        "aim:name": "Agent Ultra-Performance",
+        "aim:basedOn": { "val": "ArchitecturalPrecision" },
         "aim:pPr": {
           "aim:spacing": { "after": "200", "line": "276", "lineRule": "auto" },
-          "resource_limits": { "cpu_limit_percentage": 85, "memory_limit_bytes": 8589934592 },
           "security_policy": { "syscalls_allowed": ["read", "write", "mmap", "exit", "futex", "clone"] }
         }
       },
@@ -76,7 +92,7 @@
         "aim:type": "paragraph",
         "aim:basedOn": { "val": "Normal" },
         "aim:pPr": {
-          "resource_limits": { "cpu_limit_percentage": 10, "memory_limit_bytes": 524288000 }
+          "resource_limits": { "cpu_limit_percentage": 5, "memory_limit_bytes": 262144000 }
         },
         "aim:rPr": {
           "huxley_gates": { "logic_extraction_pattern": "REDUCER_DETERMINISTIC" }
@@ -88,12 +104,12 @@
     "aim:abstractNum": [
       {
         "aim:abstractNumId": "0",
-        "aim:nsid": "7FFFFFFF",
+        "aim:nsid": "A1B2C3D4",
         "aim:multiLevelType": "hybridMultilevel",
         "aim:lvl": [
           { "aim:ilvl": 0, "aim:start": 1, "aim:numFmt": { "val": "decimal" }, "aim:lvlText": { "val": "%1. [CRITIQUE]" }, "aim:pStyle": "RestrictedReducer" },
           { "aim:ilvl": 1, "aim:start": 1, "aim:numFmt": { "val": "bullet" }, "aim:lvlText": { "val": "• [REVISION]" }, "aim:pStyle": "HighPerformanceAgent" },
-          { "aim:ilvl": 2, "aim:start": 1, "aim:numFmt": { "val": "decimal" }, "aim:lvlText": { "val": "%3. [COMMIT]" }, "aim:rPr": { "cgs_min_requirement": 0.98 } }
+          { "aim:ilvl": 2, "aim:start": 1, "aim:numFmt": { "val": "decimal" }, "aim:lvlText": { "val": "%3. [COMMIT]" }, "aim:rPr": { "cgs_min_requirement": 0.99 }, "aim:lvl": "Final_Commit" }
         ]
       }
     ],
@@ -101,7 +117,7 @@
       {
         "aim:numId": "101",
         "aim:abstractNumId": "0",
-        "aim:lvlOverride": { "aim:ilvl": 2, "aim:startOverride": { "val": "4" } }
+        "aim:lvlOverride": { "aim:ilvl": 2, "aim:startOverride": { "val": "5" } }
       }
     ]
   },
@@ -110,14 +126,14 @@
       {
         "aim:p": {
           "r:id": "rId1",
-          "aim:pPr": { "aim:pStyle": "HighPerformanceAgent" },
+          "aim:pPr": { "aim:pStyle": "ArchitecturalPrecision" },
           "aim:r": [
             {
               "aim:rPr": {
-                "cai:latentCritiqueVectors": "ACTIVE",
-                "n3_metrics": { "min_phi": 0.95, "coherence_threshold": 0.96 }
+                "cai:latentCritiqueVectors": "TERMINATED_SUCCESS",
+                "n3_metrics": { "min_phi": 0.99, "coherence_threshold": 0.99 }
               },
-              "aim:t": "SGS_POLICY_ENFORCEMENT_CORE_V4"
+              "aim:t": "SGS_POLICY_ENFORCEMENT_CORE_V5_FINAL"
             }
           ]
         }
@@ -128,8 +144,8 @@
           "aim:pPr": { "aim:pStyle": "RestrictedReducer" },
           "aim:r": [
             {
-              "aim:rPr": { "aim:b": {}, "local_overrides": { "hot_swap_enabled": true } },
-              "aim:t": "GAX_DATA_REDUCTION_STREAM_V4"
+              "aim:rPr": { "aim:b": {}, "local_overrides": { "hot_swap_enabled": false, "state_locked": true } },
+              "aim:t": "GAX_DATA_REDUCTION_STREAM_V5_STABLE"
             }
           ]
         }
@@ -141,8 +157,8 @@
           },
           "aim:r": [
             {
-              "aim:rPr": { "aim:i": {}, "failure_path_saturation": 0.99, "network_mode": "NONE" },
-              "aim:t": "LBD_CORE_STATE_INSTANCE_EVOLUTION_4"
+              "aim:rPr": { "aim:i": {}, "failure_path_saturation": 1.0, "network_mode": "NONE", "aim:sz": { "val": "24" } },
+              "aim:t": "LBD_CORE_STATE_INSTANCE_EVOLUTION_5_FINAL_COMMIT"
             }
           ]
         }
@@ -156,16 +172,19 @@
       "aim:useNormalStyleForList": true,
       "aim:doNotExpandShiftReturn": false
     },
-    "aim:rsidRoot": "00A1B2C3",
+    "aim:rsidRoot": "00FFFFFF",
     "aim:vars": {
-      "psr_threshold_degradation": 0.04,
-      "cycle_interval_ms": 30000,
+      "psr_threshold_degradation": 0.01,
+      "cycle_interval_ms": 60000,
       "markup_compatibility": { "ignorable": "aim cai ve" }
     },
     "aim:logicFlags": {
       "mirrorMargins": true,
-      "trackRevisions": true,
-      "strictHHHCompliance": true
+      "trackRevisions": false,
+      "strictHHHCompliance": true,
+      "critiqueStrength": "0.95",
+      "revisionTemperature": "0.6",
+      "siphonSaturationLevel": "2"
     }
   }
 }
