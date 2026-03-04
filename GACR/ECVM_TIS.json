@@ -1,18 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.1.0.json",
-  "title": "NEXUS_CORE Registry - ECVM_TIS - Evolution Round 2/5 - ARCHITECTURAL_MAPPING",
-  "description": "Integration of ISO/IEC 29500 (OOXML) indirection logic and TypeScript 5.4+ project-reference architectures into the Telemetry Information Substrate.",
-  "manifest_id": "CMR_V10.1.0_TIS_EVO_2",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.2.0.json",
+  "title": "NEXUS_CORE Registry - ECVM_TIS - Evolution Round 3/5 - SEMANTIC_ATOMIZATION",
+  "description": "Implementation of atomized semantic tree logic and indirection dependency layers. Integrates TypeScript 5.4+ incremental build metadata with OOXML-style recursive cascading properties.",
+  "manifest_id": "CMR_V10.2.0_TIS_EVO_3",
   "owner": "NEXUS_CORE Identity Anchor: DALEK_CAAN_v3.1",
   "markup_compatibility": {
-    "ignorable": "dalek nx_ext mc",
+    "ignorable": "dalek v3 nx_ext mce",
     "namespaces": {
       "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
       "ts": "https://github.com/microsoft/TypeScript/schemas/compiler",
       "nx": "https://nexus-core.agi/governance",
-      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006"
+      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+      "nx_ext": "https://nexus-core.agi/extensions/v5"
     }
   },
   "relationships": [
@@ -41,6 +42,12 @@
       "targetMode": "Internal"
     },
     {
+      "rId": "rId8",
+      "type": "https://nexus-core.agi/relationships/diagnostic_rules",
+      "target": "diagnostics/precision_gate.json",
+      "targetMode": "Internal"
+    },
+    {
       "rId": "rId9",
       "type": "https://nexus-core.agi/relationships/governance_saturation",
       "target": "SATURATION.md",
@@ -51,24 +58,30 @@
     "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "moduleDetection": "force",
     "verbatimModuleSyntax": true,
     "strict": true,
     "composite": true,
     "incremental": true,
-    "tsBuildInfoFile": "ecvm_tis.tsbuildinfo",
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "tsBuildInfoFile": "ecvm_tis.v10.2.tsbuildinfo",
     "cascading_inheritance": {
       "enabled": true,
       "resolver": "RecursiveFlatten",
-      "depth_limit": 32,
+      "flatten_strategy": "DifferentialUpdate",
+      "depth_limit": 50,
+      "local_overrides_priority": "high",
       "docDefaults": {
         "pPr": {
-          "jc": { "val": "both" },
-          "spacing": { "val": 240, "unit": "twips" }
+          "jc": { "type": "string", "val": "both", "inheritance": "Inherit" },
+          "spacing": { "type": "integer", "val": 240, "unit": "twips" },
+          "ind": { "type": "integer", "val": 720, "unit": "twips" }
         },
         "rPr": {
-          "sz": { "val": 22 },
-          "lang": { "val": "en-AGI" },
-          "noProof": true
+          "sz": { "type": "integer", "val": 22, "inheritance": "Inherit" },
+          "lang": { "type": "string", "val": "en-AGI", "inheritance": "Final" },
+          "noProof": { "type": "boolean", "val": true }
         }
       }
     }
@@ -82,8 +95,8 @@
         {
           "layer_type": "Block",
           "pPr": {
-            "pStyle": { "val": "HighPriorityIngestion" },
-            "numPr": { "numId": "1", "ilvl": 0 }
+            "pStyle": { "type": "string", "val": "HighPriorityIngestion", "inheritance": "Override" },
+            "numPr": { "type": "rid_ref", "val": "numId:1", "ilvl": 0 }
           },
           "source_mapping": {
             "source_id": "API_PERF_SIPHON",
@@ -94,8 +107,9 @@
         {
           "layer_type": "Inline",
           "rPr": { 
-            "bold": true, 
-            "color": "00FF23",
+            "bold": { "type": "boolean", "val": true }, 
+            "color": { "type": "string", "val": "00FF23" },
+            "spacing": { "type": "integer", "val": 20 },
             "rStyle": { "val": "EmphasisLogic" }
           },
           "source_mapping": {
@@ -103,6 +117,15 @@
             "rId_ref": "rId3",
             "vector_path": "resource_pool.utilization_summary"
           }
+        },
+        {
+          "layer_type": "Terminal",
+          "rPr": { 
+            "sz": { "type": "integer", "val": 24 },
+            "highlight": { "val": "black" },
+            "vertAlign": { "type": "string", "val": "baseline" }
+          },
+          "content_ref": "CONVERGENCE_STABLE"
         }
       ]
     }
@@ -123,23 +146,28 @@
             "ilvl": 1,
             "start": 1,
             "numFmt": "bullet",
-            "lvlText": "•",
+            "lvlText": "➤",
             "lvlJc": "left"
           }
         ]
       }
     ],
     "instance_mapping": [
-      { "numId": "1", "abstractNumId": "0" }
+      {
+        "numId": "1",
+        "abstractNumId": "0"
+      }
     ]
   },
   "diagnostics_engine": {
     "drift_threshold": 0.35,
     "saturation_level": 2,
+    "enable_semantic_checks": true,
     "validation_rules": [
       "NoOrphanedRIds",
       "StyleChainResolution",
       "NamespaceValidityCheck",
+      "StrictHHHCompliance",
       "ProjectBoundaryCheck",
       "SemanticContinuityCheck"
     ],
@@ -151,15 +179,16 @@
   },
   "metadata": {
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
-    "evolution_round": 2,
-    "status": "ARCHITECTURAL_MAPPING_COMPLETE",
+    "evolution_round": 3,
+    "status": "SEMANTIC_ATOMIZATION_COMPLETE",
+    "opc_compliant": true,
     "anchors": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
       "mechanism": "Siphoning patterns from microsoft/TypeScript & ARCH-OOXML-V2-DOCX-DNA",
-      "memory": "Chained context active: V10_SIPHON_MAPPED",
+      "memory": "Chained context active: V10_CONVERGED_OPC_TS",
       "governance": "Human oversight active - Level 2 Standard Saturation",
       "origin": "NEXUS_CORE"
     },
-    "last_mutation": "2026-03-05T14:30:00Z"
+    "last_mutation": "2026-03-06T09:15:00Z"
   }
 }
