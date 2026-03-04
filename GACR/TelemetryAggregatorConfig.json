@@ -1,5 +1,5 @@
 {
-  "mc:Ignorable": "nx mce react fiber lanes scheduler w r ac",
+  "mc:Ignorable": "nx mce react fiber lanes scheduler w r ac hook",
   "namespaces": {
     "nx": "https://nexus-core.agi/governance",
     "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006",
@@ -7,33 +7,47 @@
     "fiber": "https://react.dev/core/fiber-tree",
     "lanes": "https://react.dev/core/concurrent-lanes",
     "scheduler": "https://react.dev/core/scheduler",
+    "hook": "https://react.dev/core/hooks",
     "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
     "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
     "ac": "https://alphacode.deepmind/logic/v2"
   },
   "Metadata": {
     "cp:coreProperties": {
-      "dc:title": "GACR.TelemetryAggregator",
+      "dc:title": "GACR.TelemetryAggregator.v3.1",
       "cp:version": "3.1.0-CONVERGED",
       "cp:lastModifiedBy": "DALEK_CAAN_v3.1",
-      "cp:revision": "2"
+      "cp:revision": "3",
+      "react:flags": {
+        "enableSchedulingProfiler": true,
+        "enableSuspenseCallback": true
+      }
     }
   },
   "Settings": {
-    "w:docDefaults": {
-      "pPrDefault": {
-        "scheduler:priority": "Normal",
-        "nx:governance_mode": "Adaptive",
-        "lanes:mask": "0b00100"
+    "w:settings": {
+      "w:docDefaults": {
+        "pPrDefault": {
+          "scheduler:priority": "Normal",
+          "nx:governance_mode": "Adaptive",
+          "lanes:mask": "0b00100"
+        },
+        "rPrDefault": {
+          "react:memoize": true,
+          "ac:complexity_limit": 1000
+        }
       },
-      "rPrDefault": {
-        "react:memoize": true,
-        "ac:complexity_limit": 1000
+      "mce:compatibility": {
+        "w:compatSetting": [
+          { "w:name": "compatibilityMode", "w:uri": "http://schemas.microsoft.com/office/word", "w:val": "15" },
+          { "w:name": "reactConcurrentMode", "w:val": "true" }
+        ]
       }
     },
     "cascading_inheritance": {
       "resolver": "RecursiveFlatten",
-      "depth_limit": 8
+      "depth_limit": 12,
+      "hook:useStyle": "memoized"
     }
   },
   "Styles": [
@@ -42,20 +56,33 @@
       "type": "paragraph",
       "scheduler:priority": "UserBlocking",
       "lanes:mask": "0b00001",
-      "ac:threshold_logic": "Deterministic"
+      "ac:threshold_logic": "Deterministic",
+      "react:effect_tag": "Update"
     },
     {
       "styleId": "BufferedStream",
       "type": "paragraph",
       "basedOn": "HighThroughput",
       "scheduler:priority": "Low",
-      "lanes:mask": "0b10000"
+      "lanes:mask": "0b10000",
+      "hook:useBatching": "Debounced"
     },
     {
       "styleId": "SchemaEnforcement",
       "type": "character",
       "react:memoize": true,
-      "w:color": "FF0000"
+      "w:color": "FF0000",
+      "ac:complexity_limit": 2000
+    }
+  ],
+  "AbstractSequences": [
+    {
+      "abstractNumId": "seq0",
+      "multiLevelType": "hybridFiber",
+      "lvl": [
+        { "ilvl": 0, "scheduler:priority": "Immediate", "w:lvlText": "Event-%1", "w:lvlJc": "start" },
+        { "ilvl": 1, "scheduler:priority": "Normal", "w:lvlText": "SubEvent-%2", "w:lvlJc": "center" }
+      ]
     }
   ],
   "Parts": {
@@ -63,69 +90,78 @@
       {
         "rId": "rId1",
         "w:pStyle": "HighThroughput",
-        "fiber:key": "ingress-http-primary"
+        "fiber:key": "ingress-http-primary",
+        "w:numPr": { "w:numId": "1", "w:ilvl": 0 }
       },
       {
         "rId": "rId2",
         "w:pStyle": "BufferedStream",
-        "fiber:key": "ingress-kafka-trace"
+        "fiber:key": "ingress-kafka-trace",
+        "w:numPr": { "w:numId": "1", "w:ilvl": 1 }
       }
     ],
     "Destinations": [
       {
         "rId": "rId3",
         "mce:compatibility_mode": "v5.0",
-        "scheduler:priority": "Normal"
+        "scheduler:priority": "Normal",
+        "react:lane": "Default"
       },
       {
         "rId": "rId4",
         "scheduler:priority": "Immediate",
-        "lanes:mask": "0b00010"
+        "lanes:mask": "0b00010",
+        "react:lane": "Sync"
       }
     ]
   },
   "Processing": {
-    "fiber_tree_reconciliation": {
-      "fiber:tag": 3,
-      "type": "Block",
-      "w:pStyle": "HighThroughput",
-      "runs": [
-        {
-          "rStyle": "SchemaEnforcement",
-          "react:effect_tag": "Update",
-          "terminal": { "value": "ValidateJsonSchema" }
-        },
-        {
-          "ac:complexity_limit": 500,
-          "react:effect_tag": "Placement",
-          "terminal": { "value": "DynamicFilter" }
-        },
-        {
-          "nx:governance_mode": "Strict",
-          "react:effect_tag": "Deletion",
-          "terminal": { "value": "PiiAnonymization" }
-        }
-      ],
-      "child": [
-        {
-          "type": "Inline",
-          "w:pStyle": "BufferedStream",
-          "runs": [
-            {
-              "lanes:active": "UserBlocking",
-              "terminal": { "is_field": true, "field_type": "TIMER", "value": "AggregationLat" }
-            }
-          ]
-        }
-      ]
+    "FiberWorkLoop": {
+      "current": {
+        "fiber:tag": 3,
+        "type": "HostRoot",
+        "w:pStyle": "HighThroughput",
+        "runs": [
+          {
+            "rStyle": "SchemaEnforcement",
+            "react:effect_tag": "Update",
+            "terminal": { "value": "ValidateJsonSchema" }
+          },
+          {
+            "ac:complexity_limit": 500,
+            "react:effect_tag": "Placement",
+            "terminal": { "value": "DynamicFilter" }
+          }
+        ],
+        "child": [
+          {
+            "type": "Inline",
+            "w:pStyle": "BufferedStream",
+            "runs": [
+              {
+                "lanes:active": "UserBlocking",
+                "terminal": { "is_field": true, "field_type": "TIMER", "value": "AggregationLat" }
+              }
+            ]
+          }
+        ]
+      },
+      "alternate": {
+        "fiber:tag": 3,
+        "type": "HostRoot",
+        "react:effect_tag": "Mounting",
+        "fiber:pending_props": { "batch_size": 10000 }
+      }
     },
     "SchedulerConfig": {
       "Enabled": true,
-      "TargetCPUUtilization": 0.75,
+      "TargetCPUUtilization": 0.85,
+      "scheduler:frame_budget_ms": 5,
       "Batching": {
-        "MaxEvents": 5000,
-        "MaxLatencyMS": 1000,
-        "Compression": "Zstd"
+        "MaxEvents": 10000,
+        "MaxLatencyMS": 500,
+        "Compression": "Zstd",
+        "hook:useTransition": true
       }
     }
   },
@@ -133,26 +169,33 @@
     {
       "rId": "rId1",
       "type": "http://nexus-core.agi/rel/source/http",
-      "target": "/api/v2/metrics",
+      "target": "/api/v3/metrics/fiber",
       "targetMode": "Internal"
     },
     {
       "rId": "rId2",
       "type": "http://nexus-core.agi/rel/source/kafka",
-      "target": "gacr.telemetry.traces",
+      "target": "gacr.telemetry.fiber.traces",
       "targetMode": "Internal"
     },
     {
       "rId": "rId3",
       "type": "http://nexus-core.agi/rel/destination/s3",
-      "target": "s3://gacr-telemetry-archive-v2",
+      "target": "s3://gacr-telemetry-nexus-v3",
       "targetMode": "External"
     },
     {
       "rId": "rId4",
       "type": "http://nexus-core.agi/rel/destination/monitor",
-      "target": "http://monitor.gacr.internal:9091",
-      "targetMode": "External"
+      "target": "http://monitor.gacr.internal:9091/v2",
+      "targetMode": "External",
+      "ac:verification_logic": "HMAC-SHA256"
+    },
+    {
+      "rId": "num1",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering",
+      "target": "abstractNumId:seq0",
+      "targetMode": "Internal"
     }
   ]
 }
