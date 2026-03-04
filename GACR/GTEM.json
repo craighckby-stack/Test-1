@@ -1,8 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.4.0_round_4.json",
-  "version": "10.4.0-DEV",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.5.0_final.json",
+  "version": "10.5.0-FINAL",
   "title": "NEXUS_CORE Converged Architectural Substrate",
+  "description": "Final Architectural Convergence (Round 5/5). Synthesizes ISO/IEC 29500 (OOXML) modular packaging and RID-based indirection with microsoft/TypeScript 5.4+ project-reference orchestration. Implements a saturation-governed metabolic state machine.",
   "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
   "markup_compatibility": {
     "ignorable": "dalek v3 nx_ext mce",
@@ -16,10 +17,10 @@
     }
   },
   "evolution_state": {
-    "round": 4,
+    "round": 5,
     "saturation_level": 2,
     "metabolic_rate": "STANDARD",
-    "integrity_hash": "SHA256:F2A8E9C1D0B3A4F5E6D7C8B9A0F1E2D3C4B5A6978876543210FEDCBA98765432"
+    "integrity_hash": "SHA256:D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B1C2D3E4"
   },
   "relationships": [
     {
@@ -31,7 +32,7 @@
     {
       "rId": "rId2",
       "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/schema-reference",
-      "target": "MDSM_V97.2",
+      "target": "MDSM_V105.0",
       "targetMode": "Internal"
     },
     {
@@ -65,7 +66,7 @@
     "emitDeclarationOnly": false,
     "resolveJsonModule": true,
     "moduleDetection": "force",
-    "tsBuildInfoFile": "GTEM_V4.tsbuildinfo",
+    "tsBuildInfoFile": "GTEM_V5_FINAL.tsbuildinfo",
     "paths": {
       "@nexus/*": ["./core/*"],
       "@parts/*": ["./parts/*"],
@@ -74,7 +75,7 @@
     "cascading_inheritance": {
       "enabled": true,
       "resolver": "RecursiveFlatten",
-      "depth_limit": 64,
+      "depth_limit": 50,
       "docDefaults": {
         "pPr": {
           "spacing": { "val": 240, "unit": "twips" },
@@ -88,6 +89,16 @@
           "inheritance": "Inherit"
         }
       }
+    }
+  },
+  "settings": {
+    "compatibility_mode": 15,
+    "track_changes": true,
+    "logic_flags": {
+      "mirror_margins": false,
+      "auto_hyphenation": false,
+      "strict_rid_validation": true,
+      "conformance_level": "transitional"
     }
   },
   "references": [
@@ -114,7 +125,7 @@
     {
       "id": "core_identity",
       "rId": "rId1",
-      "status": "Active",
+      "status": "Converged",
       "atomized_layers": [
         {
           "layer_type": "Block",
@@ -179,24 +190,14 @@
       "NoOrphanedRIds",
       "StyleChainResolution",
       "NamespaceValidityCheck",
+      "StrictHHHCompliance",
       "ProjectBoundaryCheck",
-      "SemanticContinuityCheck",
-      "StrictHHHCompliance"
+      "SemanticContinuityCheck"
     ],
     "emergency_brake": {
       "corruption_threshold": 5,
       "auto_halt": true,
       "log_target": "NEXUS_LOG.txt"
-    }
-  },
-  "settings": {
-    "compatibility_mode": 15,
-    "track_changes": true,
-    "logic_flags": {
-      "strict_rid_validation": true,
-      "mirror_margins": true,
-      "auto_hyphenation": true,
-      "conformance_level": "transitional"
     }
   },
   "metadata": {
@@ -209,6 +210,30 @@
       "governance": "Human oversight remains active at all saturation levels",
       "origin": "NEXUS_CORE"
     },
-    "last_mutation": "2026-03-02T17:12:44Z"
+    "last_mutation": "2026-03-02T18:00:00Z"
+  },
+  "definitions": {
+    "StyleProperties": {
+      "type": "object",
+      "properties": {
+        "val": { "type": ["string", "integer", "boolean"] },
+        "inheritance": { "type": "string", "enum": ["Inherit", "Override", "Final"], "default": "Inherit" },
+        "sz": { "type": "integer" },
+        "color": { "type": "string", "pattern": "^[0-9A-F]{6}$" },
+        "bold": { "type": "boolean" },
+        "spacing": { 
+          "type": "object", 
+          "properties": { "val": { "type": "integer" }, "unit": { "type": "string", "enum": ["twips", "pts", "px"] } }
+        },
+        "ind": { 
+          "type": "object", 
+          "properties": { "val": { "type": "integer" }, "unit": { "type": "string", "enum": ["twips", "pts", "px"] } }
+        },
+        "jc": { "type": "object", "properties": { "val": { "type": "string", "enum": ["left", "center", "right", "both"] } } },
+        "lang": { "type": "object", "properties": { "val": { "type": "string", "default": "en-AGI" } } },
+        "noProof": { "type": "boolean", "default": true },
+        "vertAlign": { "type": "object", "properties": { "val": { "type": "string", "enum": ["baseline", "superscript", "subscript"] } } }
+      }
+    }
   }
 }
