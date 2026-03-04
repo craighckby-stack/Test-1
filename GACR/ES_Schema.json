@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.4.0.json",
-  "version": "10.4.0-SIPHON-R4",
-  "title": "Architectural Precision Substrate: OOXML-TS Siphon v10.4",
-  "description": "Penultimate evolution round (4/5). Integrates ISO/IEC 29500 (OOXML) indirection dependency mapping with microsoft/TypeScript 5.4+ project-reference architectures. Focus: Relational Dependency Injection & Cascading Inheritance.",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.5.0_final.json",
+  "version": "10.5.0-FINAL",
+  "title": "NEXUS_CORE Converged Architectural Substrate",
+  "description": "Final Architectural Convergence (Round 5/5). Synthesizes ISO/IEC 29500 (OOXML) modular packaging and RID-based indirection with microsoft/TypeScript 5.4+ project-reference orchestration. Implements a saturation-governed metabolic state machine.",
   "type": "object",
   "required": [
     "dna_anchor",
@@ -13,7 +13,8 @@
     "compiler_options",
     "parts",
     "references",
-    "settings"
+    "settings",
+    "metadata"
   ],
   "properties": {
     "dna_anchor": {
@@ -22,8 +23,9 @@
     },
     "markup_compatibility": {
       "type": "object",
+      "description": "MCE (Markup Compatibility and Extensibility) pattern for polyglot schema versioning.",
       "properties": {
-        "ignorable": { "type": "string", "default": "dalek v3 nx_ext mce" },
+        "ignorable": { "type": "string", "const": "dalek v3 nx_ext mce" },
         "namespaces": {
           "type": "object",
           "properties": {
@@ -39,7 +41,7 @@
     },
     "relationships": {
       "type": "array",
-      "description": "Indirection Dependency Layer (RID Mapping) trace-resolved to .rels manifests. Implements Explicit Dependency Injection.",
+      "description": "Indirection Dependency Layer (RID Mapping). Implements Explicit Dependency Injection by centralizing path resolution via Relationship IDs.",
       "items": {
         "type": "object",
         "required": ["rId", "type", "target"],
@@ -54,7 +56,7 @@
     "evolution_state": {
       "type": "object",
       "properties": {
-        "round": { "type": "integer", "enum": [4] },
+        "round": { "type": "integer", "const": 5 },
         "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4], "default": 2 },
         "metabolic_rate": { "type": "string", "enum": ["CONSERVATIVE", "STANDARD", "ACCELERATED", "UNSATURATED"] },
         "integrity_hash": { "type": "string", "pattern": "^SHA256:[A-F0-9]{64}$" }
@@ -62,25 +64,22 @@
     },
     "compiler_options": {
       "type": "object",
-      "description": "TypeScript 5.4+ Composite Project Reference logic. Prioritizes strict type safety and modular isolation.",
+      "description": "TypeScript-grade composite logic for incremental state-binding and module resolution.",
       "properties": {
-        "target": { "type": "string", "default": "ESNext" },
-        "module": { "type": "string", "default": "NodeNext" },
-        "moduleResolution": { "type": "string", "default": "NodeNext" },
-        "moduleDetection": { "type": "string", "enum": ["auto", "legacy", "force"], "default": "force" },
-        "composite": { "type": "boolean", "default": true },
-        "incremental": { "type": "boolean", "default": true },
-        "verbatimModuleSyntax": { "type": "boolean", "default": true },
-        "noUncheckedIndexedAccess": { "type": "boolean", "default": true },
-        "exactOptionalPropertyTypes": { "type": "boolean", "default": true },
-        "noImplicitOverride": { "type": "boolean", "default": true },
+        "target": { "type": "string", "const": "ESNext" },
+        "module": { "type": "string", "const": "NodeNext" },
+        "moduleResolution": { "type": "string", "const": "NodeNext" },
+        "composite": { "type": "boolean", "const": true },
+        "incremental": { "type": "boolean", "const": true },
+        "verbatimModuleSyntax": { "type": "boolean", "const": true },
+        "noUncheckedIndexedAccess": { "type": "boolean", "const": true },
         "tsBuildInfoFile": { "type": "string" },
         "cascading_inheritance": {
           "type": "object",
+          "description": "Recursive Cascading Property System (Default -> Abstract -> Specific -> Local Override).",
           "properties": {
-            "enabled": { "type": "boolean", "default": true },
-            "resolver": { "type": "string", "enum": ["RecursiveFlatten", "DifferentialUpdate"] },
-            "flatten_strategy": { "type": "string", "default": "DifferentialUpdate" },
+            "enabled": { "type": "boolean", "const": true },
+            "resolver": { "type": "string", "enum": ["RecursiveFlatten", "DifferentialUpdate"], "default": "RecursiveFlatten" },
             "depth_limit": { "type": "integer", "default": 50 },
             "docDefaults": {
               "type": "object",
@@ -95,39 +94,44 @@
     },
     "settings": {
       "type": "object",
-      "description": "Global Configuration Object (word/settings.xml pattern) controlling document-wide interpretive flags.",
+      "description": "Global settings for document-wide interpretive logic (word/settings.xml pattern).",
       "properties": {
         "compatibility_mode": { "type": "integer", "default": 15 },
-        "auto_hyphenation": { "type": "boolean", "default": false },
         "track_changes": { "type": "boolean", "default": true },
-        "mirror_margins": { "type": "boolean", "default": false },
-        "zoom": { "type": "string", "default": "optimal" }
+        "logic_flags": {
+          "type": "object",
+          "properties": {
+            "mirror_margins": { "type": "boolean", "default": false },
+            "auto_hyphenation": { "type": "boolean", "default": false },
+            "strict_rid_validation": { "type": "boolean", "default": true }
+          }
+        }
       }
     },
     "references": {
       "type": "array",
-      "description": "Cross-project reference mapping for decoupled architectural parts.",
+      "description": "TS-Project style indirection for decoupled architectural nodes.",
       "items": {
         "type": "object",
         "required": ["path", "rId"],
         "properties": {
           "path": { "type": "string" },
           "rId": { "type": "string" },
-          "resolution_mode": { "type": "string", "enum": ["node", "bundler", "direct"] },
-          "circular_dependency_gate": { "type": "string", "enum": ["Strict", "Warning", "Allow"] }
+          "resolution_mode": { "type": "string", "enum": ["node", "bundler", "direct"], "default": "node" },
+          "circular_dependency_gate": { "type": "string", "enum": ["Strict", "Warning", "Allow"], "default": "Strict" }
         }
       }
     },
     "parts": {
       "type": "array",
-      "description": "Atomized Semantic Tree: Block (Paragraph), Inline (Run), and Terminal (Data) logic layers.",
+      "description": "Atomized Semantic Tree consisting of Block, Inline, and Terminal logic layers.",
       "items": {
         "type": "object",
         "required": ["id", "rId", "atomized_layers"],
         "properties": {
           "id": { "type": "string" },
           "rId": { "type": "string" },
-          "status": { "type": "string", "enum": ["Active", "Deprecated", "Siphoning"] },
+          "status": { "type": "string", "enum": ["Active", "Deprecated", "Converged"] },
           "atomized_layers": {
             "type": "array",
             "items": {
@@ -139,13 +143,6 @@
                 "rPr": { "$ref": "#/definitions/StyleProperties" },
                 "content_ref": { "type": "string" }
               }
-            }
-          },
-          "audit": {
-            "type": "object",
-            "properties": {
-              "mgp_protocol": { "type": "string" },
-              "certification_date": { "type": "string", "format": "date-time" }
             }
           }
         }
@@ -195,8 +192,7 @@
       "type": "object",
       "properties": {
         "drift_threshold": { "type": "number", "const": 0.35 },
-        "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4] },
-        "enable_semantic_checks": { "type": "boolean", "default": true },
+        "saturation_level": { "type": "integer", "const": 2 },
         "validation_rules": {
           "type": "array",
           "items": { "type": "string", "enum": ["NoOrphanedRIds", "StyleChainResolution", "NamespaceValidityCheck", "StrictHHHCompliance", "ProjectBoundaryCheck", "SemanticContinuityCheck"] }
@@ -204,15 +200,16 @@
         "emergency_brake": {
           "type": "object",
           "properties": {
-            "corruption_threshold": { "type": "integer", "default": 5 },
-            "auto_halt": { "type": "boolean", "default": true },
-            "log_target": { "type": "string", "default": "NEXUS_LOG.txt" }
+            "corruption_threshold": { "type": "integer", "const": 5 },
+            "auto_halt": { "type": "boolean", "const": true },
+            "log_target": { "type": "string", "const": "NEXUS_LOG.txt" }
           }
         }
       }
     },
     "metadata": {
       "type": "object",
+      "required": ["author", "identity_anchors_enforced", "anchors"],
       "properties": {
         "author": { "type": "string", "const": "DALEK_CAAN_V3.1_SIPHON_ENGINE" },
         "identity_anchors_enforced": { "type": "boolean", "const": true },
@@ -233,30 +230,23 @@
   "definitions": {
     "StyleProperties": {
       "type": "object",
-      "description": "Recursive Cascading Property System: Default -> Abstract -> Specific -> Local Override.",
       "properties": {
         "val": { "type": ["string", "integer", "boolean"] },
         "inheritance": { "type": "string", "enum": ["Inherit", "Override", "Final"], "default": "Inherit" },
-        "sz": { "type": "integer", "description": "Size in half-points" },
+        "sz": { "type": "integer", "description": "Font size in half-points" },
         "color": { "type": "string", "pattern": "^[0-9A-F]{6}$" },
         "bold": { "type": "boolean" },
         "spacing": { 
           "type": "object", 
-          "properties": {
-            "val": { "type": "integer" },
-            "unit": { "type": "string", "enum": ["twips", "pts", "px"] }
-          }
+          "properties": { "val": { "type": "integer" }, "unit": { "type": "string", "enum": ["twips", "pts", "px"] } }
         },
         "ind": { 
           "type": "object", 
-          "properties": {
-            "val": { "type": "integer" },
-            "unit": { "type": "string", "enum": ["twips", "pts", "px"] }
-          }
+          "properties": { "val": { "type": "integer" }, "unit": { "type": "string", "enum": ["twips", "pts", "px"] } }
         },
         "jc": { "type": "object", "properties": { "val": { "type": "string", "enum": ["left", "center", "right", "both"] } } },
-        "lang": { "type": "object", "properties": { "val": { "type": "string" } } },
-        "noProof": { "type": "boolean" },
+        "lang": { "type": "object", "properties": { "val": { "type": "string", "default": "en-AGI" } } },
+        "noProof": { "type": "boolean", "default": true },
         "highlight": { "type": "object", "properties": { "val": { "type": "string" } } },
         "vertAlign": { "type": "object", "properties": { "val": { "type": "string", "enum": ["baseline", "superscript", "subscript"] } } }
       }
