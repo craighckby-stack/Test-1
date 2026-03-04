@@ -3,30 +3,38 @@
   "$id": "https://gacr.agi/mqm/metric_catalog_v10.5.json",
   "metadata": {
     "manifest_id": "MQM_CATALOG_V10.5.0_FINAL",
-    "version": "10.5.5-FINAL-CONVERGENCE",
+    "version": "10.5.6-EVO_ROUND_2",
     "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-    "evolution_round": 1,
+    "evolution_round": 2,
     "saturation_level": 2,
+    "metabolic_rate": "STANDARD",
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
     "markup_compatibility": {
-      "mc:Ignorable": "dalek react nx_ext mce",
+      "mc:Ignorable": "dalek react nx_ext mce fiber",
       "namespaces": {
         "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
         "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
         "nx": "https://nexus-core.agi/governance",
-        "react": "https://react.dev/core/reconciliation"
+        "react": "https://react.dev/core/reconciliation",
+        "fiber": "https://react.dev/core/fiber-tree"
       }
     }
   },
   "settings": {
     "cascading_inheritance": {
       "enabled": true,
+      "resolver": "RecursiveFlatten",
       "docDefaults": {
+        "pPr": {
+          "jc": { "val": "both" },
+          "spacing": { "val": 12, "unit": "hrs" }
+        },
         "rPr": {
           "sz": 11,
           "noProof": true,
-          "lang": "en-AGI",
-          "reconciliation_strategy": "FiberRoot"
+          "lang": { "val": "en-AGI" },
+          "react:memoize": true,
+          "fiber:workTag": "HostComponent"
         }
       }
     }
@@ -49,86 +57,109 @@
       "type": "https://nexus-core.agi/metrics/source/fairness",
       "target": "FairnessMonitoringEngine",
       "targetMode": "External"
+    },
+    {
+      "rId": "rId_Hooks",
+      "type": "https://react.dev/core/hooks",
+      "target": "GACR/lib/metric_hooks.ts",
+      "targetMode": "Internal"
     }
   ],
   "metric_parts": [
     {
-      "id": "MQM_STORAGE_PART",
+      "id": "MQM_STORAGE_COMPONENT",
+      "rId": "rId_S3",
+      "fiber:key": "storage-03",
       "status": "CONVERGED",
       "atomized_layers": [
         {
           "layer_type": "Block",
           "pStyle": "StandardMetricContainer",
+          "pPr": { "jc": "left" },
           "content_ref": "Storage Latency Subsystem"
         },
         {
           "layer_type": "Inline",
-          "rId": "rId_S3",
           "metric_id": "MQM_S03_STORAGE_LATENCY",
           "rPr": {
             "key": "p99_read_ms",
             "unit": "Percentage Violation",
-            "memoize": true
+            "react:useHook": "useMetricObservation",
+            "fiber:priority": "Concurrent"
           },
           "description": "99th percentile storage read latency (converted to % of SLO violation)."
         }
       ]
     },
     {
-      "id": "MQM_MODEL_INTEGRITY_PART",
+      "id": "MQM_MODEL_INTEGRITY_COMPONENT",
+      "rId": "rId_Drift",
+      "fiber:key": "drift-04",
       "status": "CONVERGED",
       "atomized_layers": [
         {
           "layer_type": "Block",
           "pPr": {
             "jc": "both",
-            "spacing": { "val": 12 }
+            "spacing": { "val": 24 }
           },
           "content_ref": "Statistical Drift Detection"
         },
         {
           "layer_type": "Inline",
-          "rId": "rId_Drift",
           "metric_id": "MQM_S04_MODEL_DRIFT_COUNT",
           "rPr": {
             "key": "drift_alarm_count",
-            "unit": "Absolute Count",
-            "effect": "useDriftReconciliation"
+            "effect": "useDriftReconciliation",
+            "fiber:updateQueue": "Immediate"
           },
-          "description": "Number of confirmed severe statistical model drift alarms detected."
+          "description": "Number of confirmed severe statistical model drift alarms."
         }
       ]
     },
     {
-      "id": "MQM_FAIRNESS_PART",
+      "id": "MQM_FAIRNESS_COMPONENT",
+      "rId": "rId_Fairness",
+      "fiber:key": "bias-01",
       "status": "CONVERGED",
       "numId": "1",
       "ilvl": 0,
       "atomized_layers": [
         {
           "layer_type": "Terminal",
-          "rId": "rId_Fairness",
+          "is_field": true,
           "metric_id": "MQM_P01_PREDICTION_BIAS",
           "rPr": {
             "key": "bias_deviation_score",
             "unit": "Ratio",
-            "priority": "High"
+            "react:useMemo": "biasThresholds"
           },
-          "description": "Deviation from acceptable demographic parity tolerance."
+          "description": "Deviation from demographic parity tolerance."
         }
       ]
     }
   ],
-  "reconciliation_logic": {
+  "reconciliation_engine": {
     "abstract_num_definitions": [
       {
         "abstractNumId": "0",
+        "multiLevelType": "hybridFiber",
         "levels": [
           {
             "ilvl": 0,
             "start": 1,
             "numFmt": "decimal",
-            "lvlText": "METRIC_OBSERVATION_%1"
+            "lvlText": "METRIC_OBSERVATION_%1",
+            "lvlJc": "left",
+            "react:lifecycle": "componentDidMount"
+          },
+          {
+            "ilvl": 1,
+            "start": 1,
+            "numFmt": "bullet",
+            "lvlText": "SUB_TELEMETRY_%2",
+            "pPr": { "ind": { "val": 360 } },
+            "react:lifecycle": "shouldComponentUpdate"
           }
         ]
       }
@@ -138,6 +169,11 @@
         "numId": "1",
         "abstractNumId": "0"
       }
-    ]
+    ],
+    "fiber_reconciliation": {
+      "strategy": "DepthFirst",
+      "diff_threshold": 0.15,
+      "batch_updates": true
+    }
   }
 }
