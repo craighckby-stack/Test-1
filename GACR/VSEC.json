@@ -1,40 +1,59 @@
 {
   "$id": "GACR/VSEC.json",
-  "mc:Ignorable": "vsec react fiber docx mce nx",
+  "mc:Ignorable": "vsec react fiber docx mce nx hook",
   "xmlns:vsec": "https://nexus.core/schema/vsec",
   "xmlns:react": "https://nexus.core/schema/react",
   "xmlns:docx": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
   "docx:coreProperties": {
-    "dc:title": "Violation Severity and Enforcement Configuration",
-    "docx:version": "3.1.0-VSEC-CONVERGED-R2",
-    "docx:revision": 7,
-    "docx:contentStatus": "Architecturally_Precise_Synchronized"
+    "dc:title": "Violation Severity and Enforcement Configuration (Architect-Precise)",
+    "docx:version": "3.1.0-VSEC-CONVERGED-R3",
+    "docx:revision": 8,
+    "docx:contentStatus": "Architecturally_Precise_Evolved",
+    "docx:lastModifiedBy": "DALEK_CAAN_v3.1"
   },
   "w:settings": {
     "vsec:enforcement_policy": {
       "LOW": "LOG_WARN",
+      "MEDIUM": "DEFER_EXECUTION",
       "HIGH": "TERMINATE_GRACEFUL",
       "CRITICAL": "ISOLATE_HARD",
       "CATASTROPHIC": "REBOOT_SYSTEM_SECURE"
     },
     "w:docDefaults": {
-      "react:transition": "urgent",
-      "nx:governance_mode": "Strict",
-      "fiber:expiration_ms": 50,
-      "hook:useBatching": "Immediate"
+      "w:pPrDefault": {
+        "pStyle": "STANDARD_ENFORCEMENT",
+        "react:transition": "deferred",
+        "nx:governance_mode": "Strict",
+        "fiber:expiration_ms": 150
+      },
+      "w:rPrDefault": {
+        "hook:useBatching": "Debounced",
+        "react:memoize": true
+      }
     }
   },
   "w:numbering": {
     "abstractNum": [
       {
         "abstractNumId": "0",
-        "lvl": {
-          "ilvl": 0,
-          "start": 1,
-          "numFmt": "decimal",
-          "lvlText": "Enforcement_Level_%1",
-          "lvlJc": "left"
-        }
+        "nsid": "7FFFFFFF",
+        "multiLevelType": "hierarchical",
+        "lvl": [
+          {
+            "ilvl": 0,
+            "start": 1,
+            "numFmt": "decimal",
+            "lvlText": "Severity_Level_%1",
+            "lvlJc": "left"
+          },
+          {
+            "ilvl": 1,
+            "start": 1,
+            "numFmt": "bullet",
+            "lvlText": "Sub_Violation_%2",
+            "lvlJc": "left"
+          }
+        ]
       }
     ],
     "num": [
@@ -61,26 +80,52 @@
         "alternate": {
           "fiber_tag": 5,
           "react:effect_tag": "Update",
-          "memoizedProps": { "threshold": 90 }
+          "memoizedProps": {
+            "threshold": 90,
+            "w:docDefaults": "Inherit"
+          }
         }
       },
       "runs": [
         {
           "rStyle": "SGS_THRESHOLD",
           "payload": {
-            "w:t": "SGS_AGENT_USAGE",
+            "w:t": "SGS_AGENT_USAGE_EXCEEDED",
             "metric_type": "GAUGE",
             "ac:complexity_limit": 90,
             "timestamp_ms": 1709337600000
           }
-        },
+        }
+      ]
+    },
+    {
+      "w:p": "RECURSIVE_DEPENDENCY_FAULT",
+      "pStyle": "FLATTEN_AND_RETRY",
+      "rId": "rId104",
+      "w:numPr": {
+        "numId": "1",
+        "ilvl": 1
+      },
+      "fiber_node": {
+        "fiber_tag": 11,
+        "lane_mask": "0b00100",
+        "lanes:entangled_mask": "0b00110",
+        "scheduler_priority": "UserBlocking",
+        "react:effect_tag": "Update",
+        "alternate": {
+          "fiber_tag": 11,
+          "react:effect_tag": "Hydrating"
+        }
+      },
+      "runs": [
         {
-          "rStyle": "GAX_THRESHOLD",
+          "w:rPr": {
+            "react:memoize": false
+          },
           "payload": {
-            "w:t": "GAX_AGENT_USAGE",
-            "metric_type": "GAUGE",
-            "ac:complexity_limit": 85,
-            "timestamp_ms": 1709337600000
+            "w:t": "CIRCULAR_DEPENDENCY_DETECTED",
+            "metric_type": "COUNTER",
+            "timestamp_ms": 1709338000000
           }
         }
       ]
@@ -91,7 +136,7 @@
       "rId": "rId102",
       "w:numPr": {
         "numId": "1",
-        "ilvl": 1
+        "ilvl": 0
       },
       "fiber_node": {
         "fiber_tag": 3,
@@ -100,7 +145,8 @@
         "scheduler_priority": "Immediate",
         "alternate": {
           "fiber_tag": 3,
-          "react:effect_tag": "Placement"
+          "react:effect_tag": "Placement",
+          "memoizedState": "QUARANTINE_READY"
         }
       },
       "runs": [
@@ -109,7 +155,7 @@
             "react:memoize": true
           },
           "payload": {
-            "w:t": "SEC_LEVEL_5_QUARANTINE",
+            "w:t": "SEC_LEVEL_5_QUARANTINE_INITIATED",
             "metric_type": "GAUGE",
             "timestamp_ms": 1709337600000
           }
@@ -122,7 +168,7 @@
       "rId": "rId103",
       "w:numPr": {
         "numId": "1",
-        "ilvl": 2
+        "ilvl": 0
       },
       "fiber_node": {
         "fiber_tag": 1,
@@ -135,7 +181,7 @@
       "runs": [
         {
           "payload": {
-            "w:t": "CATASTROPHIC_TRAP",
+            "w:t": "CATASTROPHIC_TRAP_EXECUTED",
             "metric_type": "COUNTER",
             "timestamp_ms": 1709337600000
           }
@@ -148,7 +194,8 @@
       "Id": "rId101",
       "Type": "vsec/enforcement/throttle",
       "Target": "/sys/lib/enforce_throttle.so",
-      "TargetMode": "Internal"
+      "TargetMode": "Internal",
+      "ac:verification_logic": "HMAC-SHA512-RSA4096"
     },
     {
       "Id": "rId102",
@@ -161,7 +208,15 @@
       "Id": "rId103",
       "Type": "vsec/enforcement/kernel",
       "Target": "SIGKILL",
-      "TargetMode": "External"
+      "TargetMode": "External",
+      "ac:verification_logic": "SYSCALL_MAPPING"
+    },
+    {
+      "Id": "rId104",
+      "Type": "vsec/enforcement/flatten",
+      "Target": "/sys/lib/dependency_resolver.so",
+      "TargetMode": "Internal",
+      "ac:verification_logic": "HMAC-SHA512-RSA4096"
     }
   ]
 }
