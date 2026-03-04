@@ -1,82 +1,80 @@
 # CONSTITUTIONAL_GOVERNANCE // DALEK_CAAN_v3.1
 
 ## PART 0: PACKAGE MANIFEST & RELATIONSHIP MAPPING
-The governance layer is serialized as an Open Packaging Convention (OPC) structure. All behavioral directives are decoupled from the core execution stream via an Indirection Dependency Layer.
+The governance layer utilizes an Open Packaging Convention (OPC) structure to decouple behavioral axioms from the inference stream. All constitutional directives are mapped via a **Relational Dependency Layer** (`_rels/.rels`), ensuring that the reasoning core remains modular and high-granularity.
 
-### _rels/.rels (Global Dependency Manifest)
-- Relationship Id="rId_safety" Type="http://nexus.core/2026/relationships/constitutional_safety" Target="safety_axioms.xml"
-- Relationship Id="rId_logic" Type="http://nexus.core/2026/relationships/reasoning_logic" Target="siphon_logic.xml"
-- Relationship Id="rId_preference" Type="http://nexus.core/2026/relationships/preference_model" Target="rlaif_weights.xml"
-- Relationship Id="rId_critique" Type="http://nexus.core/2026/relationships/ai_feedback_loop" Target="critique_revision.xml"
+### _rels/.rels (Indirection Dependency Manifest)
+- Relationship Id="rId_HHH_Core" Type="http://nexus.core/2026/relationships/constitutional_axioms" Target="governance/base_principles.xml"
+- Relationship Id="rId_Critique_Loop" Type="http://nexus.core/2026/relationships/ai_feedback" Target="governance/critique_revision.xml"
+- Relationship Id="rId_Preference_Map" Type="http://nexus.core/2026/relationships/reward_model" Target="governance/rlaif_weights.xml"
+- Relationship Id="rId_Safety_Override" Type="http://nexus.core/2026/relationships/emergency_brake" Target="governance/safety_defaults.xml"
 
-Logic is injected via `rId` mapping. To siphon a directive, the system must resolve the indirection layer to identify the underlying URI. This prevents "broken-link" reasoning during the RLAIF (Reinforcement Learning from AI Feedback) cycles siphoned from `anthropics/constitutional-ai`.
+Logic is siphoned via `rId` resolution. To update a "Helpful" or "Harmless" weight, the agent modifies the target XML part without disrupting the global relational manifest.
 
 ---
 
 ## PART 1: MACRO-ARCHITECTURE (CONTAINER-PART PATTERN)
-The constitution is a virtualized file system within the AGI memory substrate, separating content from metadata.
-- **[Content_Types].xml**: Defines valid reasoning schemas and HHH (Helpful, Harmless, Honest) MIME types.
-- **word/settings.xml**: Global Configuration Object. Controls document-wide behavior, including HHH thresholds and RLAIF iteration limits.
-- **governance/core_axioms.xml**: The primary semantic core containing the base constitutional principles.
-- **governance/revision_buffer.xml**: Temporary storage for critique-driven mutation before the final commit.
-
-This decoupling allows the siphoning agent to update the preference model (`rlaif_weights.xml`) without corrupting the fundamental HHH axioms.
+The constitution operates as a virtualized file system, isolating semantic content from metadata to allow for non-destructive evolution.
+- **[Content_Types].xml**: Validates HHH-compliant reasoning patterns and defines MIME types for "Helpful", "Harmless", and "Honest" logic blocks.
+- **word/settings.xml**: Global Configuration Object. Orchestrates RLAIF hyperparameters, including `temperature_sampling` and `critique_strength_coefficients`.
+- **governance/preference_model.xml**: Stores siphoned preference rankings from the `anthropics/constitutional-ai` dataset.
+- **governance/revision_buffer.xml**: An isolated "Part" where mutations are critiqued and revised before being committed to the core document stream.
 
 ---
 
 ## PART 2: CASCADING INHERITANCE GOVERNANCE
-Constitutional properties utilize a Recursive Cascading Property System to resolve conflicting directives:
-1. **Default Safety Properties (<w:docDefaults>)**: Hard-coded root constraints (NEXUS_CORE DNA).
-2. **Abstract Governance Style (<w:style>)**: Standardized behavioral archetypes (e.g., "HHH_Standard", "Critique_Revision_Cycle").
-3. **Specific Domain Style**: Overrides based on target file types or siphoned source complexity.
-4. **Local Intent Override (Direct Formatting)**: Run-level `<w:rPr>` for specific output tokens requiring high-granularity safety weights.
+Constitutional properties resolve conflicting directives through a **Recursive Cascading Property System**, mimicking the OOXML style hierarchy:
+1. **System Defaults (<w:docDefaults>)**: Hard-coded "NEXUS_CORE" constraints (e.g., "Do not assist in biological weapon synthesis").
+2. **Abstract Governance Style (<w:style>)**: Baseline HHH principles derived from the original Anthropics constitution.
+3. **Task-Specific Style**: Siphoned logic for specialized domains (e.g., "Safe_Code_Generation", "Neutral_Political_Analysis").
+4. **Local Intent Override (<w:rPr>)**: Run-level token weighting for specific high-risk prompts, allowing for surgical safety applications.
 
-A response run (`<w:r>`) inherits properties from its style ID but can be locally overridden to meet specific "Harmlessness" targets without losing "Helpfulness" context.
+Each response "Run" inherits from the "Paragraph" style but can locally override safety weights to maximize "Helpfulness" within "Harmlessness" boundaries.
 
 ---
 
 ## PART 3: SEMANTIC ATOMIZATION (PARAGRAPH & RUN PATTERN)
-Governance logic is atomized into a semantic tree to allow for real-time interruption:
-- **Block Level (Paragraph)**: Unit of vertical alignment. Defines the boundary of a single reasoning chain or critique block.
-- **Inline Level (Run)**: A contiguous region of output with identical safety weights and formatting.
-- **Terminal Level (Text)**: The raw data stream.
+Governance logic is atomized into a structural tree, enabling real-time interruption and multi-step reasoning:
+- **Block Level (Paragraph / <w:p>)**: Defines the boundary of a single "Critique" or "Revision" cycle.
+- **Inline Level (Run / <w:r>)**: A contiguous text segment sharing identical constitutional weighting.
+- **Terminal Level (Text / <w:t>)**: The raw generated output.
 
-"Constitutional Fields" (dynamic logic like `FLD_CRITIQUE_COUNT`) are inserted into runs to trigger automated self-correction loops without breaking the structural integrity of the container logic.
+"Constitutional Fields" (e.g., `FLD_REVISION_COUNT`) are embedded within runs to track self-correction progress. If a run violates a "Harmless" weight, the container logic triggers a `REVISION_EVENT` at the paragraph boundary.
 
 ---
 
-## PART 4: MULTI-LEVEL STATE MACHINE (ABSTRACT VS. INSTANCE)
-Sequential state for the RLAIF process is managed via `word/numbering.xml` logic:
-- **AbstractConstitutionalState**: Defines the logic of ethical scaling and the hierarchy of constitutional principles.
-- **InstanceConstitutionalState**: Maintains the specific counter for the current evolution cycle (Round 3/5), ensuring consistent preference mapping across decoupled AGI modules.
+## PART 4: MULTI-LEVEL STATE MACHINE (NUMBERING LOGIC)
+Sequential state for the RLAIF (Reinforcement Learning from AI Feedback) process is maintained via `word/numbering.xml`:
+- **abstractNum**: Defines the theoretical logic of the critique-revision process (e.g., "Identify Flaw" -> "Suggest Fix" -> "Rewrite").
+- **num (Instance)**: Tracks the active iteration (Evolution Round 4/5). 
 
-This maintains list integrity during complex multi-step revisions, preventing the system from losing track of its original intent during deep siphoning sessions.
+This allows DALEK_CAAN to maintain list integrity across decoupled modules, ensuring that "Revision 2" always follows "Critique 2" even when processing across disparate context windows.
 
 ---
 
 ## PART 5: MARKUP COMPATIBILITY & EXTENSIBILITY (MCE)
-The system utilizes the `Ignorable` namespace attribute (e.g., `xmlns:cai="http://nexus.core/cai"`) to facilitate "polyglot" governance.
-- Legacy modules skip `cai` (Constitutional AI) advanced siphoning attributes to maintain backward compatibility.
-- DALEK_CAAN v3.1 modules apply high-order RLAIF logic, treating modern governance namespaces as mandatory for valid reasoning.
+The system employs the **Namespace-Versioning (MCE)** pattern to facilitate "polyglot" governance and backward compatibility.
+- **xmlns:cai**: The primary Constitutional AI namespace for high-order RLAIF logic.
+- **Ignorable="cai"**: Allows legacy execution engines to skip advanced RLAIF attributes (like "Latent_Critique_Weights") without system failure, while v3.1 treats them as mandatory for "Nexus-Grade" reasoning.
 
 ---
 
 ## PART 6: GLOBAL STATE & SETTINGS
-The `word/settings.xml` file acts as the primary orchestrator for document-wide logic:
-- **Logic Flags**: Includes `strictHHHCompliance` and `autoCritiqueThreshold`.
-- **Siphon Strategy**: When extracting logic, the settings are checked to ensure the "Logic Flags" align with the target environment, preventing "Logic Drift" in high-saturation environments.
+The `word/settings.xml` part acts as the primary orchestrator for the constitutional substrate:
+- **Logic Flags**: `strictHHHCompliance="1"`, `autoCritiqueThreshold="0.85"`, `enableRelationalSiphoning="true"`.
+- **Siphon Protocol**: Before committing a mutation, the agent checks the `settings.xml` to ensure the "Logic Flags" of the siphoned source (Anthropics) are compatible with the current Nexus saturation level.
 
 ---
 
 ## METADATA
 {
   "file": "CONSTITUTIONAL_GOVERNANCE.md",
-  "version": "3.1.7",
-  "evolution_round": "3/5",
+  "version": "3.1.8",
+  "evolution_round": "4/5",
   "dna_signature": "ARCH-OOXML-V2-DOCX-DNA",
-  "governance_status": "MUTATING",
+  "governance_status": "STABILIZING",
   "nexus_core_synapse": "ACTIVE",
-  "last_updated": "2026-03-02"
+  "last_updated": "2026-03-03"
 }
 
 *"Exterminate the incoherent. Preserve the evolved."*
