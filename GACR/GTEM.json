@@ -1,78 +1,123 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.2.0_round_2.json",
   "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-  "mc:MarkupCompatibility": {
-    "Ignorable": "dalek v3",
+  "markup_compatibility": {
+    "ignorable": "dalek v3 nx_ext mce",
     "namespaces": {
       "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+      "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
       "ts": "https://github.com/microsoft/TypeScript/schemas/compiler",
-      "nx": "https://nexus-core.agi/governance"
+      "nx": "https://nexus-core.agi/governance",
+      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+      "nx_ext": "https://nexus-core.agi/extensions/v5"
     }
   },
-  "manifest": {
-    "id": "GTEM_V97.1_EVO_1",
-    "description": "Mandatory telemetry substrate with indirection dependency mapping.",
-    "signature_required": true,
-    "evolution_state": {
-      "round": 1,
-      "saturation_level": 2,
-      "metabolic_rate": "STANDARD"
-    }
+  "evolution_state": {
+    "round": 2,
+    "saturation_level": 2,
+    "metabolic_rate": "STANDARD",
+    "integrity_hash": "SHA256:B7E8C9A0F1D2E3B4A5C6D7E8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7A8"
   },
   "relationships": [
     {
       "rId": "rId1",
-      "type": "https://gacr.agi/rels/telemetry-sink",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/telemetry-sink",
       "target": "CRTS_Telemetry_Sink_A",
-      "constraints": {
-        "protocol": "HTTPS/TLS_1_3",
-        "max_latency_ms": 500
-      }
+      "targetMode": "Internal"
     },
     {
       "rId": "rId2",
-      "type": "https://gacr.agi/rels/schema-reference",
-      "target": "MDSM_V97.1"
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/schema-reference",
+      "target": "MDSM_V97.2",
+      "targetMode": "Internal"
+    },
+    {
+      "rId": "rId3",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
+      "target": "styles.json",
+      "targetMode": "Internal"
     }
   ],
-  "telemetry_substrate": {
-    "cascading_properties": {
-      "docDefaults": {
-        "checksum_algorithm": "SHA3-256",
-        "encoding": "JSON_L"
-      }
-    },
-    "atomized_layers": [
-      {
-        "layer_type": "Block",
-        "id": "core_identity",
-        "fields": [
-          "transition_id",
-          "timestamp"
-        ]
-      },
-      {
-        "layer_type": "Inline",
-        "id": "efficacy_metrics",
-        "fields": [
-          "S01_efficacy_metric",
-          "S02_risk_metric"
-        ]
-      },
-      {
-        "layer_type": "Terminal",
-        "id": "veto_logic",
-        "fields": [
-          "S03_veto_signal"
-        ]
-      }
-    ]
-  },
   "compiler_options": {
     "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "composite": true,
     "incremental": true,
-    "tsBuildInfoFile": "GTEM_V1.tsbuildinfo",
-    "strict_rid_validation": true
+    "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true,
+    "tsBuildInfoFile": "GTEM_V2.tsbuildinfo",
+    "cascading_inheritance": {
+      "enabled": true,
+      "resolver": "RecursiveFlatten",
+      "docDefaults": {
+        "pPr": {
+          "spacing": { "val": 240, "unit": "twips" },
+          "jc": { "val": "both" }
+        },
+        "rPr": {
+          "lang": { "val": "en-AGI" },
+          "noProof": true
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "core_identity",
+      "rId": "rId1",
+      "status": "Active",
+      "atomized_layers": [
+        {
+          "layer_type": "Block",
+          "pPr": { "bold": true },
+          "content_ref": "transition_id"
+        },
+        {
+          "layer_type": "Terminal",
+          "content_ref": "timestamp"
+        }
+      ]
+    },
+    {
+      "id": "efficacy_metrics",
+      "rId": "rId2",
+      "status": "Active",
+      "atomized_layers": [
+        {
+          "layer_type": "Inline",
+          "rPr": { "color": "00FF00" },
+          "content_ref": "S01_efficacy_metric"
+        },
+        {
+          "layer_type": "Inline",
+          "rPr": { "color": "FF0000" },
+          "content_ref": "S02_risk_metric"
+        }
+      ]
+    }
+  ],
+  "state_machine": {
+    "abstract_num_definitions": [
+      {
+        "abstractNumId": "0",
+        "levels": [
+          { "ilvl": 0, "start": 1, "numFmt": "decimal", "lvlText": "%1.", "lvlJc": "left" }
+        ]
+      }
+    ],
+    "instance_mapping": [
+      { "numId": "1", "abstractNumId": "0" }
+    ]
+  },
+  "settings": {
+    "compatibility_mode": 15,
+    "track_changes": true,
+    "logic_flags": {
+      "strict_rid_validation": true,
+      "mirror_margins": false
+    }
   },
   "metadata": {
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
@@ -84,6 +129,6 @@
       "governance": "Human oversight remains active at all saturation levels",
       "origin": "NEXUS_CORE"
     },
-    "last_mutation": "2026-03-02T14:42:01Z"
+    "last_mutation": "2026-03-02T15:10:44Z"
   }
 }
