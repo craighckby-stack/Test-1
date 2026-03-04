@@ -16,61 +16,87 @@
       "type": "string",
       "pattern": "^CMR_V[0-9]+\\.[0-9]+$"
     },
-    "owner": {
-      "type": "string"
-    },
+    "owner": { "type": "string" },
     "integrity_hash": {
       "type": "string",
       "description": "SHA-256 hash of the complete instantiation state."
     },
-    "references": {
-      "type": "array",
-      "description": "Project-level references for composite model structures, analogous to TypeScript build-references.",
-      "items": {
-        "$ref": "#/$defs/ProjectReference"
-      }
-    },
-    "engine_options": {
+    "compiler_options": {
       "type": "object",
-      "description": "Global compiler and runtime parameters for the Siphon Engine.",
+      "description": "Siphoned from microsoft/TypeScript: Global build and logic propagation settings.",
       "properties": {
+        "target": { "type": "string", "default": "ESNext" },
+        "module": { "type": "string", "default": "NodeNext" },
         "strict": { "type": "boolean", "default": true },
         "composite": { "type": "boolean", "default": true },
         "incremental": { "type": "boolean", "default": true },
-        "inheritance_depth": { "type": "integer", "default": 10 }
+        "tsBuildInfoFile": { "type": "string" },
+        "cascading_inheritance": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "resolver": { "type": "string" },
+            "flatten_strategy": { "type": "string" }
+          }
+        }
       }
+    },
+    "references": {
+      "type": "array",
+      "description": "Project-level references for composite model structures (TS Build Reference Pattern).",
+      "items": { "$ref": "#/$defs/ProjectReference" }
     },
     "relationships": {
       "type": "array",
-      "description": "Indirection Dependency Layer (RID) mapping target URIs to internal identifiers.",
-      "items": {
-        "$ref": "#/$defs/Relationship"
-      }
+      "description": "Indirection Dependency Layer (RID Mapping) per OOXML OPC-V2 DNA.",
+      "items": { "$ref": "#/$defs/Relationship" }
     },
     "models": {
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/ModelInstance"
-      }
+      "items": { "$ref": "#/$defs/ModelInstance" }
     },
     "state_machine": {
       "type": "object",
-      "description": "Multi-level state definitions for list-style sequential execution (DNA-AbstractNum Pattern).",
+      "description": "Multi-level state definitions (DNA AbstractNum vs Instance Pattern).",
       "properties": {
-        "abstract_definitions": {
+        "abstract_num_definitions": {
           "type": "array",
           "items": { "$ref": "#/$defs/AbstractState" }
+        },
+        "instance_mapping": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StateInstance" }
+        }
+      }
+    },
+    "diagnostics_engine": {
+      "type": "object",
+      "properties": {
+        "drift_threshold": { "type": "number", "default": 0.35 },
+        "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4] },
+        "validation_rules": {
+          "type": "array",
+          "items": { "type": "string" }
         }
       }
     },
     "markup_compatibility": {
       "type": "object",
       "properties": {
-        "ignorable": { "type": "string" },
+        "ignorable": { "type": "string", "default": "ve o r v ts mce apx" },
         "namespaces": {
           "type": "object",
           "additionalProperties": { "type": "string", "format": "uri" }
         }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "author": { "type": "string" },
+        "evolution_round": { "type": "integer" },
+        "status": { "type": "string" },
+        "opc_compliant": { "type": "boolean" }
       }
     }
   },
@@ -81,7 +107,8 @@
       "properties": {
         "path": { "type": "string" },
         "rId": { "type": "string", "pattern": "^rId[0-9]+$" },
-        "circular_gate": { "type": "string", "enum": ["Strict", "Lax"] }
+        "prepend": { "type": "boolean" },
+        "circular_dependency_gate": { "type": "string", "enum": ["Strict", "Lax"] }
       }
     },
     "Relationship": {
@@ -92,23 +119,40 @@
         "type": { "type": "string", "format": "uri" },
         "target": { "type": "string" },
         "targetMode": { "type": "string", "enum": ["Internal", "External"] },
+        "contentType": { "type": "string" },
         "checksum": { "type": "string" }
       }
     },
     "AbstractState": {
       "type": "object",
-      "required": ["state_id", "levels"],
+      "required": ["abstractNumId", "levels"],
       "properties": {
-        "state_id": { "type": "string" },
+        "abstractNumId": { "type": "string" },
         "levels": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "depth": { "type": "integer" },
-              "logic_format": { "type": "string" },
-              "override_priority": { "type": "string", "enum": ["High", "Standard"] }
+              "ilvl": { "type": "integer" },
+              "start": { "type": "integer" },
+              "numFmt": { "type": "string" },
+              "lvlText": { "type": "string" }
             }
+          }
+        }
+      }
+    },
+    "StateInstance": {
+      "type": "object",
+      "required": ["numId", "abstractNumId"],
+      "properties": {
+        "numId": { "type": "string" },
+        "abstractNumId": { "type": "string" },
+        "lvlOverride": {
+          "type": "object",
+          "properties": {
+            "ilvl": { "type": "integer" },
+            "startOverride": { "type": "integer" }
           }
         }
       }
@@ -118,16 +162,9 @@
       "required": ["model_id", "rId", "status"],
       "properties": {
         "model_id": { "type": "string" },
-        "rId": { "type": "string", "description": "Relational link to model source." },
+        "rId": { "type": "string" },
         "status": { "type": "string", "enum": ["Active", "Deprecated", "Staging", "Retired"] },
-        "style_id": { "type": "string", "description": "Cascading property set for input constraints (Latent Styling DNA)." },
-        "state_mapping": {
-          "type": "object",
-          "properties": {
-            "num_id": { "type": "string" },
-            "abstract_ref": { "type": "string" }
-          }
-        },
+        "style_id": { "type": "string", "description": "Recursive Cascading Property System ID." },
         "interface": {
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/Property" }
