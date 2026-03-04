@@ -1,14 +1,14 @@
 {
   "$id": "GACR/VSEC.json",
-  "mc:Ignorable": "vsec react fiber docx",
+  "mc:Ignorable": "vsec react fiber docx mce nx",
   "xmlns:vsec": "https://nexus.core/schema/vsec",
   "xmlns:react": "https://nexus.core/schema/react",
   "xmlns:docx": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
   "docx:coreProperties": {
     "dc:title": "Violation Severity and Enforcement Configuration",
-    "docx:version": "3.1.0-VSEC-CONVERGED",
-    "docx:revision": 6,
-    "docx:contentStatus": "Architecturally_Precise"
+    "docx:version": "3.1.0-VSEC-CONVERGED-R2",
+    "docx:revision": 7,
+    "docx:contentStatus": "Architecturally_Precise_Synchronized"
   },
   "w:settings": {
     "vsec:enforcement_policy": {
@@ -20,24 +20,56 @@
     "w:docDefaults": {
       "react:transition": "urgent",
       "nx:governance_mode": "Strict",
-      "fiber:expiration_ms": 50
+      "fiber:expiration_ms": 50,
+      "hook:useBatching": "Immediate"
     }
+  },
+  "w:numbering": {
+    "abstractNum": [
+      {
+        "abstractNumId": "0",
+        "lvl": {
+          "ilvl": 0,
+          "start": 1,
+          "numFmt": "decimal",
+          "lvlText": "Enforcement_Level_%1",
+          "lvlJc": "left"
+        }
+      }
+    ],
+    "num": [
+      {
+        "numId": "1",
+        "abstractNumId": "0"
+      }
+    ]
   },
   "violation_hierarchy": [
     {
       "w:p": "RESOURCE_EXHAUSTION",
       "pStyle": "THROTTLE_AND_LOG",
       "rId": "rId101",
+      "w:numPr": {
+        "numId": "1",
+        "ilvl": 0
+      },
       "fiber_node": {
         "fiber_tag": 5,
         "lane_mask": "0b00010",
-        "scheduler_priority": "Normal"
+        "lanes:entangled_mask": "0b00000",
+        "scheduler_priority": "Normal",
+        "alternate": {
+          "fiber_tag": 5,
+          "react:effect_tag": "Update",
+          "memoizedProps": { "threshold": 90 }
+        }
       },
       "runs": [
         {
           "rStyle": "SGS_THRESHOLD",
           "payload": {
             "w:t": "SGS_AGENT_USAGE",
+            "metric_type": "GAUGE",
             "ac:complexity_limit": 90,
             "timestamp_ms": 1709337600000
           }
@@ -46,6 +78,7 @@
           "rStyle": "GAX_THRESHOLD",
           "payload": {
             "w:t": "GAX_AGENT_USAGE",
+            "metric_type": "GAUGE",
             "ac:complexity_limit": 85,
             "timestamp_ms": 1709337600000
           }
@@ -56,13 +89,25 @@
       "w:p": "INTEGRITY_CHECK_FAILURE",
       "pStyle": "ISOLATE_AND_HALT",
       "rId": "rId102",
+      "w:numPr": {
+        "numId": "1",
+        "ilvl": 1
+      },
       "fiber_node": {
         "fiber_tag": 3,
         "lane_mask": "0b10000",
-        "scheduler_priority": "Immediate"
+        "lanes:entangled_mask": "0b10000",
+        "scheduler_priority": "Immediate",
+        "alternate": {
+          "fiber_tag": 3,
+          "react:effect_tag": "Placement"
+        }
       },
       "runs": [
         {
+          "w:rPr": {
+            "react:memoize": true
+          },
           "payload": {
             "w:t": "SEC_LEVEL_5_QUARANTINE",
             "metric_type": "GAUGE",
@@ -75,16 +120,23 @@
       "w:p": "UNAUTHORIZED_SYSCALL",
       "pStyle": "KERNEL_TRAP_SIGNAL_SGS",
       "rId": "rId103",
+      "w:numPr": {
+        "numId": "1",
+        "ilvl": 2
+      },
       "fiber_node": {
         "fiber_tag": 1,
         "lane_mask": "0b11111",
+        "lanes:entangled_mask": "0b11111",
         "scheduler_priority": "Immediate",
-        "react:effect_tag": "Deletion"
+        "react:effect_tag": "Deletion",
+        "alternate": null
       },
       "runs": [
         {
           "payload": {
             "w:t": "CATASTROPHIC_TRAP",
+            "metric_type": "COUNTER",
             "timestamp_ms": 1709337600000
           }
         }
@@ -95,12 +147,14 @@
     {
       "Id": "rId101",
       "Type": "vsec/enforcement/throttle",
-      "Target": "/sys/lib/enforce_throttle.so"
+      "Target": "/sys/lib/enforce_throttle.so",
+      "TargetMode": "Internal"
     },
     {
       "Id": "rId102",
       "Type": "vsec/enforcement/isolate",
       "Target": "/sys/lib/enforce_isolate.so",
+      "TargetMode": "Internal",
       "ac:verification_logic": "HMAC-SHA512-RSA4096"
     },
     {
