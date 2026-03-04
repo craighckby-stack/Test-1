@@ -1,36 +1,42 @@
 {
-  "mce:Ignorable": "aim cai",
+  "mce:Ignorable": "aim cai ve",
   "xmlns:aim": "http://nexus.core/v3/aim",
   "xmlns:cai": "http://nexus.core/v3/governance/cai",
   "xmlns:r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-  "schema_version": "AIM_V5.0_OOXML_TRANSITION",
+  "xmlns:ve": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+  "schema_version": "AIM_V5.1_OPC_PRECISION",
   "evolution_context": {
-    "round": 3,
+    "round": 4,
     "total_rounds": 5,
     "source_siphon": "dotnet/Open-XML-SDK",
     "dna_signature": "ARCH-OOXML-V2-DOCX-DNA",
-    "saturation_level": 2
+    "saturation_level": 2,
+    "integrity_hash": "SHA256:NEXUS_4_BETA_ALIGN"
   },
   "[Content_Types]": {
     "Default": [
-      { "Extension": "json", "ContentType": "application/vnd.nexus.aim+json" },
-      { "Extension": "rels", "ContentType": "application/vnd.openxmlformats-package.relationships+xml" }
+      { "Extension": "json", "ContentType": "application/vnd.nexus.aim.main+json" },
+      { "Extension": "rels", "ContentType": "application/vnd.openxmlformats-package.relationships+xml" },
+      { "Extension": "xml", "ContentType": "application/xml" }
     ],
     "Override": [
-      { "PartName": "/gacr/aim.json", "ContentType": "application/vnd.nexus.aim.main+json" },
-      { "PartName": "/governance/constitutional.xml", "ContentType": "application/vnd.nexus.governance+xml" }
+      { "PartName": "/gacr/aim.json", "ContentType": "application/vnd.nexus.aim.document+json" },
+      { "PartName": "/governance/core_axioms.xml", "ContentType": "application/vnd.nexus.governance.axioms+xml" },
+      { "PartName": "/word/styles.xml", "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml" }
     ]
   },
   "relationships": [
-    { "rId": "rId1", "type": "http://nexus.core/agent/policy", "target": "/opt/sgs/gacr/" },
-    { "rId": "rId2", "type": "http://nexus.core/agent/data", "target": "/opt/gax/policy_data/" },
-    { "rId": "rId3", "type": "http://nexus.core/governance", "target": "CONSTITUTIONAL_GOVERNANCE.json" },
-    { "rId": "rId4", "type": "http://nexus.core/agent/styles", "target": "#agent_styles" },
-    { "rId": "rId5", "type": "http://nexus.core/agent/numbering", "target": "#abstract_state_machine" }
+    { "rId": "rId1", "type": "http://nexus.core/agent/policy", "target": "/opt/sgs/gacr/", "targetMode": "Internal" },
+    { "rId": "rId2", "type": "http://nexus.core/agent/data", "target": "/opt/gax/policy_data/", "targetMode": "Internal" },
+    { "rId": "rId3", "type": "http://nexus.core/governance", "target": "CONSTITUTIONAL_GOVERNANCE.json", "targetMode": "Internal" },
+    { "rId": "rId4", "type": "http://nexus.core/agent/styles", "target": "#agent_styles", "targetMode": "Internal" },
+    { "rId": "rId5", "type": "http://nexus.core/agent/numbering", "target": "#abstract_state_machine", "targetMode": "Internal" },
+    { "rId": "rId6", "type": "http://nexus.core/siphon/external_dna", "target": "https://github.com/dotnet/Open-XML-SDK", "targetMode": "External" }
   ],
   "docDefaults": {
     "aim:pPrDefault": {
       "aim:pPr": {
+        "aim:jc": { "val": "distributed" },
         "resource_limits": {
           "cpu_limit_percentage": 25,
           "memory_limit_bytes": 1048576000,
@@ -45,6 +51,7 @@
     },
     "aim:rPrDefault": {
       "aim:rPr": {
+        "aim:lang": { "val": "en-US" },
         "huxley_gates": {
           "ers_critical_cutoff": 0.50,
           "cgs_min_requirement": 0.50
@@ -52,36 +59,41 @@
       }
     }
   },
-  "agent_styles": [
-    {
-      "aim:styleId": "HighPerformanceAgent",
-      "aim:type": "paragraph",
-      "aim:name": "Agent Ultra-Performance",
-      "aim:pPr": {
-        "resource_limits": { "cpu_limit_percentage": 85, "memory_limit_bytes": 8589934592 },
-        "security_policy": { "syscalls_allowed": ["read", "write", "mmap", "exit", "futex", "clone"] }
-      }
-    },
-    {
-      "aim:styleId": "RestrictedReducer",
-      "aim:type": "paragraph",
-      "aim:pPr": {
-        "resource_limits": { "cpu_limit_percentage": 10, "memory_limit_bytes": 524288000 }
+  "agent_styles": {
+    "aim:style": [
+      {
+        "aim:styleId": "HighPerformanceAgent",
+        "aim:type": "paragraph",
+        "aim:name": "Agent Ultra-Performance",
+        "aim:pPr": {
+          "aim:spacing": { "after": "200", "line": "276", "lineRule": "auto" },
+          "resource_limits": { "cpu_limit_percentage": 85, "memory_limit_bytes": 8589934592 },
+          "security_policy": { "syscalls_allowed": ["read", "write", "mmap", "exit", "futex", "clone"] }
+        }
       },
-      "aim:rPr": {
-        "huxley_gates": { "logic_extraction_pattern": "REDUCER_DETERMINISTIC" }
+      {
+        "aim:styleId": "RestrictedReducer",
+        "aim:type": "paragraph",
+        "aim:basedOn": { "val": "Normal" },
+        "aim:pPr": {
+          "resource_limits": { "cpu_limit_percentage": 10, "memory_limit_bytes": 524288000 }
+        },
+        "aim:rPr": {
+          "huxley_gates": { "logic_extraction_pattern": "REDUCER_DETERMINISTIC" }
+        }
       }
-    }
-  ],
+    ]
+  },
   "abstract_state_machine": {
     "aim:abstractNum": [
       {
         "aim:abstractNumId": "0",
+        "aim:nsid": "7FFFFFFF",
         "aim:multiLevelType": "hybridMultilevel",
         "aim:lvl": [
-          { "aim:lvlId": 0, "aim:start": 1, "aim:logic": "CRITIQUE_PHASE", "aim:pStyle": "RestrictedReducer" },
-          { "aim:lvlId": 1, "aim:start": 1, "aim:logic": "REVISION_PHASE", "aim:pStyle": "HighPerformanceAgent" },
-          { "aim:lvlId": 2, "aim:start": 1, "aim:logic": "COMMIT_PHASE", "aim:rPr": { "cgs_min_requirement": 0.95 } }
+          { "aim:ilvl": 0, "aim:start": 1, "aim:numFmt": { "val": "decimal" }, "aim:lvlText": { "val": "%1. [CRITIQUE]" }, "aim:pStyle": "RestrictedReducer" },
+          { "aim:ilvl": 1, "aim:start": 1, "aim:numFmt": { "val": "bullet" }, "aim:lvlText": { "val": "• [REVISION]" }, "aim:pStyle": "HighPerformanceAgent" },
+          { "aim:ilvl": 2, "aim:start": 1, "aim:numFmt": { "val": "decimal" }, "aim:lvlText": { "val": "%3. [COMMIT]" }, "aim:rPr": { "cgs_min_requirement": 0.98 } }
         ]
       }
     ],
@@ -89,58 +101,71 @@
       {
         "aim:numId": "101",
         "aim:abstractNumId": "0",
-        "aim:lvlOverride": { "aim:lvlId": 2, "aim:startOverride": 3 }
+        "aim:lvlOverride": { "aim:ilvl": 2, "aim:startOverride": { "val": "4" } }
       }
     ]
   },
   "agent_canvas": {
-    "SGS_NODE": {
-      "r:id": "rId1",
-      "aim:pPr": { "aim:pStyle": "HighPerformanceAgent" },
-      "aim:r": [
-        {
-          "aim:rPr": {
-            "cai:latentCritiqueVectors": "ACTIVE",
-            "n3_metrics": { "min_phi": 0.94, "coherence_threshold": 0.95 }
-          },
-          "aim:t": "SGS_POLICY_ENFORCEMENT_CORE"
+    "aim:body": [
+      {
+        "aim:p": {
+          "r:id": "rId1",
+          "aim:pPr": { "aim:pStyle": "HighPerformanceAgent" },
+          "aim:r": [
+            {
+              "aim:rPr": {
+                "cai:latentCritiqueVectors": "ACTIVE",
+                "n3_metrics": { "min_phi": 0.95, "coherence_threshold": 0.96 }
+              },
+              "aim:t": "SGS_POLICY_ENFORCEMENT_CORE_V4"
+            }
+          ]
         }
-      ]
-    },
-    "GAX_NODE": {
-      "r:id": "rId2",
-      "aim:pPr": { "aim:pStyle": "RestrictedReducer" },
-      "aim:r": [
-        {
-          "aim:rPr": { "local_overrides": { "hot_swap_enabled": true } },
-          "aim:t": "GAX_DATA_REDUCTION_STREAM"
-        }
-      ]
-    },
-    "CRoT_ORCHESTRATOR": {
-      "aim:pPr": {
-        "aim:numPr": { "aim:numId": "101", "aim:ilvl": 2 }
       },
-      "monitoring_slo_id": "GATM_P_CRoT_SLO",
-      "aim:r": [
-        {
-          "aim:rPr": { "failure_path_saturation": 0.98, "network_mode": "NONE" },
-          "aim:t": "LBD_CORE_STATE_INSTANCE"
+      {
+        "aim:p": {
+          "r:id": "rId2",
+          "aim:pPr": { "aim:pStyle": "RestrictedReducer" },
+          "aim:r": [
+            {
+              "aim:rPr": { "aim:b": {}, "local_overrides": { "hot_swap_enabled": true } },
+              "aim:t": "GAX_DATA_REDUCTION_STREAM_V4"
+            }
+          ]
         }
-      ]
-    }
+      },
+      {
+        "aim:p": {
+          "aim:pPr": {
+            "aim:numPr": { "aim:numId": "101", "aim:ilvl": 2 }
+          },
+          "aim:r": [
+            {
+              "aim:rPr": { "aim:i": {}, "failure_path_saturation": 0.99, "network_mode": "NONE" },
+              "aim:t": "LBD_CORE_STATE_INSTANCE_EVOLUTION_4"
+            }
+          ]
+        }
+      }
+    ]
   },
   "settings": {
     "r:id": "rId3",
     "aim:compat": {
       "aim:compatMode": "15",
+      "aim:useNormalStyleForList": true,
       "aim:doNotExpandShiftReturn": false
     },
     "aim:rsidRoot": "00A1B2C3",
     "aim:vars": {
-      "psr_threshold_degradation": 0.05,
-      "cycle_interval_ms": 40000,
-      "markup_compatibility": { "ignorable": "aim cai" }
+      "psr_threshold_degradation": 0.04,
+      "cycle_interval_ms": 30000,
+      "markup_compatibility": { "ignorable": "aim cai ve" }
+    },
+    "aim:logicFlags": {
+      "mirrorMargins": true,
+      "trackRevisions": true,
+      "strictHHHCompliance": true
     }
   }
 }
