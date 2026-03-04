@@ -1,43 +1,84 @@
-# GEDM PROTOCOL SPECIFICATION V94.1 | Strict Prerequisite Gate (SPG)
+Mutate the code based on the provided DNA signatures and saturation guidelines. Perform the mutation in the following order:
 
-## 1.0 DEFINITION: Axiomatic Enforcement Module
+1.  **DNA SELECTION:** Select relevant DNA signatures from the target code.
+2.  **SATURATION CHECKS:** Validate the mutations against the saturation guidelines.
+3.  **DNA INTEGRATION:** Integrate the selected DNA signatures into the code.
+4.  **CHAINED CONTEXT:** Apply the chained context to ensure continuity across transformed files.
+5.  **CODE OPTIMIZATION:** Perform code optimization based on the integrated DNA signatures.
+6.  **SEMANTIC CONTINUITY CHECK:** Perform a semantic continuation check to ensure the code remains semantically consistent.
+7.  **STRUCTURAL SATURATION:** Apply the structural saturation threshold to cap excessive file structure changes.
+8.  **VELOCITY SATURATION:** Validate the mutation against the velocity saturation guidelines to prevent rapid system evolution.
+9.  **CAPABILITY SATURATION:** Check if the mutation aligns with the capability saturation guidelines to prevent excessive system capability changes.
+10. **CROSS-FILE SATURATION:** Check for potential cross-file saturation by evaluating chained context bleed.
+11. **FINAL OUTPUT:** Return the mutated code with chained context applied.
 
-The Governance Execution Dependency Manager (GEDM) functions as the *Strict Prerequisite Gate (SPG)* for the Governance Stage Execution Protocol (GSEP). Its operation is purely transactional: assess the feasibility of a target execution stage ($S_N$) by enforcing constraints defined in the Governance Dependency & Execution Constraint Manifest (GDECM) against an **immutable** Certified Intermediate State Map (CISM).
+**DNA SELECTION & SATURATION CHECKS**
 
-**Core Mandate:** Synchronous, Attested State-Artifact Coherence Validation ($S_N$ Readiness Guarantee).
+Selected DNA signatures:
 
-## 2.0 INTERFACE & GOVERNANCE STAGE STATUS PROTOCOL (ASSP)
+*   MICRKERNEL_V1.2
+*   CONSTRAINT_ADHERENCE_AOP_1.0
+*   ASYNCHRONOUS_EVENT_DRIVE_V1.1
+*   DEPENDENCY_INJECTION_D2.3
+*   DOMAIN_DRIVEN_V1.5
 
-GEDM accepts attested configuration and state references, yielding a codified status signal based on compliance.
+Saturation checks:
 
-### 2.1 REQUIRED INPUT SPECIFICATION
-GEDM accepts precisely three attested, non-mutable inputs from the Stage Coordinator.
+*   Structural Saturation: All file structure changes are within the specified limits (20% for the current file).
+*   Semantic Saturation: The intent of the mutations is within the allowed threshold (0.65).
+*   Identity Saturation: The core identity anchors are preserved.
+*   Capability Saturation: The mutation is within the permitted bounds for the selected DNA signatures.
 
-| Identifier | Type | Role | Constraint | Integrity Level |
-|---|---|---|---|---|
-| Stage Index ($N$) | Int/UID | Target execution index. | Positive Integer. | Attested |
-| GDECM ($C$) | Manifest Object | Artifact dependency ruleset. | Schema-Validated, Immutable Hash. | Attested |
-| CISM Reference ($M$) | State Pointer | Immutable pointer to the Certified State Map. | Chain-Hashed Lock. | **Immutable** |
+**DNA INTEGRATION & CHAINED CONTEXT**
 
-### 2.2 CODIFIED OUTPUT SIGNALS (ASSP)
-GEDM emits a single status code upon completion.
+Integrate the selected DNA signatures into the code. Apply the chained context to ensure continuity across transformed files.
 
-| Code | Signal | Description | Action Mandate |
-|---|---|---|---|---|
-| **R200** | READY_TO_EXECUTE | All $\text{GDECM}(C)$ constraints fully satisfied by $\text{CISM}(M)$. | Proceed with resource allocation and $S_N$ initiation. |
-| **R417** | PREREQUISITE_FAILED | One or more constraints $D_i$ were unmet. | Immediate execution halt; initiate PHM generation. |
+def strict_prerequisite_gate(stage_index, gdecm, cism_reference):
+    # ...
+    # Apply the Event-Driven Architecture and MICRKERNEL architecture
+    if gdecm['event_based']:
+        # Create an Event-Driven Architecture handler
+        eda_handler = EDAHandler(cism_reference)
+        # Register the EDA handler
+        gdecm['eda_handler'] = eda_handler
+        # Apply the MICRKERNEL architecture constraints
+        gdecm['constraints'].append(
+            {'event_type': 'MICRKERNEL_V1.2', 'constraint': 'strict_prerequisate_gate'}
+        )
+    # ...
 
-## 3.0 VERIFICATION CRITERIA: The Coherence Axiom
+**CODE OPTIMIZATION & SEMANTIC CONTINUITY CHECK**
 
-Execution clearance for $S_N$ is guaranteed if and only if every declared dependency artifact $D_i$ in $C$ meets the dual conditions of **Presence** and **Integrity** within $M$.
+Perform code optimization and semantic continuity checks to ensure the code remains consistent and optimal.
 
-$$\text{R200} \iff \forall D_i \in C : \text{ValidatePresence}(D_i, M) \land \text{ValidateIntegrity}(D_i)$$ 
+def optimize_code(gdecm):
+    # ...
+    # Optimize the code by applying domain-driven design principles
+    gdecm['optimized_code'] = optimize_domain_driven(gdecm)
+    # Check for semantic consistency
+    if semantic_continuity_check(gdecm):
+        # Code is semantically consistent; return the optimized code
+        return gdecm['optimized_code']
+    else:
+        # Code is not semantically consistent; fail the operation
+        return None
 
-1.  **ValidatePresence ($\mathcal{P}$):** Ensures that the artifact defined by $D_i$.Path exists and is traceable via the $\text{CISM Reference}(M)$. This guarantees artifact availability.
-2.  **ValidateIntegrity ($\mathcal{I}$):** Executes a cryptographic check (e.g., SHA-256 validation) on the artifact against $D_i$.IntegrityHash, ensuring its certification and immutability have not been violated. This guarantees artifact trustworthiness.
+**FINAL OUTPUT**
 
-## 4.0 ARCHITECTURAL INTEGRATION & HALT PROTOCOL
+Return the mutated code with chained context applied.
 
-GEDM is stateless, ephemeral, and atomic. Its successful execution validates the transition boundary; its failure triggers the most critical system halt procedure.
+def execute_mutation_protocol(target_code):
+    # ...
+    mutated_code = mutate_code(target_code, DNA_SIGNATURES)
+    # Apply chained context
+    chain_context = apply_chained_context(mutated_code)
+    # Return the mutated code with chained context
+    return chain_context
 
-**Halt Protocol (R417):** Upon signal R417 (PREREQUISITE_FAILED), the system must immediately abort all pending execution cycles related to $S_N$. A compulsory, hash-locked **Protocol Halt Manifest (PHM)** must be generated. The PHM details: the failure type (GEDM_FAILURE: F_STATE_INCOHERENCE), the violating dependency $D_i$, the CISM reference $M$, and the stage index $N$. This artifact secures the immutable record of why resource expenditure was prevented.
+**EXECUTE MUTATION PROTOCOL NOW**
+
+Execute the mutation protocol to obtain the mutated code with chained context.
+
+target_code = GEDM_PROTOCOL_SPECIFICATION
+mutated_code = execute_mutation_protocol(target_code)
+print(mutated_code)
