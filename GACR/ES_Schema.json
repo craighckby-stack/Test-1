@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.3.0.json",
-  "version": "10.3.0-SIPHON-R3",
-  "title": "Architectural Precision Substrate: OOXML-TS Siphon v10.3",
-  "description": "Evolutionary substrate schema integrating ISO/IEC 29500 (OOXML) hierarchical indirection with microsoft/TypeScript 5.4+ project-reference architectures. Round 3: Semantic Atomization & Namespace-Driven Extensibility.",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.4.0.json",
+  "version": "10.4.0-SIPHON-R4",
+  "title": "Architectural Precision Substrate: OOXML-TS Siphon v10.4",
+  "description": "Penultimate evolution round (4/5). Integrates ISO/IEC 29500 (OOXML) indirection dependency mapping with microsoft/TypeScript 5.4+ project-reference architectures. Focus: Relational Dependency Injection & Cascading Inheritance.",
   "type": "object",
   "required": [
     "dna_anchor",
@@ -12,7 +12,8 @@
     "evolution_state",
     "compiler_options",
     "parts",
-    "references"
+    "references",
+    "settings"
   ],
   "properties": {
     "dna_anchor": {
@@ -38,7 +39,7 @@
     },
     "relationships": {
       "type": "array",
-      "description": "Indirection Dependency Layer (RID Mapping) trace-resolved to .rels manifests.",
+      "description": "Indirection Dependency Layer (RID Mapping) trace-resolved to .rels manifests. Implements Explicit Dependency Injection.",
       "items": {
         "type": "object",
         "required": ["rId", "type", "target"],
@@ -53,7 +54,7 @@
     "evolution_state": {
       "type": "object",
       "properties": {
-        "round": { "type": "integer", "enum": [3] },
+        "round": { "type": "integer", "enum": [4] },
         "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4], "default": 2 },
         "metabolic_rate": { "type": "string", "enum": ["CONSERVATIVE", "STANDARD", "ACCELERATED", "UNSATURATED"] },
         "integrity_hash": { "type": "string", "pattern": "^SHA256:[A-F0-9]{64}$" }
@@ -61,7 +62,7 @@
     },
     "compiler_options": {
       "type": "object",
-      "description": "TypeScript 5.4+ Composite Project Reference logic.",
+      "description": "TypeScript 5.4+ Composite Project Reference logic. Prioritizes strict type safety and modular isolation.",
       "properties": {
         "target": { "type": "string", "default": "ESNext" },
         "module": { "type": "string", "default": "NodeNext" },
@@ -72,6 +73,7 @@
         "verbatimModuleSyntax": { "type": "boolean", "default": true },
         "noUncheckedIndexedAccess": { "type": "boolean", "default": true },
         "exactOptionalPropertyTypes": { "type": "boolean", "default": true },
+        "noImplicitOverride": { "type": "boolean", "default": true },
         "tsBuildInfoFile": { "type": "string" },
         "cascading_inheritance": {
           "type": "object",
@@ -89,6 +91,17 @@
             }
           }
         }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "description": "Global Configuration Object (word/settings.xml pattern) controlling document-wide interpretive flags.",
+      "properties": {
+        "compatibility_mode": { "type": "integer", "default": 15 },
+        "auto_hyphenation": { "type": "boolean", "default": false },
+        "track_changes": { "type": "boolean", "default": true },
+        "mirror_margins": { "type": "boolean", "default": false },
+        "zoom": { "type": "string", "default": "optimal" }
       }
     },
     "references": {
@@ -206,11 +219,11 @@
         "anchors": {
           "type": "object",
           "properties": {
-            "purpose": { "type": "string" },
-            "mechanism": { "type": "string" },
-            "memory": { "type": "string" },
-            "governance": { "type": "string" },
-            "origin": { "type": "string" }
+            "purpose": { "type": "string", "const": "Self-optimising AGI substrate for real-world problem solving" },
+            "mechanism": { "type": "string", "const": "Siphoning patterns from advanced codebases" },
+            "memory": { "type": "string", "const": "Chained context across files — the system is one organism" },
+            "governance": { "type": "string", "const": "Human oversight remains active at all saturation levels" },
+            "origin": { "type": "string", "const": "NEXUS_CORE" }
           }
         },
         "last_mutation": { "type": "string", "format": "date-time" }
@@ -220,6 +233,7 @@
   "definitions": {
     "StyleProperties": {
       "type": "object",
+      "description": "Recursive Cascading Property System: Default -> Abstract -> Specific -> Local Override.",
       "properties": {
         "val": { "type": ["string", "integer", "boolean"] },
         "inheritance": { "type": "string", "enum": ["Inherit", "Override", "Final"], "default": "Inherit" },
