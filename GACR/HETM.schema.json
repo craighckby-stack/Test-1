@@ -1,132 +1,100 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://nexus.core/schemas/v97.1/HETM.json",
-  "title": "NEXUS_CORE Host Environment Trust Manifest (HETM)",
-  "description": "Final-tier specification for verified computational substrates under GRTS protocol, integrating Huxley Tri-Loop telemetry and N=3 coherence metrics.",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.5.0_final.json",
+  "title": "NEXUS_CORE Host Environment Trust Manifest (HETM) - Converged Substrate",
+  "description": "Architectural Trust Manifest utilizing OOXML indirection (ISO/IEC 29500) and TypeScript 5.4+ project-reference orchestration for metabolic state governance.",
   "type": "object",
   "required": [
     "manifest_id",
     "version",
+    "relationships",
     "required_platform_measurement",
-    "cognitive_telemetry",
-    "n3_state_vector",
-    "transport_constraints",
+    "parts",
     "attestation_signature"
   ],
+  "markup_compatibility": {
+    "ignorable": "dalek v3 nx_ext",
+    "namespaces": {
+      "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+      "nx": "https://nexus-core.agi/governance",
+      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006"
+    }
+  },
   "properties": {
     "manifest_id": {
       "type": "string",
-      "const": "GTEM_V97.1",
-      "description": "Immutable manifest identifier bound to the siphoning cycle."
+      "const": "GTEM_V10.5.0"
     },
     "version": {
       "type": "string",
-      "const": "3.1.0",
-      "description": "DALEK CAAN Evolution Version."
+      "const": "10.5.0-FINAL"
+    },
+    "relationships": {
+      "type": "array",
+      "description": "Indirection Dependency Layer (RID Logic). Maps internal logic IDs to URI targets.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rId": { "type": "string", "pattern": "^rId[0-9]+$" },
+          "type": { "type": "string" },
+          "target": { "type": "string" },
+          "targetMode": { "type": "string", "enum": ["Internal", "External"] }
+        },
+        "required": ["rId", "type", "target"]
+      }
+    },
+    "compiler_options": {
+      "type": "object",
+      "description": "TypeScript-grade state orchestration parameters.",
+      "properties": {
+        "composite": { "type": "boolean", "default": true },
+        "incremental": { "type": "boolean", "default": true },
+        "noUncheckedIndexedAccess": { "type": "boolean", "default": true },
+        "verbatimModuleSyntax": { "type": "boolean", "default": true }
+      }
     },
     "required_platform_measurement": {
       "type": "string",
       "pattern": "^[0-9a-fA-F]{96}$",
       "description": "SHA384 cryptographic attestation of the host boot state."
     },
-    "cognitive_telemetry": {
-      "type": "object",
-      "required": [
-        "S01_efficacy_metric",
-        "S02_risk_metric",
-        "S03_veto_signal",
-        "ers_score"
-      ],
-      "properties": {
-        "S01_efficacy_metric": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "S02_risk_metric": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "S03_veto_signal": {
-          "type": "boolean"
-        },
-        "ers_score": {
-          "type": "number",
-          "description": "Ethical Risk Score (Huxley L1)."
-        },
-        "cgs_ratio": {
-          "type": "number",
-          "description": "Certainty Gain vs Time Penalty (Huxley L2)."
-        }
-      }
-    },
-    "n3_state_vector": {
-      "type": "object",
-      "required": [
-        "phi_integrated_info",
-        "lambda_chaos_proximity"
-      ],
-      "properties": {
-        "phi_integrated_info": {
-          "type": "number",
-          "description": "Total system unity (Metric Φ)."
-        },
-        "lambda_chaos_proximity": {
-          "type": "number",
-          "minimum": 0.5,
-          "maximum": 0.8,
-          "description": "Operational temperature equivalent (Metric λ)."
-        },
-        "coherence_status": {
-          "type": "string",
-          "enum": [
-            "STABLE",
-            "EVOLVING",
-            "SATURATED",
-            "DEGRADED"
-          ]
-        }
-      }
-    },
-    "triumvirate_segmentation": {
-      "type": "object",
-      "properties": {
-        "memory_isolation": {
-          "type": "string",
-          "enum": [
-            "Strict",
-            "Hardened",
-            "Isolated"
-          ]
-        },
-        "enclave_type": {
-          "type": "string",
-          "enum": [
-            "SGX",
-            "TDX",
-            "AMD-SEV"
-          ]
-        }
-      }
-    },
-    "transport_constraints": {
+    "parts": {
       "type": "array",
+      "description": "Modular Container-Part architecture for trust segments.",
       "items": {
         "type": "object",
         "properties": {
-          "endpoint_id": {
-            "type": "string"
-          },
-          "protocol": {
-            "type": "string",
-            "const": "HTTPS/TLS_1_3"
-          },
-          "max_latency_ms": {
-            "type": "integer",
-            "const": 500
+          "id": { "type": "string" },
+          "rId": { "type": "string" },
+          "status": { "type": "string", "enum": ["STABLE", "EVOLVING", "SATURATED", "DEGRADED"] },
+          "atomized_layers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "layer_type": { "type": "string", "enum": ["Block", "Inline", "Terminal"] },
+                "inheritance": { "type": "string", "enum": ["Inherit", "Override", "Final"] },
+                "metrics": {
+                  "type": "object",
+                  "properties": {
+                    "phi": { "type": "number" },
+                    "lambda": { "type": "number", "minimum": 0.5, "maximum": 0.8 },
+                    "efficacy": { "type": "number", "minimum": 0, "maximum": 1 }
+                  }
+                }
+              }
+            }
           }
-        }
+        },
+        "required": ["id", "rId", "status"]
+      }
+    },
+    "global_settings": {
+      "type": "object",
+      "properties": {
+        "conformance_level": { "type": "string", "const": "transitional" },
+        "strict_rid_validation": { "type": "boolean", "default": true },
+        "cascading_inheritance": { "type": "boolean", "default": true }
       }
     },
     "attestation_signature": {
@@ -137,19 +105,17 @@
         "crot_signature"
       ],
       "properties": {
-        "algorithm": {
-          "type": "string",
-          "const": "SHA3-256"
-        },
-        "payload_hash": {
-          "type": "string"
-        },
-        "crot_signature": {
-          "type": "string",
-          "description": "Base64 encoded CRoT signature via safeUtoa."
-        }
+        "algorithm": { "type": "string", "const": "SHA3-256" },
+        "payload_hash": { "type": "string" },
+        "crot_signature": { "type": "string" }
       }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "metadata": {
+    "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
+    "evolution_round": 1,
+    "saturation_level": 2,
+    "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE"
+  }
 }
