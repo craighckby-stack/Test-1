@@ -1,13 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "GACR/ModelTierMapping.schema.json",
-  "title": "Model Tier Mapping Configuration Schema [NEXUS_CORE v3.1]",
-  "description": "Architectural substrate for self-optimising model tiering using OOXML-DocX Relational Dependency and React-Fiber Concurrency patterns, siphoned with AlphaCode competitive-logic heuristics.",
+  "title": "Model Tier Mapping Configuration Schema [NEXUS_CORE v3.1 Round 3]",
+  "description": "High-order architectural substrate siphoning AlphaCode competitive-logic heuristics and OOXML-DocX Relational Dependency logic for sub-50ms model tiering reconciliation.",
   "type": "object",
   "properties": {
     "mc:Ignorable": {
       "type": "string",
-      "default": "nx mce ac react fiber lanes scheduler"
+      "default": "nx mce ac react fiber lanes scheduler w r"
     },
     "namespaces": {
       "type": "object",
@@ -17,13 +17,15 @@
         "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006",
         "ac": "https://alphacode.deepmind/logic/v2",
         "react": "https://react.dev/core/reconciliation",
-        "fiber": "https://react.dev/core/fiber-tree"
+        "fiber": "https://react.dev/core/fiber-tree",
+        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
       }
     },
     "mapping_version": {
       "type": "string",
-      "enum": ["2.5.0-CONVERGED"],
-      "description": "NEXUS-grade version control with AlphaCode pattern optimization."
+      "enum": ["2.6.0-PRECISION"],
+      "description": "AlphaCode-optimized precision mapping version."
     },
     "settings": {
       "type": "object",
@@ -32,16 +34,25 @@
           "type": "object",
           "properties": {
             "enabled": { "type": "boolean", "default": true },
-            "resolver": { "type": "string", "enum": ["RecursiveFlatten", "ShallowMerge"] },
+            "resolver": { "type": "string", "enum": ["RecursiveFlatten", "ShallowMerge", "AtomizedSiphon"] },
             "docDefaults": { "$ref": "#/$defs/tierProperties" }
           }
         },
         "ac:selection_policy": {
           "type": "object",
           "properties": {
-            "sampling_mode": { "type": "string", "enum": ["Greedy", "BeamSearch", "NucleusSampling"] },
+            "sampling_mode": { "type": "string", "enum": ["Greedy", "BeamSearch", "NucleusSampling", "ClusteredVerification"] },
             "candidate_limit": { "type": "integer", "default": 1000 },
-            "clustering_threshold": { "type": "number", "default": 0.85 }
+            "clustering_threshold": { "type": "number", "default": 0.85 },
+            "ac:solution_filtering": { "type": "boolean", "default": true }
+          }
+        },
+        "w:settings": {
+          "type": "object",
+          "properties": {
+            "zoom": { "type": "integer", "default": 100 },
+            "proofState": { "type": "string", "enum": ["clean", "dirty"] },
+            "nx:mirror_governance": { "type": "boolean", "default": true }
           }
         }
       }
@@ -53,8 +64,8 @@
         "properties": {
           "abstractNumId": { "type": "string" },
           "name": { "type": "string" },
-          "multiLevelType": { "type": "string", "enum": ["single", "hybridFiber", "multiLevel"] },
-          "ac:problem_type": { "type": "string", "enum": ["Optimization", "Search", "Inference", "Deterministic"] },
+          "multiLevelType": { "type": "string", "enum": ["single", "hybridFiber", "multiLevel", "competitive"] },
+          "ac:problem_type": { "type": "string", "enum": ["Optimization", "Search", "Inference", "Deterministic", "CompetitiveReasoning"] },
           "levels": {
             "type": "array",
             "items": {
@@ -62,7 +73,8 @@
               "properties": {
                 "ilvl": { "type": "integer" },
                 "tierPr": { "$ref": "#/$defs/tierProperties" },
-                "fiber:workTag": { "type": "string" }
+                "fiber:workTag": { "type": "string" },
+                "w:pPr": { "type": "object" }
               },
               "required": ["ilvl", "tierPr"]
             }
@@ -79,10 +91,11 @@
           "numId": { "type": "string" },
           "abstractNumId": { "type": "string" },
           "rId": { "type": "string", "pattern": "^rId_[A-Z0-9]+$" },
-          "status": { "type": "string", "enum": ["CONVERGED", "DEGRADED", "STABLE", "EVOLVING"] },
+          "status": { "type": "string", "enum": ["CONVERGED", "DEGRADED", "STABLE", "EVOLVING", "CLUSTERED"] },
           "fiber:key": { "type": "string" },
-          "fiber:lanes": { "type": "string", "enum": ["Sync", "Default", "Input", "Idle"] },
-          "ac:pass_at_k": { "type": "number", "description": "Probability of successful execution in k samples." }
+          "fiber:lanes": { "type": "string", "enum": ["Sync", "Default", "Input", "Idle", "Offscreen"] },
+          "ac:pass_at_k": { "type": "number" },
+          "ac:cluster_id": { "type": "string" }
         },
         "required": ["numId", "abstractNumId", "rId"]
       }
@@ -103,15 +116,16 @@
               "criteria": {
                 "type": "object",
                 "properties": {
-                  "match_type": { "type": "string", "enum": ["exact_id", "tag_match", "regex_id", "ac_heuristic"] },
+                  "match_type": { "type": "string", "enum": ["exact_id", "tag_match", "regex_id", "ac_heuristic", "semantic_atom"] },
                   "values": { "type": "array", "items": { "type": "string" } },
+                  "ac:competitive_score_min": { "type": "number" },
                   "tags": {
                     "type": "array",
                     "items": {
                       "type": "object",
                       "properties": {
                         "key": { "type": "string" },
-                        "operator": { "type": "string", "enum": ["equals", "not_equals", "less_than", "greater_than"] },
+                        "operator": { "type": "string", "enum": ["equals", "not_equals", "less_than", "greater_than", "ac_match"] },
                         "value": { "type": "string" }
                       }
                     }
@@ -139,7 +153,16 @@
         "lanes:mask": { "type": "string", "pattern": "^0b[01]+$" },
         "scheduler:priority": { "type": "string", "enum": ["ImmediatePriority", "UserBlockingPriority", "NormalPriority", "LowPriority", "IdlePriority"] },
         "react:memoize": { "type": "boolean" },
-        "ac:complexity_constraint": { "type": "string", "enum": ["O(1)", "O(logN)", "O(N)", "O(NlogN)", "Unbounded"] }
+        "ac:complexity_constraint": { "type": "string", "enum": ["O(1)", "O(logN)", "O(N)", "O(NlogN)", "O(N^2)", "Unbounded"] },
+        "ac:memory_limit_mb": { "type": "integer", "default": 512 },
+        "w:rPr": {
+          "type": "object",
+          "properties": {
+            "sz": { "type": "integer" },
+            "bold": { "type": "boolean" },
+            "noProof": { "type": "boolean" }
+          }
+        }
       },
       "required": ["priority_level", "sla_target_ms"]
     }
