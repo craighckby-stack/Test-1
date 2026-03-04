@@ -4,39 +4,42 @@
     "nx": "https://nexus-core.agi/governance",
     "mce": "http://schemas.openxmlformats.org/markup-compatibility/2006",
     "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
     "react": "https://react.dev/core/reconciliation",
     "fiber": "https://react.dev/core/fiber-tree",
     "scheduler": "https://react.dev/core/scheduler",
     "lanes": "https://react.dev/core/concurrent-lanes"
   },
   "metadata": {
-    "manifest_id": "GACR_MODEL_TIER_MAPPING_V2.3",
-    "version": "2.3.0-EVOLVE-3",
+    "manifest_id": "GACR_MODEL_TIER_MAPPING_V2.4",
+    "version": "2.4.0-EVOLVE-4",
     "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-    "evolution_round": 3,
+    "evolution_round": 4,
     "saturation_level": 2,
     "metabolic_rate": "STANDARD",
     "identity_anchors": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
-      "origin": "NEXUS_CORE",
       "mechanism": "Siphoning patterns from DeepSeek-Coder / OOXML-DocX",
       "memory": "Chained context across files — the system is one organism",
-      "governance": "Human oversight remains active"
+      "governance": "Human oversight remains active at all saturation levels",
+      "origin": "NEXUS_CORE"
     }
   },
   "settings": {
     "cascading_inheritance": {
       "enabled": true,
-      "resolver_logic": "RecursiveFlatten",
+      "resolver": "RecursiveFlatten",
       "docDefaults": {
         "pPr": {
           "jc": { "val": "both" },
-          "spacing": { "val": 24 },
+          "spacing": { "val": 24, "unit": "hrs" },
           "nx:governance_mode": "Passive",
-          "lanes:priority": "Default"
+          "lanes:priority": "Default",
+          "react:context": "TierRoutingProvider"
         },
         "rPr": {
           "sz": 11,
+          "noProof": true,
           "react:memoize": true,
           "fiber:workTag": "HostComponent",
           "scheduler:priorityLevel": "NormalPriority"
@@ -64,7 +67,8 @@
             "nx:governance_mode": "Strict",
             "lanes:mask": "0b0000000000000000000000000000001",
             "scheduler:priority": "ImmediatePriority"
-          }
+          },
+          "fiber:batchSize": 1
         }
       ]
     },
@@ -82,7 +86,27 @@
             "availability": 0.999,
             "lanes:mask": "0b0000000000000000000000000010000",
             "scheduler:priority": "NormalPriority"
-          }
+          },
+          "fiber:batchSize": 10
+        }
+      ]
+    },
+    {
+      "abstractNumId": "2",
+      "name": "BACKGROUND_BATCH_P3",
+      "multiLevelType": "hybridFiber",
+      "levels": [
+        {
+          "ilvl": 0,
+          "tierPr": {
+            "priority_level": 3,
+            "sla_target_ms": 2000,
+            "redundancy_level": "SingleRegion",
+            "availability": 0.99,
+            "lanes:mask": "0b1000000000000000000000000000000",
+            "scheduler:priority": "IdlePriority"
+          },
+          "fiber:batchSize": 50
         }
       ]
     }
@@ -92,7 +116,7 @@
       "numId": "101",
       "abstractNumId": "0",
       "rId": "rId_R001",
-      "status": "ACTIVE",
+      "status": "CONVERGED",
       "fiber:key": "tier-critical-01",
       "fiber:mode": "Concurrent"
     },
@@ -100,9 +124,17 @@
       "numId": "102",
       "abstractNumId": "1",
       "rId": "rId_R002",
-      "status": "ACTIVE",
+      "status": "CONVERGED",
       "fiber:key": "tier-standard-02",
       "fiber:mode": "Concurrent"
+    },
+    {
+      "numId": "103",
+      "abstractNumId": "2",
+      "rId": "rId_R003",
+      "status": "HYDRATING",
+      "fiber:key": "tier-background-03",
+      "fiber:mode": "Batched"
     }
   ],
   "logical_structure": {
@@ -112,6 +144,7 @@
         "pStyle": "TierContainer_Primary",
         "pPr": {
           "jc": "both",
+          "spacing": { "val": 12 },
           "react:useContext": "TierRoutingProvider",
           "fiber:updateQueue": "Immediate"
         },
@@ -123,7 +156,8 @@
         "rPr": {
           "bold": true,
           "react:useHook": "useTierReconciliation",
-          "lanes:assignment": "Sync"
+          "lanes:assignment": "Sync",
+          "fiber:workTag": "FunctionComponent"
         },
         "terminal": {
           "is_field": true,
@@ -131,6 +165,19 @@
           "field_logic": "ABSOLUTE_SLA_ENFORCEMENT(50ms)",
           "react:useReducer": "tierStateReducer",
           "value": "ACTIVE_LOAD_BALANCING"
+        }
+      },
+      {
+        "type": "Inline",
+        "rStyle": "LogicRun_Deferred",
+        "rPr": {
+          "react:useHook": "useDeferredValue",
+          "lanes:assignment": "Idle",
+          "fiber:tag": "MemoComponent"
+        },
+        "terminal": {
+          "is_field": false,
+          "value": "BACKGROUND_CLEANUP_DAEMON"
         }
       }
     ]
@@ -156,10 +203,19 @@
         "criteria": {
           "match_type": "tag_match",
           "tags": [
-            { "key": "environment", "operator": "equals", "value": "production" },
-            { "key": "system_sensitivity", "operator": "not_equals", "value": "low" }
+            { "key": "environment", "operator": "equals", "value": "production" }
           ]
         }
+      }
+    },
+    {
+      "rId": "rId_R003",
+      "type": "https://nexus-core.agi/tier/assignment",
+      "target": "BACKGROUND_BATCH_P3",
+      "targetMode": "Internal",
+      "rule": {
+        "rule_id": "R003_LowPriority",
+        "criteria": { "match_type": "tag_match", "tags": [{ "key": "class", "value": "batch" }] }
       }
     },
     {
@@ -176,10 +232,14 @@
     }
   ],
   "diagnostics": {
-    "semantic_drift_check": 0.21,
+    "semantic_drift_check": 0.18,
     "structure_integrity": "OK",
     "mce_compatibility": "PASS",
     "fiber_tree_health": "OPTIMAL",
-    "lane_concurrency_check": "VALIDATED"
+    "lane_concurrency_check": "VALIDATED",
+    "saturation_validation": {
+      "structural_delta": 0.12,
+      "identity_anchor_status": "VERIFIED"
+    }
   }
 }
