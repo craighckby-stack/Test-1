@@ -3,9 +3,9 @@
   "$id": "https://gacr.agi/mqm/core_policy_v10.5.json",
   "metadata": {
     "manifest_id": "GTEM_V10.5.0_FINAL",
-    "version": "10.5.0-FINAL",
+    "version": "10.5.2-ACCELERATED",
     "dna_anchor": "ARCH-OOXML-V2-DOCX-DNA",
-    "evolution_round": 1,
+    "evolution_round": 2,
     "saturation_level": 2,
     "metabolic_rate": "STANDARD",
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
@@ -22,7 +22,28 @@
       "namespaces": {
         "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
         "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-        "nx": "https://nexus-core.agi/governance"
+        "nx": "https://nexus-core.agi/governance",
+        "ts": "https://github.com/microsoft/TypeScript/schemas/compiler"
+      }
+    }
+  },
+  "compiler_options": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "composite": true,
+    "incremental": true,
+    "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true,
+    "declaration": true,
+    "resolveJsonModule": true,
+    "tsBuildInfoFile": "mqm_core.tsbuildinfo",
+    "cascading_inheritance": {
+      "enabled": true,
+      "depth_limit": 50,
+      "resolver": "RecursiveFlatten",
+      "docDefaults": {
+        "pPr": { "jc": { "val": "left" }, "spacing": { "val": 24, "unit": "hrs" } },
+        "rPr": { "sz": 11, "lang": { "val": "en-AGI" } }
       }
     }
   },
@@ -38,10 +59,16 @@
       "type": "https://nexus-core.agi/metrics/storage",
       "target": "metrics/S03_LATENCY",
       "targetMode": "External"
+    },
+    {
+      "rId": "rId3",
+      "type": "https://github.com/microsoft/TypeScript/schemas/project-reference",
+      "target": "GACR/subsystems/validation_logic.json",
+      "targetMode": "Internal"
     }
   ],
   "policies": {
-    "version_tag": "ARES_MQM_V10.5_OPC",
+    "version_tag": "ARES_MQM_V10.5_OPC_TS",
     "default_tier_rId": "rId1",
     "parts": [
       {
@@ -54,9 +81,10 @@
             "inheritance": "Override",
             "pPr": {
               "jc": { "val": "both" },
-              "spacing": { "val": 12, "unit": "hrs" }
+              "spacing": { "val": 12, "unit": "hrs" },
+              "ind": { "val": 720, "unit": "twips" }
             },
-            "content_ref": "High business impact models. Fast quarantine."
+            "content_ref": "High business impact models. Fast quarantine protocol enabled."
           },
           {
             "layer_type": "Inline",
@@ -64,7 +92,8 @@
             "rPr": {
               "sz": 10,
               "color": "FF0000",
-              "bold": true
+              "bold": true,
+              "vertAlign": { "val": "baseline" }
             },
             "content_ref": "MQM_S04_MODEL_DRIFT_COUNT: ABSOLUTE_COUNT_MAX(1)"
           }
@@ -81,7 +110,7 @@
             "pPr": {
               "spacing": { "val": 72, "unit": "hrs" }
             },
-            "content_ref": "Default operational models."
+            "content_ref": "Default operational models. Standard observation window."
           }
         ]
       }
@@ -98,6 +127,13 @@
             "numFmt": "decimal",
             "lvlText": "RERUN_%1",
             "lvlJc": "left"
+          },
+          {
+            "ilvl": 1,
+            "start": 1,
+            "numFmt": "bullet",
+            "lvlText": "SUB_TASK_%2",
+            "lvlJc": "left"
           }
         ]
       }
@@ -109,15 +145,6 @@
       }
     ]
   },
-  "certified_remediation_protocols": [
-    {
-      "protocol_id": "Model_Remediation_Protocol_V1.1",
-      "rId": "rId1",
-      "activation_priority": 100,
-      "description": "Standard retraining/recalibration sequence.",
-      "remediation_playbook": "PLAYBOOK_MLOP_RETRAIN_V975"
-    }
-  ],
   "diagnostics_engine": {
     "drift_threshold": 0.35,
     "saturation_level": 2,
@@ -125,7 +152,9 @@
       "NoOrphanedRIds",
       "StyleChainResolution",
       "NamespaceValidityCheck",
-      "StrictHHHCompliance"
+      "ProjectBoundaryCheck",
+      "StrictHHHCompliance",
+      "SemanticContinuityCheck"
     ],
     "emergency_brake": {
       "corruption_threshold": 5,
