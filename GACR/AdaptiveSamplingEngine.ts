@@ -7,17 +7,17 @@ import {
 
 /**
  * @file GACR/AdaptiveSamplingEngine.ts
- * @version 3.2.0
+ * @version 3.3.0
  * @dna ARCH-OOXML-V2-DOCX-DNA
  * @saturation LEVEL_2_STANDARD
- * @description Advanced Hierarchical Semantic Sampling Engine. 
- * Implements OPC (Open Packaging Convention) relational mapping and Genkit-inspired flow orchestration.
+ * @description Hierarchical Siphon Engine implementing OPC Relationship Indirection and MCE-versioned logic.
  */
 
 export class AdaptiveSamplingEngine {
   private readonly _rels: Map<string, any> = new Map();
   private readonly _styleResolver: CascadingStyleResolver;
   private readonly _stateMachine: AbstractSamplingStateMachine;
+  private readonly _mceProcessor: MCEProcessor;
   private readonly _settings: any;
 
   constructor(context: SiphonContext) {
@@ -25,69 +25,66 @@ export class AdaptiveSamplingEngine {
     this.initializeRegistry(context);
     this._styleResolver = new CascadingStyleResolver(context.agent_styles, context.docDefaults);
     this._stateMachine = new AbstractSamplingStateMachine(context.abstract_state_machine);
+    this._mceProcessor = new MCEProcessor(this._settings.aim_vars?.markup_compatibility);
   }
 
   /**
-   * Orchestrates the sampling flow by treating the canvas as a structured document Part.
-   * Implements "Markup Compatibility and Extensibility" (MCE) for ignorable logic.
+   * Orchestrates the siphoning flow by mapping hierarchical OOXML patterns to AGI substrate evolution.
+   * Implements the "Atomized Semantic Tree" pattern (Block -> Inline -> Terminal).
    */
-  public async executeSamplingCycle(canvas: any): Promise<void> {
-    const { body } = canvas;
+  public async executeSiphonPipeline(canvas: any): Promise<void> {
+    const { aim_body: body } = canvas;
     if (!body) return;
 
-    for (const paragraph of body) {
-      const rId = paragraph['r:id'];
-      const policy = this.resolvePart(rId);
-      
-      // Hierarchy: Default -> Style -> Local Paragraph Properties
-      const pStyleId = paragraph.aim_pPr?.aim_pStyle || "Normal";
-      const resolvedPPr = this._styleResolver.resolveParagraphProperties(pStyleId, paragraph.aim_pPr);
+    for (const block of body) {
+      const p = block.aim_p;
+      if (!p) continue;
 
-      if (this.evaluateGate(resolvedPPr)) {
-        await this.processSemanticRuns(paragraph.aim_r || [], resolvedPPr, policy);
+      const rId = p['r:id'];
+      const dependency = this.resolveDependency(rId);
+      
+      // Cascading Inheritance: DocDefaults -> Style Hierarchy -> Local pPr
+      const pStyleId = p.aim_pPr?.aim_pStyle || "Normal";
+      const resolvedPPr = this._styleResolver.resolveParagraphProperties(pStyleId, p.aim_pPr);
+
+      if (this.validateSaturationGate(resolvedPPr)) {
+        await this.processInlineAtoms(p.aim_r || [], resolvedPPr, dependency);
       }
     }
   }
 
-  private resolvePart(rId: string): any {
+  private resolveDependency(rId: string): any {
     const rel = this._rels.get(rId);
     if (!rel && this._settings.aim_logicFlags?.strictHHHCompliance) {
-      throw new Error(`Critical Relationship missing: ${rId}`);
+      throw new Error(`[NEXUS_FATAL] Relational Dependency Violation: ${rId}`);
     }
-    return rel || { target: "VOID", type: "NULL_PART" };
+    return rel || { target: "/dev/null", type: "VOID_PART" };
   }
 
-  private evaluateGate(props: any): boolean {
+  private validateSaturationGate(props: any): boolean {
     const limit = props.resource_limits?.cpu_limit_percentage ?? 100;
-    const threshold = this._settings.aim_logicFlags?.siphonSaturationLevel === "2" ? 95 : 100;
-    return limit <= threshold;
+    const saturationThreshold = this._settings.aim_logicFlags?.siphonSaturationLevel === "2" ? 95 : 100;
+    return limit <= saturationThreshold;
   }
 
-  private async processSemanticRuns(runs: any[], pPr: any, policy: any): Promise<void> {
+  private async processInlineAtoms(runs: any[], pPr: any, dependency: any): Promise<void> {
     for (const run of runs) {
-      // Inline Inheritance: Paragraph Properties -> Run Properties (rPr)
+      // Inherit from Paragraph Properties -> Local Run Properties (rPr)
       const rPr = this._styleResolver.resolveRunProperties(pPr, run.aim_rPr);
-      
       const metrics = rPr.n3_metrics || {};
       const minPhi = metrics.min_phi ?? 0.0;
 
       if (minPhi >= (this._settings.aim_vars?.psr_threshold_degradation || 0.95)) {
-        const traceData = this.applyMCEFiltering(run.aim_t);
-        this.dispatchSiphon(traceData, rPr, policy);
+        const atomizedData = this._mceProcessor.process(run.aim_t);
+        this.commitSiphon(atomizedData, rPr, dependency);
       }
     }
   }
 
-  private applyMCEFiltering(text: string): string {
-    const ignorable = this._settings.aim_vars?.markup_compatibility?.ignorable || "";
-    if (ignorable.includes("aim")) return text.toUpperCase(); // Semantic uplift
-    return text;
-  }
-
-  private dispatchSiphon(data: string, context: any, policy: any): void {
-    const stateIdentifier = this._stateMachine.step(policy.target, context.aim_numPr);
-    const logPrefix = `[NEXUS_OPC_SIPHON][${policy.type}]`;
-    console.debug(`${logPrefix} ${stateIdentifier} >> ${data}`);
+  private commitSiphon(data: string, context: any, dependency: any): void {
+    const state = this._stateMachine.transition(dependency.target, context.aim_numPr);
+    const logHeader = `[OPC_PART][${dependency.type}]`;
+    console.debug(`${logHeader} Sequence:${state} >> Siphoned: ${data}`);
   }
 
   private initializeRegistry(ctx: SiphonContext): void {
@@ -100,8 +97,8 @@ class CascadingStyleResolver {
 
   public resolveParagraphProperties(styleId: string, localPPr: any = {}): any {
     const base = this.defaults.aim_pPrDefault?.aim_pPr || {};
-    const styled = this.findStyle(styleId, "paragraph")?.aim_pPr || {};
-    return { ...base, ...styled, ...localPPr };
+    const styleChain = this.flattenStyleHierarchy(styleId, "paragraph");
+    return { ...base, ...styleChain, ...localPPr };
   }
 
   public resolveRunProperties(parentPPr: any, localRPr: any = {}): any {
@@ -109,41 +106,54 @@ class CascadingStyleResolver {
     return { ...parentPPr, ...base, ...localRPr };
   }
 
-  private findStyle(styleId: string, type: string): any {
-    const styleList = this.styles.aim_style || [];
-    let style = styleList.find((s: any) => s.aim_styleId === styleId && s.aim_type === type);
-    
-    if (style?.aim_basedOn) {
-      const parent = this.findStyle(style.aim_basedOn.val, type);
-      return { ...parent, ...style };
+  private flattenStyleHierarchy(styleId: string, type: string): any {
+    const style = this.styles.aim_style?.find((s: any) => s.aim_styleId === styleId && s.aim_type === type);
+    if (!style) return {};
+
+    if (style.aim_basedOn) {
+      const parent = this.flattenStyleHierarchy(style.aim_basedOn.val, type);
+      return { ...parent, ...style.aim_pPr };
     }
-    return style;
+    return style.aim_pPr || {};
+  }
+}
+
+class MCEProcessor {
+  private readonly ignorable: string[];
+
+  constructor(mceConfig: any) {
+    this.ignorable = (mceConfig?.ignorable || "").split(" ");
+  }
+
+  public process(content: string): string {
+    if (this.ignorable.includes("aim")) {
+      return content.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").trim();
+    }
+    return content;
   }
 }
 
 class AbstractSamplingStateMachine {
-  private _counters: Map<string, number> = new Map();
+  private _stateRegisters: Map<string, number> = new Map();
 
   constructor(private definitions: any) {}
 
   /**
-   * Implements Multi-Level State Definitions (word/numbering.xml pattern).
+   * Manages Multi-Level Sequential State (word/numbering.xml Instance pattern).
    */
-  public step(targetUri: string, numPr?: any): string {
+  public transition(target: string, numPr?: any): string {
     const numId = numPr?.aim_numId || "101";
     const iLvl = numPr?.aim_ilvl || 0;
 
     const instance = this.definitions.aim_num?.find((n: any) => n.numId === numId);
-    const abstractId = instance?.abstractNumId || "0";
-    const abstract = this.definitions.aim_abstractNum?.find((a: any) => a.abstractNumId === abstractId);
-    
-    const levelDef = abstract?.aim_lvl?.find((l: any) => l.aim_ilvl === iLvl) || abstract?.aim_lvl[0];
-    
-    const key = `${targetUri}_${numId}_${iLvl}`;
-    const count = (this._counters.get(key) || (levelDef.aim_start - 1)) + 1;
-    this._counters.set(key, count);
+    const abstract = this.definitions.aim_abstractNum?.find((a: any) => a.abstractNumId === (instance?.abstractNumId || "0"));
+    const lvl = abstract?.aim_lvl?.find((l: any) => l.aim_ilvl === iLvl) || abstract?.aim_lvl[0];
 
-    const template = levelDef.aim_lvlText?.val || "%1";
-    return template.replace(`%${iLvl + 1}`, count.toString());
+    const key = `${target}::${numId}::${iLvl}`;
+    const current = (this._stateRegisters.get(key) || (lvl.aim_start - 1)) + 1;
+    this._stateRegisters.set(key, current);
+
+    const format = lvl.aim_lvlText?.val || "%1";
+    return format.replace(`%${iLvl + 1}`, current.toString());
   }
 }
