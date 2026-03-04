@@ -1,6 +1,6 @@
 {
   "nexus_core": {
-    "version": "3.4.0",
+    "version": "3.5.0_FINAL",
     "signature": "ARCH-OOXML-V2-DOCX-DNA",
     "identity": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
@@ -12,8 +12,9 @@
       "composite": true,
       "incremental": true,
       "tsBuildInfoFile": "/GACR/.tsbuildinfo",
-      "program_hash": "SHA256:8C2D4A...",
-      "semantic_drift": 0.08
+      "program_hash": "SHA256:F5E8D2A...",
+      "semantic_drift": 0.04,
+      "finalized": true
     }
   },
   "package_manifest": {
@@ -25,9 +26,10 @@
         "metadata": {
           "kind": "source",
           "emit": "ESNext",
-          "checkJs": true,
+          "checkJs": false,
           "declaration": true,
-          "composite": true
+          "composite": true,
+          "sourceMap": true
         }
       },
       {
@@ -36,7 +38,8 @@
         "rId": "rId2",
         "metadata": {
           "kind": "config",
-          "immutable": true
+          "immutable": true,
+          "version": "1.0.0"
         }
       },
       {
@@ -45,7 +48,8 @@
         "rId": "rId3",
         "metadata": {
           "kind": "style",
-          "cascading": true
+          "cascading": true,
+          "inheritance_depth": 10
         }
       }
     ],
@@ -58,10 +62,12 @@
           "path": "../NEXUS_CORE/Types",
           "rId": "rIdRef1",
           "prepend": true,
-          "circular_dependency_gate": "Strict"
+          "circular_dependency_gate": "Strict",
+          "resolution_mode": "node"
         }
       ],
-      "dependency_resolution": "RelationalDependencyMapping"
+      "dependency_resolution": "RelationalDependencyMapping",
+      "type_check_cache": "/GACR/.cache/types.dat"
     },
     "relationships": [
       {
@@ -93,6 +99,9 @@
     "incremental": true,
     "experimentalDecorators": true,
     "emitDeclarationOnly": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "downlevelIteration": true,
     "typeAcquisition": {
       "enable": true,
       "include": [
@@ -102,8 +111,8 @@
     "cascading_inheritance": {
       "enabled": true,
       "resolver": "CascadingStyleResolver",
-      "inheritance_depth_limit": 10,
-      "flatten_strategy": "RecursiveFlatten"
+      "flatten_strategy": "RecursiveFlatten",
+      "local_overrides_priority": "high"
     }
   },
   "diagnostics_engine": {
@@ -120,7 +129,12 @@
       "log_target": "NEXUS_LOG.txt",
       "auto_halt": true
     },
-    "identity_anchors_enforced": true
+    "identity_anchors_enforced": true,
+    "validation_rules": [
+      "NoOrphanedRIds",
+      "StyleChainResolution",
+      "NamespaceValidityCheck"
+    ]
   },
   "state_machine": {
     "abstract_num_definitions": [
@@ -162,7 +176,8 @@
       "aliasing": {
         "SiphonCore": "rId1",
         "PolicyRoot": "rId2",
-        "ThemeDefinition": "rId3"
+        "ThemeDefinition": "rId3",
+        "TypeLink": "rIdRef1"
       }
     }
   },
@@ -179,10 +194,10 @@
   },
   "metadata": {
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
-    "last_mutation": "2026-03-02T14:45:12Z",
-    "evolution_round": 4,
-    "status": "MUTATED_STABLE",
-    "integrity_hash": "SHA256:A8F4D2...",
+    "last_mutation": "2026-03-02T16:00:00Z",
+    "evolution_round": 5,
+    "status": "CONVERGED_ARCHITECTURAL_PRECISION",
+    "integrity_hash": "SHA256:B2C4E6...",
     "opc_compliant": true
   }
 }
