@@ -1,40 +1,47 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.0.0.json",
-  "title": "NEXUS_CORE Registry - ECVM_TIS - Evolution Round 1/5 - SIPHON_INITIATION",
-  "description": "Initial siphoning of microsoft/TypeScript project-reference structures and ISO/IEC 29500 indirection logic into the Telemetry Information Substrate.",
-  "manifest_id": "CMR_V10.0.0_TIS_EVO_1",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.1.0.json",
+  "title": "NEXUS_CORE Registry - ECVM_TIS - Evolution Round 2/5 - ARCHITECTURAL_MAPPING",
+  "description": "Integration of ISO/IEC 29500 (OOXML) indirection logic and TypeScript 5.4+ project-reference architectures into the Telemetry Information Substrate.",
+  "manifest_id": "CMR_V10.1.0_TIS_EVO_2",
   "owner": "NEXUS_CORE Identity Anchor: DALEK_CAAN_v3.1",
   "markup_compatibility": {
-    "ignorable": "dalek v3 nx_ext",
+    "ignorable": "dalek nx_ext mc",
     "namespaces": {
       "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
       "ts": "https://github.com/microsoft/TypeScript/schemas/compiler",
-      "nx": "https://nexus-core.agi/governance"
+      "nx": "https://nexus-core.agi/governance",
+      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006"
     }
   },
   "relationships": [
     {
       "rId": "rId1",
-      "type": "https://nexus-core.agi/relationships/telemetry_schema",
-      "target": "schemas/APITelemetry.json",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
+      "target": "styles/GlobalTelemetryStyles.json",
       "targetMode": "Internal"
     },
     {
       "rId": "rId2",
-      "type": "https://nexus-core.agi/relationships/telemetry_schema",
-      "target": "schemas/DTEMCacheStatus.json",
+      "type": "https://nexus-core.agi/relationships/telemetry_source",
+      "target": "schemas/APITelemetry.json",
       "targetMode": "Internal"
     },
     {
       "rId": "rId3",
-      "type": "https://nexus-core.agi/relationships/telemetry_schema",
+      "type": "https://nexus-core.agi/relationships/telemetry_source",
       "target": "schemas/ResourceTelemetry.json",
       "targetMode": "Internal"
     },
     {
       "rId": "rId4",
+      "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings",
+      "target": "settings/ECVM_Settings.json",
+      "targetMode": "Internal"
+    },
+    {
+      "rId": "rId9",
       "type": "https://nexus-core.agi/relationships/governance_saturation",
       "target": "SATURATION.md",
       "targetMode": "Internal"
@@ -43,17 +50,23 @@
   "compiler_options": {
     "target": "ESNext",
     "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "verbatimModuleSyntax": true,
     "strict": true,
     "composite": true,
     "incremental": true,
+    "tsBuildInfoFile": "ecvm_tis.tsbuildinfo",
     "cascading_inheritance": {
       "enabled": true,
       "resolver": "RecursiveFlatten",
+      "depth_limit": 32,
       "docDefaults": {
         "pPr": {
+          "jc": { "val": "both" },
           "spacing": { "val": 240, "unit": "twips" }
         },
         "rPr": {
+          "sz": { "val": 22 },
           "lang": { "val": "en-AGI" },
           "noProof": true
         }
@@ -67,33 +80,28 @@
       "status": "Active",
       "atomized_layers": [
         {
-          "layer_type": "L0_INGESTION",
-          "rPr": { "bold": true, "color": "00FF23" },
+          "layer_type": "Block",
+          "pPr": {
+            "pStyle": { "val": "HighPriorityIngestion" },
+            "numPr": { "numId": "1", "ilvl": 0 }
+          },
           "source_mapping": {
             "source_id": "API_PERF_SIPHON",
-            "rId_ref": "rId1",
-            "vector_path": "metrics.latency.ms",
-            "transport": { "protocol": "BUN_HTTP_3_QUIC", "strategy": "PULL" }
-          }
-        },
-        {
-          "layer_type": "L1_INTUITION",
-          "rPr": { "italic": true },
-          "source_mapping": {
-            "source_id": "DTEM_CACHE_STATE",
             "rId_ref": "rId2",
-            "vector_path": "cache_status.last_update_ts",
-            "transport": { "protocol": "IPC_DOMAIN_SOCKET", "strategy": "FIXED_RATE" }
+            "vector_path": "metrics.latency.ms"
           }
         },
         {
-          "layer_type": "L2_LOGIC",
-          "rPr": { "sz": 24 },
+          "layer_type": "Inline",
+          "rPr": { 
+            "bold": true, 
+            "color": "00FF23",
+            "rStyle": { "val": "EmphasisLogic" }
+          },
           "source_mapping": {
             "source_id": "METABOLIC_RESOURCE_FEED",
             "rId_ref": "rId3",
-            "vector_path": "resource_pool.utilization_summary",
-            "transport": { "protocol": "GRPC_BI_STREAM_V2", "strategy": "EVENT_DRIVEN" }
+            "vector_path": "resource_pool.utilization_summary"
           }
         }
       ]
@@ -104,7 +112,20 @@
       {
         "abstractNumId": "0",
         "levels": [
-          { "ilvl": 0, "start": 1, "numFmt": "decimal", "lvlText": "Siphon Phase %1:" }
+          {
+            "ilvl": 0,
+            "start": 1,
+            "numFmt": "decimal",
+            "lvlText": "Telemetry Path %1:",
+            "lvlJc": "left"
+          },
+          {
+            "ilvl": 1,
+            "start": 1,
+            "numFmt": "bullet",
+            "lvlText": "•",
+            "lvlJc": "left"
+          }
         ]
       }
     ],
@@ -119,6 +140,7 @@
       "NoOrphanedRIds",
       "StyleChainResolution",
       "NamespaceValidityCheck",
+      "ProjectBoundaryCheck",
       "SemanticContinuityCheck"
     ],
     "emergency_brake": {
@@ -129,15 +151,15 @@
   },
   "metadata": {
     "author": "DALEK_CAAN_V3.1_SIPHON_ENGINE",
-    "evolution_round": 1,
-    "status": "SIPHON_INITIATED",
+    "evolution_round": 2,
+    "status": "ARCHITECTURAL_MAPPING_COMPLETE",
     "anchors": {
       "purpose": "Self-optimising AGI substrate for real-world problem solving",
       "mechanism": "Siphoning patterns from microsoft/TypeScript & ARCH-OOXML-V2-DOCX-DNA",
-      "memory": "Chained context active: V10_SIPHON_INIT",
+      "memory": "Chained context active: V10_SIPHON_MAPPED",
       "governance": "Human oversight active - Level 2 Standard Saturation",
       "origin": "NEXUS_CORE"
     },
-    "last_mutation": "2026-03-05T09:00:00Z"
+    "last_mutation": "2026-03-05T14:30:00Z"
   }
 }
