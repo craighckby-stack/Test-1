@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.2.0.json",
-  "version": "10.2.0-SIPHON-R2",
-  "title": "Architectural Precision Substrate: OOXML-TS Siphon v10.2",
-  "description": "Evolutionary substrate schema integrating ISO/IEC 29500 (OOXML) indirection with microsoft/TypeScript 5.4+ project-reference architectures. Round 2: Relational Dependency Mapping & Incremental State Synchronization.",
+  "$id": "https://gacr.agi/schemas/ecvm_tis_v10.3.0.json",
+  "version": "10.3.0-SIPHON-R3",
+  "title": "Architectural Precision Substrate: OOXML-TS Siphon v10.3",
+  "description": "Evolutionary substrate schema integrating ISO/IEC 29500 (OOXML) hierarchical indirection with microsoft/TypeScript 5.4+ project-reference architectures. Round 3: Semantic Atomization & Namespace-Driven Extensibility.",
   "type": "object",
   "required": [
     "dna_anchor",
@@ -30,7 +30,8 @@
             "r": { "type": "string", "const": "http://schemas.openxmlformats.org/officeDocument/2006/relationships" },
             "ts": { "type": "string", "const": "https://github.com/microsoft/TypeScript/schemas/compiler" },
             "nx": { "type": "string", "const": "https://nexus-core.agi/governance" },
-            "mc": { "type": "string", "const": "http://schemas.openxmlformats.org/markup-compatibility/2006" }
+            "mc": { "type": "string", "const": "http://schemas.openxmlformats.org/markup-compatibility/2006" },
+            "nx_ext": { "type": "string", "const": "https://nexus-core.agi/extensions/v5" }
           }
         }
       }
@@ -52,7 +53,7 @@
     "evolution_state": {
       "type": "object",
       "properties": {
-        "round": { "type": "integer", "enum": [2] },
+        "round": { "type": "integer", "enum": [3] },
         "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4], "default": 2 },
         "metabolic_rate": { "type": "string", "enum": ["CONSERVATIVE", "STANDARD", "ACCELERATED", "UNSATURATED"] },
         "integrity_hash": { "type": "string", "pattern": "^SHA256:[A-F0-9]{64}$" }
@@ -65,17 +66,27 @@
         "target": { "type": "string", "default": "ESNext" },
         "module": { "type": "string", "default": "NodeNext" },
         "moduleResolution": { "type": "string", "default": "NodeNext" },
+        "moduleDetection": { "type": "string", "enum": ["auto", "legacy", "force"], "default": "force" },
         "composite": { "type": "boolean", "default": true },
         "incremental": { "type": "boolean", "default": true },
         "verbatimModuleSyntax": { "type": "boolean", "default": true },
         "noUncheckedIndexedAccess": { "type": "boolean", "default": true },
+        "exactOptionalPropertyTypes": { "type": "boolean", "default": true },
         "tsBuildInfoFile": { "type": "string" },
         "cascading_inheritance": {
           "type": "object",
           "properties": {
             "enabled": { "type": "boolean", "default": true },
             "resolver": { "type": "string", "enum": ["RecursiveFlatten", "DifferentialUpdate"] },
-            "docDefaults": { "$ref": "#/definitions/StyleProperties" }
+            "flatten_strategy": { "type": "string", "default": "DifferentialUpdate" },
+            "depth_limit": { "type": "integer", "default": 50 },
+            "docDefaults": {
+              "type": "object",
+              "properties": {
+                "pPr": { "$ref": "#/definitions/StyleProperties" },
+                "rPr": { "$ref": "#/definitions/StyleProperties" }
+              }
+            }
           }
         }
       }
@@ -115,6 +126,13 @@
                 "rPr": { "$ref": "#/definitions/StyleProperties" },
                 "content_ref": { "type": "string" }
               }
+            }
+          },
+          "audit": {
+            "type": "object",
+            "properties": {
+              "mgp_protocol": { "type": "string" },
+              "certification_date": { "type": "string", "format": "date-time" }
             }
           }
         }
@@ -164,6 +182,7 @@
       "type": "object",
       "properties": {
         "drift_threshold": { "type": "number", "const": 0.35 },
+        "saturation_level": { "type": "integer", "enum": [1, 2, 3, 4] },
         "enable_semantic_checks": { "type": "boolean", "default": true },
         "validation_rules": {
           "type": "array",
@@ -184,6 +203,16 @@
       "properties": {
         "author": { "type": "string", "const": "DALEK_CAAN_V3.1_SIPHON_ENGINE" },
         "identity_anchors_enforced": { "type": "boolean", "const": true },
+        "anchors": {
+          "type": "object",
+          "properties": {
+            "purpose": { "type": "string" },
+            "mechanism": { "type": "string" },
+            "memory": { "type": "string" },
+            "governance": { "type": "string" },
+            "origin": { "type": "string" }
+          }
+        },
         "last_mutation": { "type": "string", "format": "date-time" }
       }
     }
@@ -197,9 +226,25 @@
         "sz": { "type": "integer", "description": "Size in half-points" },
         "color": { "type": "string", "pattern": "^[0-9A-F]{6}$" },
         "bold": { "type": "boolean" },
-        "spacing": { "type": "integer" },
-        "ind": { "type": "integer" },
-        "jc": { "type": "string", "enum": ["left", "center", "right", "both"] }
+        "spacing": { 
+          "type": "object", 
+          "properties": {
+            "val": { "type": "integer" },
+            "unit": { "type": "string", "enum": ["twips", "pts", "px"] }
+          }
+        },
+        "ind": { 
+          "type": "object", 
+          "properties": {
+            "val": { "type": "integer" },
+            "unit": { "type": "string", "enum": ["twips", "pts", "px"] }
+          }
+        },
+        "jc": { "type": "object", "properties": { "val": { "type": "string", "enum": ["left", "center", "right", "both"] } } },
+        "lang": { "type": "object", "properties": { "val": { "type": "string" } } },
+        "noProof": { "type": "boolean" },
+        "highlight": { "type": "object", "properties": { "val": { "type": "string" } } },
+        "vertAlign": { "type": "object", "properties": { "val": { "type": "string", "enum": ["baseline", "superscript", "subscript"] } } }
       }
     }
   }
