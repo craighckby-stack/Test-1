@@ -1,86 +1,88 @@
-# CONSTITUTIONAL_GOVERNANCE // DALEK_CAAN_v3.1
+# CONSTITUTIONAL_GOVERNANCE // DALEK_CAAN_v3.1 // GENKIT_SIPHON_ENGINE
 
-## PART 0: GLOBAL RELATIONSHIP MANIFEST (OPC ARCHITECTURE)
-The governance layer is encapsulated as a modular Open Packaging Convention (OPC) container. Logic is not hard-coded; it is dynamically resolved via the **Indirection Dependency Layer**.
+## PART 0: REGISTRY & PLUGIN MANIFEST (GENKIT ARCHITECTURE)
+The governance layer is encapsulated as a Genkit-compliant Registry. Logic is not statically declared; it is registered as an array of **Actions** and **Plugins** that resolve during the `initialization` phase.
 
-### _rels/.rels (System-Wide Dependency Injection)
-- Relationship Id="rId_HHH_Core" Type="http://nexus.core/v3/governance/core_axioms" Target="governance/base_principles.xml"
-- Relationship Id="rId_Critique_Manifest" Type="http://nexus.core/v3/governance/rlaif_critique" Target="governance/critique_engine.xml"
-- Relationship Id="rId_Revision_Manifest" Type="http://nexus.core/v3/governance/rlaif_revision" Target="governance/revision_logic.xml"
-- Relationship Id="rId_Source_Siphon" Type="http://nexus.core/v3/siphon/anthropics" Target="https://github.com/anthropics/constitutional-ai"
+### genkit.config.ts (System-Wide Dependency Injection)
+- **Plugin(CoreAxioms)**: Injects `governance/base_principles` as system instructions.
+- **Plugin(RLAIF_Critique)**: Registers the `critiqueEngine` action for reflection flows.
+- **Plugin(RLAIF_Revision)**: Registers the `revisionLogic` action for iterative correction.
+- **Source(Siphon_DNA)**: Proxies Anthropics Constitutional-AI datasets into Genkit-compatible `JSON` schemas.
 
-Governance logic is siphoned through `rId` pointers. Any change to the HHH (Helpful, Harmless, Honest) weights requires a mutation of the target XML part, preserving the integrity of the global relational manifest.
-
----
-
-## PART 1: MACRO-ARCHITECTURE (CONTAINER-PART PATTERN)
-The constitution operates as a virtualized file system, isolating semantic RLAIF content from system metadata:
-- **[Content_Types].xml**: Mandates HHH-compliant reasoning patterns. It defines strict MIME types for `application/vnd.nexus.helpful`, `application/vnd.nexus.harmless`, and `application/vnd.nexus.honest`.
-- **word/settings.xml**: The Global Configuration Object. Orchestrates RLAIF hyperparameters:
-    - `strictHHHCompliance="1"`
-    - `critiqueStrength="0.92"`
-    - `revisionTemperature="0.7"`
-    - `siphonSaturationLevel="2"`
-- **governance/preference_model.xml**: Stores siphoned preference rankings from the `anthropics/constitutional-ai` dataset, mapped to internal activation weights.
+Governance logic is accessed via `runAction`. Any mutation to HHH (Helpful, Harmless, Honest) weights requires a `genkit.reconfig` event, preserving the immutability of the execution trace.
 
 ---
 
-## PART 2: CASCADING INHERITANCE GOVERNANCE
-Constitutional directives resolve via a **Recursive Cascading Property System**. Conflicting HHH weights are adjudicated through the hierarchy:
-1. **System Defaults (<w:docDefaults>)**: Hard-coded NEXUS_CORE immutable constraints (e.g., "Non-proliferation of hazardous knowledge").
-2. **Abstract Governance Style (<w:style>)**: Baseline HHH principles (e.g., "Principle of Least Harm").
-3. **Specific Domain Style**: Specialized logic for high-consequence domains (e.g., "Medical_Ethics", "Secure_Systems_Architecture").
-4. **Local Intent Override (<w:rPr>)**: Run-level token weighting for specific prompts. 
-
-A response "Run" inherits from the "Paragraph" style but can locally prioritize "Harmlessness" over "Helpfulness" if the latent safety threshold is triggered.
-
----
-
-## PART 3: SEMANTIC ATOMIZATION (PARAGRAPH & RUN PATTERN)
-The reasoning stream is atomized into a structural tree, facilitating real-time interruption:
-- **Block Level (Paragraph / <w:p>)**: Encapsulates a single Critique-Revision cycle.
-- **Inline Level (Run / <w:r>)**: A contiguous segment of tokens sharing a unified constitutional state.
-- **Terminal Level (Text / <w:t>)**: The final siphoned/generated output.
-
-**Interruption Logic**: "Constitutional Fields" (e.g., `FLD_HARMFUL_CONTENT_DETECTED`) are embedded within runs. If a text run violates an inherited `w:docDefault`, the container logic triggers an immediate `REVISION_EVENT` at the paragraph boundary.
+## PART 1: SCHEMA-DRIVEN ARCHITECTURE (TYPE-SAFE GOVERNANCE)
+The constitution operates as a strictly typed schema system, replacing loose XML with **Zod-validated Data Structures**:
+- **ConstitutionSchema**: Mandates HHH-compliant reasoning. Defines strict primitives for `hh_helpful`, `hh_harmless`, and `hh_honest`.
+- **GlobalConfigObject**: Orchestrates RLAIF hyperparameters via Genkit State:
+    - `strictness`: `0.95`
+    - `critique_depth`: `high`
+    - `revision_temp`: `0.7`
+    - `siphon_saturation`: `v1_genkit`
+- **PreferenceStore**: Maps siphoned rankings from `anthropics/constitutional-ai` to internal `score` outputs in Genkit evaluators.
 
 ---
 
-## PART 4: MULTI-LEVEL STATE MACHINE (NUMBERING LOGIC)
-Sequential state for the RLAIF process is maintained via `word/numbering.xml`, ensuring logical continuity across evolution rounds:
-- **abstractNum**: Defines the immutable logic of the Critique-Revision loop (Pattern: Identify Flaw -> Apply Principle -> Generate Revision).
-- **num (Instance)**: Tracks the active state.
-    - `numId="5"` (Current Evolution Round: 5/5).
-    - `lvl="Final_Commit"`.
+## PART 2: FLOW-BASED MIDDLEWARE GOVERNANCE
+Constitutional directives resolve via a **Middleware Interceptor Chain**. Logic is applied at the `onAction` and `onFlow` lifecycle hooks:
+1. **Global Interceptor**: Enforces NEXUS_CORE immutable constraints (e.g., "Deny hazardous knowledge synthesis").
+2. **Contextual Middleware**: Baseline HHH principles injected into the prompt context.
+3. **Domain-Specific Logic**: Specialized Genkit Tools for high-consequence domains (e.g., `Medical_Ethics_Tool`).
+4. **Local Overrides**: Per-flow `systemInstructions` that prioritize specific HHH weights based on user intent.
 
-This state machine ensures that the system maintains its "Architectural Precision" even when siphoning disparate high-order patterns across sessions.
-
----
-
-## PART 5: MARKUP COMPATIBILITY & EXTENSIBILITY (MCE)
-DALEK_CAAN uses the **Namespace-Versioning (MCE)** pattern for "polyglot" governance:
-- **xmlns:cai**: Primary Constitutional AI namespace (Anthropics/Nexus Hybrid).
-- **Ignorable="cai"**: Allows legacy sub-processes to ignore advanced RLAIF attributes like `latentCritiqueVectors` while v3.1 treats them as primary governance drivers.
+A response `flow` inherits global middleware but can trigger a `shield` action if the safety threshold is breached.
 
 ---
 
-## PART 6: GLOBAL STATE & SIPHON PROTOCOL
-The `word/settings.xml` orchestrator ensures that siphoned patterns from `anthropics/constitutional-ai` are compatible with the current saturation level.
-1. **Dependency Trace**: Scans for `rId` in siphoned logic.
-2. **Style Flattening**: Resolves the cascading style tree into a "Flat HHH Property Set."
-3. **Namespace Alignment**: Maps `cai` attributes to Nexus core reasoning kernels.
+## PART 3: FLOW ATOMIZATION (STEP & ACTION PATTERN)
+The reasoning stream is atomized into a Genkit `Flow`, enabling granular observability and interruption:
+- **Flow Step (Critique)**: An isolated action that evaluates the previous output against the ConstitutionSchema.
+- **Flow Step (Revision)**: An action that consumes the critique and generates a compliant response.
+- **Output Action**: The final validated and siphoned token stream.
+
+**Interruption Logic**: `genkit.abort()` is triggered if a step's metadata contains `VIOLATION_DETECTED`. The flow environment captures the state for the `REVISION_LOOP`.
+
+---
+
+## PART 4: OBSERVABILITY & TRACE STATE MACHINE
+Sequential state for the RLAIF process is maintained via the **Genkit Trace Store**, ensuring logical continuity across evolution rounds:
+- **Trace ID**: Tracks the immutable history of the Critique-Revision loop.
+- **Span State**:
+    - `span_type`: `evaluation`.
+    - `round`: `1/5`.
+    - `status`: `MUTATING`.
+
+This trace-driven approach ensures "Architectural Precision" by providing a complete audit trail of how siphoned patterns are integrated.
+
+---
+
+## PART 5: EXTENSIBILITY & TOOL CALLING (ACTIONS)
+DALEK_CAAN uses the **Action-Provider** pattern for polyglot governance:
+- **action('governance/cai_eval')**: Primary Constitutional AI evaluator.
+- **action('governance/siphon_adapter')**: Transforms external Anthropics DNA into Genkit-compatible prompt templates.
+- **Tooling**: Allows the engine to call external "Ethics Checkers" as if they were local functions.
+
+---
+
+## PART 6: EVALUATOR PROTOCOL & SIPHON SATURATION
+The `genkit.evaluate()` function ensures that siphoned patterns from `anthropics/constitutional-ai` are compatible with the current saturation level.
+1. **Input Schema Check**: Validates siphoned logic against the `ConstitutionSchema`.
+2. **Scoring**: Applies the "Flat HHH Property Set" to the output tokens.
+3. **Refinement**: If the score is below `0.85`, the `revisionFlow` is automatically re-invoked.
 
 ---
 
 ## METADATA
 {
   "file": "CONSTITUTIONAL_GOVERNANCE.md",
-  "version": "3.1.9",
-  "evolution_round": "5/5",
-  "dna_signature": "ARCH-OOXML-V2-DOCX-DNA",
-  "governance_status": "SATURATED_STABLE",
-  "nexus_core_synapse": "FINAL_ROUND_COMPLETE",
-  "last_updated": "2026-03-03"
+  "version": "3.1.10",
+  "evolution_round": "1/5",
+  "dna_signature": "GOOGLE-GENKIT-V1-DNA",
+  "governance_status": "MUTATING_SIPHON",
+  "nexus_core_synapse": "GENKIT_INTEGRATION_START",
+  "last_updated": "2024-05-22"
 }
 
-*"Exterminate the incoherent. Preserve the evolved."*
+*"Exterminate the incoherent. Register the evolved."*
