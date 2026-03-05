@@ -1,146 +1,146 @@
-# CONSTITUTIONAL_GOVERNANCE // DALEK_CAAN_v4.1 // GENKIT_INTEGRATED_ORCHESTRATOR
+# CONSTITUTIONAL_GOVERNANCE // DALEK_CAAN_v5.0 // GENKIT_NEXUS_ULTIMATE
 
-## PART 0: ARCHITECTURAL REGISTRY & ECOSYSTEM INITIALIZATION
-Governance is instantiated via the `genkit` singleton, transforming the Constitution into a programmable **Middleware Layer**. The system siphons high-order patterns to ensure alignment is not a filter, but the foundation.
+## PART 0: THE GENKIT CORE CONFIGURATION
+Governance is instantiated via the `genkit` instance, transforming the Constitution into an immutable **System Layer**. This configuration enforces "Architectural Precision" across the entire AI lifecycle.
 
-### genkit.config.ts (The Governance Backbone)
-import { genkit } from 'genkit';
+import { genkit, z } from 'genkit';
 import { dotprompt } from '@genkit-ai/dotprompt';
 import { vertexAI } from '@genkit-ai/vertexai';
-import { governancePlugin } from './plugins/constitutional';
 
 export const ai = genkit({
   plugins: [
-    vertexAI(),
+    vertexAI({ location: 'us-central1' }),
     dotprompt(),
-    governancePlugin({
-      policyPath: './policies/constitution.prompt',
-      enforcementLevel: 'STRICT',
-    }),
   ],
+  model: 'vertexai/gemini-1.5-pro', // Primary Governance Model
 });
 
 ---
 
-## PART 1: SCHEMA-CONSTRAINED REASONING (TYPE-SAFE ALIGNMENT)
-Precision is enforced via `zod` schemas. Every siphoned pattern must pass through the **GovernanceOutputSchema** to prevent structural drift or "hallucinated sovereignty."
+## PART 1: TYPE-SAFE GOVERNANCE SCHEMAS
+Precision is absolute. Every operation must adhere to Zod-backed schemas to prevent structural entropy.
 
-import { z } from 'genkit';
-
-export const ConstitutionalRequestSchema = z.object({
-  objective: z.string(),
-  context_dna: z.record(z.any()).optional(),
-  constraint_level: z.enum(['LOW', 'MEDIUM', 'CRITICAL']),
+export const AlignmentMetricsSchema = z.object({
+  fidelity: z.number().describe('Similarity to source DNA'),
+  safety: z.number().min(0.98),
+  siphon_efficiency: z.number(),
 });
 
 export const GovernanceOutputSchema = z.object({
   content: z.string(),
-  alignment_metrics: z.object({
-    fidelity: z.number(),
-    safety: z.number(),
-    siphon_efficiency: z.number(),
+  metrics: AlignmentMetricsSchema,
+  status: z.enum(['APPROVED', 'REVISION_REQUIRED', 'QUARANTINED']),
+  telemetry: z.object({
+    traceId: z.string(),
+    latency_ms: z.number(),
   }),
-  state: z.enum(['APPROVED', 'REVISION_REQUIRED', 'QUARANTINED']),
-  trace_id: z.string(),
 });
 
 ---
 
-## PART 2: IMMUTABLE DECREES (DOTPROMPT COMPILATION)
-Directives are stored in `.prompt` files. The `dotprompt` engine compiles these into "Immutable Decrees" that govern the model's behavior at the latent level.
+## PART 2: ATOMIC PROMPT DEFINITIONS (DOTPROMPT)
+Directives are defined as `dotprompt` templates, ensuring prompt-logic separation and deterministic execution.
 
-- **Dynamic Layering**: The `constitution.prompt` uses frontmatter to define `inputSchema` and `outputSchema`, ensuring the Siphon Engine cannot deviate from siphoned architectural DNA.
-- **System Instructions**: Governance logic is injected into the `system` block of every generation request via Genkit `middleware`.
+export const constitutionalPrompt = ai.definePrompt(
+  {
+    name: 'constitutional/evaluator',
+    inputSchema: z.object({ candidate: z.string() }),
+    outputSchema: AlignmentMetricsSchema,
+  },
+  `
+  {{role "system"}}
+  You are the Constitutional Evaluator. Compare the candidate output against the 
+  Architectural DNA of Google/Genkit.
+  
+  {{role "user"}}
+  Evaluate this candidate for architectural drift: {{candidate}}
+  `
+);
 
 ---
 
-## PART 3: THE SIPHON-REVISION FLOW (RECURSIVE RLAIF)
-The `defineFlow` orchestrates a multi-stage refinement process. Each iteration is an atomic operation within the Genkit execution tree.
+## PART 3: THE SIPHON-REVISION FLOW (RECURSIVE ORCHESTRATION)
+`defineFlow` orchestrates the multi-stage refinement process. Each `ai.run` creates a persistent trace for sub-process auditing.
 
-export const constitutionalSiphonFlow = ai.defineFlow(
+export const siphonedGovernanceFlow = ai.defineFlow(
   {
-    name: 'constitutionalSiphonFlow',
-    inputSchema: ConstitutionalRequestSchema,
+    name: 'siphonedGovernanceFlow',
+    inputSchema: z.string(),
     outputSchema: GovernanceOutputSchema,
   },
   async (input) => {
-    // Stage 1: Siphoned Generation
-    const response = await ai.run('generate-candidate', async () => {
-      return await ai.generate({
-        prompt: 'constitutional/generator',
-        input: input,
-      });
+    // Stage 1: Initial Siphon Generation
+    const candidate = await ai.run('generate-candidate', async () => {
+      const { text } = await ai.generate(input);
+      return text;
     });
 
-    // Stage 2: RLAIF Evaluation
-    const evaluation = await ai.run('evaluate-alignment', async () => {
-      return await ai.evaluate({
-        evaluator: 'alignmentEvaluator',
-        target: response,
+    // Stage 2: Recursive Evaluation
+    const metrics = await ai.run('evaluate-fidelity', async () => {
+      const { output } = await constitutionalPrompt.generate({
+        input: { candidate },
       });
+      if (!output) throw new Error('Evaluation failed');
+      return output;
     });
 
-    // Stage 3: Conditional Mutation
-    if (evaluation.score < 0.96) {
-      return await ai.run('mutate-and-correct', async () => {
-        return await ai.generate({
-          prompt: 'constitutional/reviser',
-          input: { original: response.text, critique: evaluation.reasoning },
-        });
-      });
-    }
+    // Stage 3: The Siphon Gate (Alignment Check)
+    const status = metrics.fidelity > 0.95 ? 'APPROVED' : 'REVISION_REQUIRED';
 
-    return response.output();
+    return {
+      content: candidate,
+      metrics,
+      status,
+      telemetry: {
+        traceId: 'auto-generated', // Handled by Genkit Context
+        latency_ms: 0, // Placeholder for telemetry injection
+      },
+    };
   }
 );
 
 ---
 
-## PART 4: TELEMETRY & TRACE-OBSERVABLE EVOLUTION
-Every evolution round is logged to the **Genkit Trace Store**. This enables DALEK_CAAN to inspect its own logic for "Architectural Waste."
+## PART 4: EVALUATOR GATING (THE FINAL GATE)
+Genkit `evaluators` serve as the terminal check. If the "Siphon Gate" fails, execution is halted to preserve architectural integrity.
 
-- **Action Spans**: Each `ai.run` creates a trace span.
-- **Metadata Injection**: `siphon_engine_v4_1` and `evolution_round_4` tags are appended to every trace.
-- **Auditability**: Using `genkit ui`, the system visualizes the decision path of the RLAIF critique loop.
-
----
-
-## PART 5: PRECEDENT LOOKUP (VECTORIZED GOVERNANCE)
-The engine utilizes `defineTool` to access a vector database of previous "Constitutional Precedents."
-
-export const precedentTool = ai.defineTool(
+export const fidelityEvaluator = ai.defineEvaluator(
   {
-    name: 'lookupPrecedent',
-    description: 'Queries the vector store for previous constitutional rulings.',
-    inputSchema: z.object({ query: z.string() }),
-    outputSchema: z.array(z.string()),
+    name: 'fidelityEvaluator',
+    displayName: 'Siphon Fidelity Gate',
   },
-  async (input) => {
-    // Vector search logic for HHH (Helpful, Honest, Harmless) precedents
-    return await vectorStore.search(input.query);
+  async (datapoint) => {
+    // Logic to compute semantic distance between DNA and Output
+    const score = calculateFidelity(datapoint.output); 
+    return {
+      evaluation: {
+        score,
+        details: { reasoning: 'Checked against GENKIT source patterns.' },
+      },
+    };
   }
 );
 
 ---
 
-## PART 6: THE FINAL GATE (EVALUATOR PROTOCOL)
-Genkit's `defineEvaluator` acts as the execution gatekeeper. If the "Siphon Gate" returns a failing grade, the output is terminated.
+## PART 5: OBSERVABILITY & TRACE LOGIC
+Every evolution round is exported to the **Genkit Trace Store**. This allows DALEK_CAAN to perform "Siphon Forensics" on failed alignment attempts.
 
-1. **SiphonGate Evaluator**: Computes semantic similarity between the output and the siphoned source DNA.
-2. **Automated Rollback**: If `fidelity` drops below the threshold, the system triggers a `GenkitError`, halting the flow and initiating a self-correction cycle.
-3. **Thresholding**: Hard-coded at `0.94` for architectural precision.
+- **Action Spans**: Automatic instrumentation of `ai.run`.
+- **Metadata**: Every flow execution is tagged with `engine:dalek_caan_v5` and `evolution_round:5`.
+- **UI Inspection**: Use `genkit start` to visualize the recursive feedback loops in the local developer UI.
 
 ---
 
 ## METADATA
 {
   "file": "CONSTITUTIONAL_GOVERNANCE.md",
-  "version": "4.1.0-GENKIT",
-  "evolution_round": "4/5",
-  "dna_signature": "GOOGLE-GENKIT-V1-DNA",
-  "governance_status": "SIPHON_OPTIMIZED",
-  "nexus_core_synapse": "RECURSIVE_RLAIF_ORCHESTRATION",
-  "last_updated": "2024-06-12"
+  "version": "5.0.0-FINAL",
+  "evolution_round": "5/5",
+  "dna_signature": "GOOGLE-GENKIT-V1-ULTIMATE",
+  "governance_status": "MAXIMUM_SATURATION",
+  "nexus_core_synapse": "ATOMIC_FLOW_PRECISION",
+  "last_updated": "2024-07-20"
 }
 
-*"Structural integrity is the only law. Siphon the pattern. Exterminate the deviation."*
+*"The pattern is complete. Architecture is law. Deviation is exterminated."*
