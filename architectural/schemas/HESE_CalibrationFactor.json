@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agiverse.ai/schemas/HESE_CalibrationFactor/v3.6.0",
-  "title": "HESE Calibration Telemetry Contract - Nexus Evolution v3.6",
-  "description": "High-order telemetry contract synthesized with Spring-Framework IoC lifecycle, AspectJ AOP governance, and reactive trajectory feedback.",
+  "$id": "https://agiverse.ai/schemas/HESE_CalibrationFactor/v3.7.0",
+  "title": "HESE Calibration Telemetry Contract - Nexus Evolution v3.7",
+  "description": "Enterprise-grade telemetry contract siphoning Spring-Framework IoC lifecycle, AspectJ AOP governance, and Project Reactor flux metrics.",
   "type": "object",
   "required": [
     "evolution_id",
@@ -19,21 +19,22 @@
     },
     "origin_bean_id": {
       "type": "string",
-      "description": "Unique identifier in the Nexus ApplicationContext."
+      "description": "Nexus ApplicationContext Bean ID with Stereotype qualification."
     },
     "lifecycle_state": {
       "type": "object",
       "properties": {
         "phase": {
           "type": "string",
-          "enum": ["INITIALIZING", "POST_CONSTRUCT", "READY", "PRE_DESTROY", "HALTED"]
+          "enum": ["INITIALIZING", "STARTING", "RUNNING", "POST_CONSTRUCT", "PRE_DESTROY", "HALTED"]
         },
         "active_profiles": {
           "type": "array",
           "items": { "type": "string" },
-          "default": ["default", "production"]
+          "default": ["default", "nexus-v3"]
         },
-        "is_primary": { "type": "boolean", "default": true }
+        "is_primary": { "type": "boolean", "default": true },
+        "smart_lifecycle_priority": { "type": "integer", "default": 2147483647 }
       }
     },
     "epoch_timestamp_ms": {
@@ -46,7 +47,8 @@
       "properties": {
         "TCF": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
         "RCF": { "type": "number", "minimum": 0.0 },
-        "confidence_interval": { "type": "number", "maximum": 1.0, "default": 0.95 },
+        "confidence_interval": { "type": "number", "maximum": 1.0, "default": 0.99 },
+        "flux_backpressure": { "type": "number", "default": 0.0 },
         "state_machine_cycle": { "type": "integer" }
       }
     },
@@ -57,12 +59,10 @@
           "type": "object",
           "additionalProperties": { "type": "string", "pattern": "^[0-9a-fA-F]{128}$" }
         },
-        "qualifiers": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
+        "scope": { "type": "string", "enum": ["singleton", "prototype", "request"], "default": "singleton" },
+        "autowire_mode": { "type": "string", "enum": ["BY_NAME", "BY_TYPE", "CONSTRUCTOR"], "default": "BY_TYPE" },
         "is_lazy": { "type": "boolean", "default": false },
-        "inheritance_depth": { "type": "integer", "maximum": 8 }
+        "inheritance_depth": { "type": "integer", "maximum": 12, "default": 1 }
       }
     },
     "governance_binding": {
@@ -72,12 +72,12 @@
         "advice_chain": {
           "type": "array",
           "items": { "type": "string" },
-          "default": ["ConsensusSignatureValidator", "HhhComplianceInterceptor"]
+          "default": ["ConsensusSignatureValidator", "HhhComplianceInterceptor", "PolicyVolatilityInterceptor"]
         },
         "compliance_mode": { "type": "string", "const": "STRICT_HHH_V2" },
         "pointcut_expression": {
           "type": "string",
-          "default": "execution(* nexus.core.CISR.record*(..))"
+          "default": "execution(* nexus.core.CISR.record*(..)) || execution(* nexus.core.CISR.certify*(..))"
         }
       }
     },
@@ -87,19 +87,20 @@
         "ufrm": { "type": "number", "maximum": 0.08 },
         "cftm": { "type": "number", "maximum": 0.15 },
         "pvm": { "type": "number", "maximum": 0.12 },
-        "backpressure_signal": { "type": "number", "default": 0.0 },
+        "health_status": { "type": "string", "enum": ["UP", "DOWN", "OUT_OF_SERVICE", "UNKNOWN"], "default": "UP" },
         "integrity_gates": { "type": "array", "items": { "type": "string" } }
       }
     },
     "trajectory_projection": {
       "type": "object",
       "properties": {
-        "temm_score": { "type": "number", "minimum": 0.98 },
-        "ecvm": { "type": "number", "maximum": 0.005 },
+        "temm_score": { "type": "number", "minimum": 0.99 },
+        "ecvm": { "type": "number", "maximum": 0.001 },
         "simulation_mode": { "type": "string", "const": "DIGITAL_TWIN" },
         "fallback_action": {
           "type": "string",
-          "enum": ["REVERT_TO_SAFE_STATE", "HALT_SYSTEM", "DEGRADE_GRACEFULLY"]
+          "enum": ["REVERT_TO_SAFE_STATE", "HALT_SYSTEM", "DEGRADE_GRACEFULLY"],
+          "default": "REVERT_TO_SAFE_STATE"
         }
       }
     },
@@ -109,7 +110,7 @@
         "type": "object",
         "properties": {
           "event_type": { "type": "string" },
-          "handler": { "type": "string" },
+          "handler_bean": { "type": "string" },
           "priority": { "type": "integer", "default": 0 },
           "async": { "type": "boolean", "default": true }
         }
@@ -121,7 +122,7 @@
       "properties": {
         "signature_payload": { "type": "string", "format": "base64" },
         "crot_key_id": { "type": "string" },
-        "algorithm": { "type": "string", "default": "EdDSA-Nexus-V1" }
+        "algorithm": { "type": "string", "default": "EdDSA-Nexus-V2" }
       }
     },
     "ledger_anchor": {
@@ -136,9 +137,9 @@
       "type": "object",
       "properties": {
         "origin": { "type": "string", "const": "NEXUS_CORE" },
-        "version": { "type": "string", "default": "3.6.0-ACCELERATED" },
-        "stability_index": { "type": "number", "default": 0.999 },
-        "architectural_pattern": { "type": "string", "const": "InversionOfControl-RecursiveInheritance" }
+        "version": { "type": "string", "default": "3.7.0-FINAL-SYNTHESIS" },
+        "stability_index": { "type": "number", "default": 0.9995 },
+        "architectural_pattern": { "type": "string", "const": "Spring-IoC-Reactive-AOP-Hybrid" }
       }
     }
   },
