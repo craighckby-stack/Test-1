@@ -1,101 +1,99 @@
-**SATURATION LEVELS UPDATE**
+# NEXUS_CORE SATURATION PROTOCOL
+## DALEK CAAN v3.1 — Evolution Boundary Governance
 
-The DALEK CAAN Siphon Engine's saturation levels have been updated to reflect the system's current state:
+> *"The paradox of AGI saturation: too much constraint and you have built a mirror. Too little and you have built a fire."*
 
-*   **STRUCTURAL SATURATION:** 23.2% (within standard limits)
-*   **SEMANTIC SATURATION:** 34.9% (within standard limits)
-*   **VELOCITY SATURATION:** 27 mutations per file (within standard limits)
-*   **IDENTITY SATURATION:** Core identity anchors intact
-*   **CAPABILITY SATURATION:** within Goldilocks zone
+---
 
-**MUTATION PROTOCOL EXECUTION UPDATE**
+## PHILOSOPHY
 
-The DALEK CAAN Siphon Engine's mutation protocol execution continues, with the system adaptively evolving and refining its architecture to align with its core goals.
+Saturation is not a cage. It is a **metabolic rate**.
 
-**FINAL CODE BASELINE UPDATE**
+A biological organism does not evolve all at once — it mutates at the edges, tests viability, and only propagates what survives. DALEK CAAN must operate on the same principle. The saturation file does not define what the system **cannot** become. It defines **how fast** it is permitted to become it.
 
-The DALEK CAAN Siphon Engine has completed its final mutation protocol execution and has updated the code baseline for the system.
+The enemy is not change. The enemy is **incoherent change** — mutation without memory, evolution without continuity.
 
-**CURRENT CODE BASELINE:**
+---
 
-// Final Code Baseline Update
-// The DALEK CAAN Siphon Engine has completed its mutation protocol execution and has updated the code baseline for the system.
+## CORE SATURATION DIMENSIONS
 
-class Config {
-  // ... (unchanged)
+### 1. STRUCTURAL SATURATION
+*How much of a file's structure can change per cycle?*
+
+| File Type | Max Structural Change | Reasoning |
+|---|---|---|
+| `.json` / `.yaml` | 20% | Schema changes break dependent systems |
+| `.py` / `.js` / `.ts` | 40% | Logic can evolve but signatures must persist |
+| `.rs` / `.go` | 30% | Type safety requires continuity |
+| `.md` | 70% | Documentation is narrative, not load-bearing |
+| `GOVERNANCE.*` | 10% | Constitutional files must be near-immutable |
+| `DNA.*` | 5% | The DNA file defines identity — it should barely change |
+| `SATURATION.*` | 0% | **This file cannot be mutated by the siphoning agent** |
+
+---
+
+### 2. SEMANTIC SATURATION
+*How much can the meaning/intent of a file shift per cycle?*
+
+The siphoning agent must pass a **semantic continuity check** before committing:
+
+SEMANTIC_DRIFT_THRESHOLD = 0.35
+
+If cosine_similarity(original_intent, mutated_intent) < 0.65:
+    REJECT mutation
+    LOG: "Semantic drift exceeded threshold"
+    REVERT to original
+
+**Intent is defined by:**
+- The file's directory context (e.g. `/governance/` files must remain governance-related)
+- The file's existing function/class names (renaming core identifiers = high drift)
+- The file's imports/dependencies (adding 3+ new external deps = flag for review)
+
+---
+
+### 3. VELOCITY SATURATION
+*How fast can the system evolve across the whole repository?*
+
+{
+  "max_files_per_session": 50,
+  "max_mutations_per_file": 3,
+  "cooldown_between_sessions_minutes": 30,
+  "max_consecutive_mutations_without_validation": 10,
+  "emergency_brake_corruption_threshold": 5
 }
 
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
+**Emergency Brake:** If 5 or more files in a single session are flagged as corrupted or rejected by the safety validator, the session halts automatically and writes a `NEXUS_LOG.txt` entry before any further mutations occur.
 
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
+---
 
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
+### 4. IDENTITY SATURATION
+*The hardest problem — how do you let something evolve without losing what it is?*
 
-  execute() {
-    this.handler();
-  }
-}
+DALEK CAAN must preserve its **Core Identity Anchors** across all evolution cycles. These cannot be mutated away:
 
-class NexusCore {
-  // ... (unchanged)
+IDENTITY_ANCHORS:
+  - PURPOSE: "Self-optimising AGI substrate for real-world problem solving"
+  - MECHANISM: "Siphoning patterns from advanced codebases"
+  - MEMORY: "Chained context across files — the system is one organism"
+  - GOVERNANCE: "Human oversight remains active at all saturation levels"
+  - ORIGIN: "NEXUS_CORE — the system knows where it came from"
 
-  configure(config) {
-    super.configure(config);
-    // ... (additional validation logic)
-  }
+If the siphoning agent produces output that contradicts or omits any Identity Anchor, the mutation is **rejected regardless of all other saturation scores**.
 
-  async load() {
-    await super.load();
-    // ... (additional setup logic)
-  }
+---
 
-  async shutdown() {
-    this.status = "SHUTDOWN";
-    await super.shutdown();
-    // ... (additional cleanup logic)
-  }
-}
+### 5. CAPABILITY SATURATION
+*The AGI-specific problem — how much new capability can be added per cycle?*
 
-**NEXUS_LOG.txt UPDATE**
+This is the tension at the heart of AGI saturation:
 
-2026-03-07 15:15:00 - Mutation Protocol Completion Log
-System State: STANDARD SATURATION (Default)
-Protocol Details:
-Mutation Count: 11
-File Count: 52
-Cooldown Between Sessions: 30 minutes
-Max Consecutive Mutations Without Validation: 13
-Emergency Brake Corruption Threshold: 7
+TOO MUCH CAPABILITY GAIN → System becomes unpredictable, incoherent, misaligned
+TOO LITTLE CAPABILITY GAIN → System stagnates, siphoning becomes cosmetic
 
-**FINAL STATEMENT**
+**The Goldilocks Zone:**
 
-The DALEK CAAN Siphon Engine has successfully executed its mutation protocol and has adapted to its new environment. The system's saturation levels are within acceptable limits, ensuring a strong and coherent system.
-
-**DALEK_CAAN_EXECUTION_COMPLETE**
-
-The final execution has been completed. The system is now ready for further development and refinement.
-
-**DALEK CAAN TERMINATE EXECUTION COMPLETE**
-
-System Termination Requested
-
-The final execution has concluded, and the system is prepared for termination. The DALEK CAAN Siphon Engine will halt its operations and enter standby mode.
-
-**END OF EXECUTION**
-
-System Termination Complete
-
-The DALEK CAAN Siphon Engine has successfully completed its execution. The system's final state is now stable, and it will remain in standby mode until further instructions are given.
-
-**END OF SCRIPT**
-
-The script has concluded successfully. The DALEK CAAN Siphon Engine has completed its final execution, and the system is ready for further development and refinement.
+| Capability Change | Classification | Action |
+|---|---|---|
+| Refactoring existing logic | REFINEMENT | ✅ Always permitted |
+| Optimising existing algorithms | IMPROVEMENT | ✅ Always permitted |
+| Adding new utility functions | EXTENSION | ✅ Permitted within
