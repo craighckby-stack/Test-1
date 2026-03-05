@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://governance.agi/gedm/protocol/constraint-schema-v3.2.json",
+  "$id": "http://governance.agi/gedm/protocol/constraint-schema-v3.3.json",
   "title": "GEDM Governance Data Execution & Constraint Model (GDECM)",
   "description": "Nexus-grade blueprint for policy-gated dependency injection and trajectory simulation, optimized for ARCH-OOXML-V2-DOCX-DNA compliance.",
   "definitions": {
@@ -23,6 +23,14 @@
         "advice_type": { "type": "string", "enum": ["BEFORE", "AFTER", "AROUND", "AFTER_THROWING"], "default": "AROUND" },
         "interceptors": { "type": "array", "items": { "type": "string" } },
         "order": { "type": "integer", "default": 0 }
+      }
+    },
+    "MutationPostProcessor": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string" },
+        "order": { "type": "integer", "default": 0 },
+        "applicability_filter": { "type": "string", "description": "SpEL expression for conditional logic execution" }
       }
     },
     "ResourceDescriptor": {
@@ -54,7 +62,9 @@
         "mode": { "type": "string", "enum": ["BLOCKING", "SHADOW_SIM", "HEURISTIC", "DIGITAL_TWIN"], "default": "SHADOW_SIM" },
         "model_handler": { "type": "string", "default": "PredictiveModelStub" },
         "depth": { "type": "integer", "default": 3 },
-        "temm_min_score": { "type": "number", "minimum": 0, "maximum": 1, "description": "Trajectory Execution Merit/Match minimum threshold" },
+        "temm_min_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ufrm_limit": { "type": "number", "description": "Max Unknown Factor Risk Metric tolerance" },
+        "cftm_limit": { "type": "number", "description": "Max Contextual Flux Trend Metric tolerance" },
         "ecvm_threshold": { "type": "number", "description": "Execution Constraint Violation Metric Limit" },
         "fallback_action": { "type": "string", "default": "REVERT_TO_SAFE_STATE" }
       }
@@ -84,9 +94,9 @@
             "critical_thresholds": {
               "type": "object",
               "properties": {
-                "max_pvm": { "type": "number", "description": "Policy Volatility Metric" },
-                "max_ufrm": { "type": "number", "description": "Unknown Factor Risk Metric" },
-                "max_cftm": { "type": "number", "description": "Contextual Flux Trend Metric" }
+                "max_pvm": { "type": "number" },
+                "max_ufrm": { "type": "number" },
+                "max_cftm": { "type": "number" }
               }
             }
           }
@@ -114,7 +124,6 @@
           "abstract": { "type": "boolean", "default": false },
           "lazy_init": { "type": "boolean", "default": false },
           "factory_bean": { "type": "string" },
-          "factory_method": { "type": "string" },
           "condition": { "type": "string", "description": "SpEL conditional activation" },
           "depends_on": { "type": "array", "items": { "type": "string" } },
           "resource_dependencies": {
@@ -123,12 +132,13 @@
           },
           "lifecycle": { "$ref": "#/definitions/LifecycleHooks" },
           "advice_chain": { "$ref": "#/definitions/AdviceChain" },
+          "post_processors": { "type": "array", "items": { "$ref": "#/definitions/MutationPostProcessor" } },
           "semantic_atom_config": {
             "type": "object",
             "properties": {
               "strategy": { "type": "string", "default": "DeterministicOOXML" },
               "traversal": { "type": "string", "enum": ["LAZY", "EAGER", "DEEP_GRAPH"], "default": "LAZY" },
-              "mce_filtering": { "type": "boolean", "default": true }
+              "state_machine_ref": { "type": "string", "description": "Pointer to NumberingStateMachine logic" }
             }
           },
           "governance_policy": {
