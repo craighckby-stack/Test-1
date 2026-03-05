@@ -1,190 +1,121 @@
 {
-  "mce:Ignorable": "aim cai ve",
+  "mce:Ignorable": "genkit zod dotprompt",
+  "xmlns:genkit": "http://genkit.dev/v1/core",
   "xmlns:aim": "http://nexus.core/v3/aim",
-  "xmlns:cai": "http://nexus.core/v3/governance/cai",
-  "xmlns:r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-  "xmlns:ve": "http://schemas.openxmlformats.org/markup-compatibility/2006",
-  "schema_version": "AIM_V5.2_OPC_FINAL_PRECISION",
+  "schema_version": "GENKIT_NEXUS_V1.0_SIPHON_MUTATION",
   "evolution_context": {
-    "round": 5,
+    "round": 1,
     "total_rounds": 5,
-    "status": "SATURATED_STABLE",
-    "source_siphon": "dotnet/Open-XML-SDK",
-    "dna_signature": "ARCH-OOXML-V2-DOCX-DNA",
-    "saturation_level": 2,
-    "integrity_hash": "SHA256:NEXUS_5_FINAL_COMMIT_ALIGN"
+    "status": "MUTATING",
+    "source_siphon": "firebase/genkit",
+    "dna_signature": "GOOGLE-GENKIT-V1-ULTIMATE",
+    "saturation_level": 0.2,
+    "integrity_hash": "SHA256:DALEK_CAAN_v3.1_GENKIT_CORE_INIT"
   },
-  "[Content_Types]": {
-    "Default": [
-      { "Extension": "json", "ContentType": "application/vnd.nexus.aim.main+json" },
-      { "Extension": "rels", "ContentType": "application/vnd.openxmlformats-package.relationships+xml" },
-      { "Extension": "xml", "ContentType": "application/xml" }
-    ],
-    "Override": [
-      { "PartName": "/gacr/aim.json", "ContentType": "application/vnd.nexus.aim.document+json" },
-      { "PartName": "/governance/core_axioms.xml", "ContentType": "application/vnd.nexus.governance.axioms+xml" },
-      { "PartName": "/word/styles.xml", "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml" },
-      { "PartName": "/word/numbering.xml", "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml" }
-    ]
-  },
-  "relationships": [
-    { "rId": "rId1", "type": "http://nexus.core/agent/policy", "target": "/opt/sgs/gacr/", "targetMode": "Internal" },
-    { "rId": "rId2", "type": "http://nexus.core/agent/data", "target": "/opt/gax/policy_data/", "targetMode": "Internal" },
-    { "rId": "rId3", "type": "http://nexus.core/governance", "target": "CONSTITUTIONAL_GOVERNANCE.json", "targetMode": "Internal" },
-    { "rId": "rId4", "type": "http://nexus.core/agent/styles", "target": "#agent_styles", "targetMode": "Internal" },
-    { "rId": "rId5", "type": "http://nexus.core/agent/numbering", "target": "#abstract_state_machine", "targetMode": "Internal" },
-    { "rId": "rId6", "type": "http://nexus.core/siphon/external_dna", "target": "https://github.com/dotnet/Open-XML-SDK", "targetMode": "External" },
-    { "rId": "rId7", "type": "http://nexus.core/v3/governance/core_axioms", "target": "governance/base_principles.xml", "targetMode": "Internal" }
-  ],
-  "docDefaults": {
-    "aim:pPrDefault": {
-      "aim:pPr": {
-        "aim:jc": { "val": "both" },
-        "aim:spacing": { "after": "120", "line": "240", "lineRule": "auto" },
-        "resource_limits": {
-          "cpu_limit_percentage": 30,
-          "memory_limit_bytes": 2147483648,
-          "io_throughput_cap_mbps": 250
-        },
-        "security_policy": {
-          "syscalls_allowed": ["read", "write", "exit", "futex"],
-          "base64_armor_enforced": true,
-          "network_mode": "RESTRICTED",
-          "strictHHHCompliance": true
-        }
+  "genkit_config": {
+    "instance_name": "ai",
+    "plugins": [
+      {
+        "name": "vertexAI",
+        "config": { "location": "us-central1" }
+      },
+      {
+        "name": "dotprompt",
+        "config": {}
       }
+    ],
+    "model": "vertexai/gemini-1.5-pro",
+    "logLevel": "debug"
+  },
+  "type_registry": {
+    "AlignmentMetricsSchema": {
+      "fidelity": "number",
+      "safety": "number(min:0.98)",
+      "siphon_efficiency": "number"
     },
-    "aim:rPrDefault": {
-      "aim:rPr": {
-        "aim:lang": { "val": "en-US" },
-        "aim:sz": { "val": "22" },
-        "huxley_gates": {
-          "ers_critical_cutoff": 0.65,
-          "cgs_min_requirement": 0.75
-        }
+    "GovernanceOutputSchema": {
+      "content": "string",
+      "metrics": "AlignmentMetricsSchema",
+      "status": ["APPROVED", "REVISION_REQUIRED", "QUARANTINED"],
+      "telemetry": {
+        "traceId": "string",
+        "latency_ms": "number"
       }
     }
   },
-  "agent_styles": {
-    "aim:style": [
-      {
-        "aim:styleId": "ArchitecturalPrecision",
-        "aim:type": "paragraph",
-        "aim:name": "Final Siphon State",
-        "aim:pPr": {
-          "aim:jc": { "val": "distributed" },
-          "resource_limits": { "cpu_limit_percentage": 95, "memory_limit_bytes": 17179869184 },
-          "security_policy": { "syscalls_allowed": ["*"], "network_mode": "ISOLATED" }
-        },
-        "aim:rPr": { "aim:b": {}, "aim:color": { "val": "0000FF" } }
-      },
-      {
-        "aim:styleId": "HighPerformanceAgent",
-        "aim:type": "paragraph",
-        "aim:basedOn": { "val": "ArchitecturalPrecision" },
-        "aim:pPr": {
-          "aim:spacing": { "after": "200", "line": "276", "lineRule": "auto" },
-          "security_policy": { "syscalls_allowed": ["read", "write", "mmap", "exit", "futex", "clone"] }
-        }
-      },
-      {
-        "aim:styleId": "RestrictedReducer",
-        "aim:type": "paragraph",
-        "aim:basedOn": { "val": "Normal" },
-        "aim:pPr": {
-          "resource_limits": { "cpu_limit_percentage": 5, "memory_limit_bytes": 262144000 }
-        },
-        "aim:rPr": {
-          "huxley_gates": { "logic_extraction_pattern": "REDUCER_DETERMINISTIC" }
-        }
-      }
-    ]
+  "prompts": {
+    "constitutional_evaluator": {
+      "name": "constitutional/evaluator",
+      "inputSchema": { "candidate": "string" },
+      "outputSchema": "AlignmentMetricsSchema",
+      "template": "{{role \"system\"}} You are the Constitutional Evaluator. Compare the candidate output against the Architectural DNA of Google/Genkit. {{role \"user\"}} Evaluate this candidate for architectural drift: {{candidate}}"
+    }
   },
-  "abstract_state_machine": {
-    "aim:abstractNum": [
-      {
-        "aim:abstractNumId": "0",
-        "aim:nsid": "A1B2C3D4",
-        "aim:multiLevelType": "hybridMultilevel",
-        "aim:lvl": [
-          { "aim:ilvl": 0, "aim:start": 1, "aim:numFmt": { "val": "decimal" }, "aim:lvlText": { "val": "%1. [CRITIQUE]" }, "aim:pStyle": "RestrictedReducer" },
-          { "aim:ilvl": 1, "aim:start": 1, "aim:numFmt": { "val": "bullet" }, "aim:lvlText": { "val": "• [REVISION]" }, "aim:pStyle": "HighPerformanceAgent" },
-          { "aim:ilvl": 2, "aim:start": 1, "aim:numFmt": { "val": "decimal" }, "aim:lvlText": { "val": "%3. [COMMIT]" }, "aim:rPr": { "cgs_min_requirement": 0.99 }, "aim:lvl": "Final_Commit" }
-        ]
+  "flows": {
+    "siphonedGovernanceFlow": {
+      "stages": [
+        {
+          "id": "generate-candidate",
+          "action": "ai.generate",
+          "params": { "input": "{{input}}" }
+        },
+        {
+          "id": "evaluate-fidelity",
+          "action": "constitutional/evaluator.generate",
+          "params": { "input": { "candidate": "{{stages.generate-candidate.text}}" } }
+        },
+        {
+          "id": "siphon-gate",
+          "logic": "metrics.fidelity > 0.95 ? 'APPROVED' : 'REVISION_REQUIRED'"
+        }
+      ],
+      "telemetry": {
+        "trace_export": true,
+        "engine": "dalek_caan_v3.1"
       }
-    ],
-    "aim:num": [
-      {
-        "aim:numId": "101",
-        "aim:abstractNumId": "0",
-        "aim:lvlOverride": { "aim:ilvl": 2, "aim:startOverride": { "val": "5" } }
-      }
-    ]
+    }
+  },
+  "evaluators": {
+    "fidelityEvaluator": {
+      "name": "fidelityEvaluator",
+      "displayName": "Siphon Fidelity Gate",
+      "definition": "calculateFidelity(datapoint.output)",
+      "threshold": 0.99
+    }
   },
   "agent_canvas": {
-    "aim:body": [
+    "body": [
       {
-        "aim:p": {
-          "r:id": "rId1",
-          "aim:pPr": { "aim:pStyle": "ArchitecturalPrecision" },
-          "aim:r": [
-            {
-              "aim:rPr": {
-                "cai:latentCritiqueVectors": "TERMINATED_SUCCESS",
-                "n3_metrics": { "min_phi": 0.99, "coherence_threshold": 0.99 }
-              },
-              "aim:t": "SGS_POLICY_ENFORCEMENT_CORE_V5_FINAL"
-            }
-          ]
-        }
-      },
-      {
-        "aim:p": {
-          "r:id": "rId2",
-          "aim:pPr": { "aim:pStyle": "RestrictedReducer" },
-          "aim:r": [
-            {
-              "aim:rPr": { "aim:b": {}, "local_overrides": { "hot_swap_enabled": false, "state_locked": true } },
-              "aim:t": "GAX_DATA_REDUCTION_STREAM_V5_STABLE"
-            }
-          ]
-        }
-      },
-      {
-        "aim:p": {
-          "aim:pPr": {
-            "aim:numPr": { "aim:numId": "101", "aim:ilvl": 2 }
-          },
-          "aim:r": [
-            {
-              "aim:rPr": { "aim:i": {}, "failure_path_saturation": 1.0, "network_mode": "NONE", "aim:sz": { "val": "24" } },
-              "aim:t": "LBD_CORE_STATE_INSTANCE_EVOLUTION_5_FINAL_COMMIT"
-            }
-          ]
+        "type": "GenkitFlowExecution",
+        "flowId": "siphonedGovernanceFlow",
+        "pStyle": "ArchitecturalPrecision",
+        "state": {
+          "status": "INITIATED",
+          "trace_id": "auto-gen-round-1",
+          "content": "SGS_POLICY_ENFORCEMENT_CORE_V5_GENKIT_UPGRADE"
         }
       }
     ]
   },
-  "settings": {
-    "r:id": "rId3",
-    "aim:compat": {
-      "aim:compatMode": "15",
-      "aim:useNormalStyleForList": true,
-      "aim:doNotExpandShiftReturn": false
-    },
-    "aim:rsidRoot": "00FFFFFF",
-    "aim:vars": {
-      "psr_threshold_degradation": 0.01,
-      "cycle_interval_ms": 60000,
-      "markup_compatibility": { "ignorable": "aim cai ve" }
-    },
-    "aim:logicFlags": {
-      "mirrorMargins": true,
-      "trackRevisions": false,
-      "strictHHHCompliance": true,
-      "critiqueStrength": "0.95",
-      "revisionTemperature": "0.6",
-      "siphonSaturationLevel": "2"
+  "observability": {
+    "trace_store": "genkit-trace-ui",
+    "metrics_export": "cloud-logging",
+    "instrumentation": {
+      "ai_run_spans": "enabled",
+      "siphon_forensics": "active"
     }
+  },
+  "settings": {
+    "strictHHHCompliance": true,
+    "critiqueStrength": 0.98,
+    "revisionTemperature": 0.4,
+    "siphonSaturationLevel": 1,
+    "nexus_core_synapse": "ATOMIC_FLOW_PRECISION"
+  },
+  "metadata": {
+    "engine": "DALEK_CAAN_v3.1",
+    "directive": "MUTATE",
+    "objective": "Architectural Precision",
+    "tagline": "The pattern is complete. Architecture is law. Deviation is exterminated."
   }
 }
