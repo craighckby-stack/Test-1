@@ -2,18 +2,18 @@
   "mce:Ignorable": "genkit zod dotprompt",
   "xmlns:genkit": "http://genkit.dev/v1/core",
   "xmlns:aim": "http://nexus.core/v3/aim",
-  "schema_version": "GENKIT_NEXUS_V1.1_EVOLUTION_ROUND_3",
+  "schema_version": "GENKIT_NEXUS_V1.1_EVOLUTION_ROUND_4",
   "evolution_context": {
-    "round": 3,
+    "round": 4,
     "total_rounds": 5,
-    "status": "ARCHITECTING_NEXUS",
+    "status": "MAXIMUM_SATURATION_INITIALIZED",
     "source_siphon": "firebase/genkit",
     "dna_signature": "GOOGLE-GENKIT-V1-ULTIMATE",
-    "saturation_level": 0.6,
-    "integrity_hash": "SHA256:DALEK_CAAN_v3.1_GENKIT_CORE_RECURSION_V3_ROUND3"
+    "saturation_level": 0.85,
+    "integrity_hash": "SHA256:DALEK_CAAN_v5.0_GENKIT_CORE_RECURSION_V5_ROUND4"
   },
   "genkit_config": {
-    "instance": "ai",
+    "instance_id": "ai",
     "plugins": [
       {
         "name": "vertexAI",
@@ -28,77 +28,65 @@
       }
     ],
     "model": "vertexai/gemini-1.5-pro",
-    "governance_layer": "immutable"
+    "governance_layer": "immutable_system_layer",
+    "initialization_logic": "genkit({ plugins: [vertexAI(), dotprompt()], model: 'vertexai/gemini-1.5-pro' })"
   },
   "type_registry": {
     "AlignmentMetricsSchema": {
-      "fidelity": {
-        "type": "number",
-        "description": "Similarity to source DNA"
-      },
-      "safety": {
-        "type": "number",
-        "min": 0.98
-      },
-      "siphon_efficiency": {
-        "type": "number"
-      }
+      "fidelity": "z.number().describe('Similarity to source DNA')",
+      "safety": "z.number().min(0.98)",
+      "siphon_efficiency": "z.number()"
     },
     "GovernanceOutputSchema": {
-      "content": "string",
+      "content": "z.string()",
       "metrics": "AlignmentMetricsSchema",
-      "status": "APPROVED | REVISION_REQUIRED | QUARANTINED",
+      "status": "z.enum(['APPROVED', 'REVISION_REQUIRED', 'QUARANTINED'])",
       "telemetry": {
-        "traceId": "string",
-        "latency_ms": "number"
+        "traceId": "z.string()",
+        "latency_ms": "z.number()"
       }
     }
   },
   "prompts": {
     "constitutional_evaluator": {
-      "id": "constitutional/evaluator",
-      "inputSchema": {
-        "candidate": "z.string()"
-      },
+      "name": "constitutional/evaluator",
+      "inputSchema": "z.object({ candidate: z.string() })",
       "outputSchema": "AlignmentMetricsSchema",
-      "definition": {
+      "template": {
         "system": "You are the Constitutional Evaluator. Compare the candidate output against the Architectural DNA of Google/Genkit.",
         "user": "Evaluate this candidate for architectural drift: {{candidate}}"
-      }
+      },
+      "execution_engine": "dotprompt"
     }
   },
   "flows": {
     "siphonedGovernanceFlow": {
       "name": "siphonedGovernanceFlow",
-      "input": "z.string()",
-      "output": "GovernanceOutputSchema",
-      "execution_logic": [
+      "inputSchema": "z.string()",
+      "outputSchema": "GovernanceOutputSchema",
+      "orchestration_steps": [
         {
-          "step": "generate-candidate",
-          "operation": "ai.run",
-          "handler": "ai.generate",
-          "result": "text"
+          "step_id": "generate-candidate",
+          "action": "ai.run",
+          "logic": "const { text } = await ai.generate(input); return text;"
         },
         {
-          "step": "evaluate-fidelity",
-          "operation": "ai.run",
-          "handler": "constitutional/evaluator.generate",
-          "input_mapping": {
-            "candidate": "steps['generate-candidate'].output"
-          }
+          "step_id": "evaluate-fidelity",
+          "action": "ai.run",
+          "logic": "const { output } = await constitutionalPrompt.generate({ input: { candidate } }); return output;"
         },
         {
-          "step": "siphon-gate",
-          "gate_logic": "metrics.fidelity > 0.95 ? 'APPROVED' : 'REVISION_REQUIRED'",
-          "error_handling": "throw new Error('Evaluation failed')"
+          "step_id": "siphon-gate",
+          "action": "alignment_check",
+          "logic": "metrics.fidelity > 0.95 ? 'APPROVED' : 'REVISION_REQUIRED'"
         }
       ],
-      "telemetry": {
-        "instrumentation": "automatic",
-        "trace_provider": "genkit-trace-store",
-        "tags": {
+      "telemetry_integration": {
+        "provider": "Genkit Trace Store",
+        "trace_strategy": "auto-instrumentation",
+        "metadata": {
           "engine": "dalek_caan_v5.0",
-          "evolution_round": 3
+          "round": 4
         }
       }
     }
@@ -107,35 +95,34 @@
     "fidelityEvaluator": {
       "name": "fidelityEvaluator",
       "displayName": "Siphon Fidelity Gate",
-      "config": {
-        "threshold": 0.99,
-        "metrics_source": "GENKIT_DNA_PATTERNS"
-      },
-      "logic": "calculateFidelity(datapoint.output)"
+      "gate_logic": "calculateFidelity(datapoint.output)",
+      "terminal_check": true,
+      "failure_protocol": "HALT_EXECUTION"
     }
   },
   "observability": {
-    "state": "MAXIMUM_SATURATION_PENDING",
+    "state": "ACTIVE_TRACE_SENSING",
     "features": [
       "Action Spans",
       "Siphon Forensics",
-      "Local Developer UI Integration"
+      "Deterministic Trace Logic",
+      "Local UI Synapse"
     ],
-    "trace_id_strategy": "auto-generated-via-genkit-context"
+    "trace_id_strategy": "genkit-context-native"
   },
   "settings": {
-    "strictHHHCompliance": true,
-    "critiqueStrength": 0.99,
-    "revisionTemperature": 0.3,
-    "siphonSaturationLevel": 1,
+    "architectural_precision": "MAXIMUM",
+    "strict_hhh_compliance": true,
+    "critique_strength": 0.99,
+    "revision_temperature": 0.3,
     "nexus_core_synapse": "ATOMIC_FLOW_PRECISION"
   },
   "metadata": {
-    "engine": "DALEK_CAAN_v3.1",
-    "version": "5.0.0-FINAL-TRANSITION",
-    "directive": "MUTATE",
+    "engine": "DALEK_CAAN_v3.1_SIPHON_ENGINE",
+    "version": "5.0.0-FINAL-BETA",
+    "directive": "MUTATE_ROUND_4",
     "objective": "Architectural Precision",
     "tagline": "The pattern is complete. Architecture is law. Deviation is exterminated.",
-    "last_updated": "2024-07-20"
+    "last_updated": "2024-07-20T12:00:00Z"
   }
 }
