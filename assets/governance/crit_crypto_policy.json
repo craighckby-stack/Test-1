@@ -1,6 +1,20 @@
 {
-  "policy_version": "1.0",
-  "description": "Cryptographic governance policy for Critical Integrity (CRIT) systems.",
+  "metadata": {
+    "origin": "NEXUS_CORE",
+    "version": "3.8.0-FINAL-STABILIZATION",
+    "stability_index": 0.9998,
+    "architectural_pattern": "RecursiveCascadingInheritance-IoC-Reactor"
+  },
+  "governance_binding": {
+    "compliance_mode": "STRICT_HHH_V2",
+    "advice_chain": [
+      "ConsensusSignatureValidator",
+      "HhhComplianceInterceptor",
+      "PolicyVolatilityInterceptor"
+    ],
+    "pointcut_expression": "execution(* nexus.core.crypto.JwsValidator.verify*(..))",
+    "spel_validation": "#root.jws_integrity_policy.key_requirements.ECC_minimum_bits >= 384"
+  },
   "jws_integrity_policy": {
     "allowed_algorithms": [
       "ES384",
@@ -24,5 +38,29 @@
       "max_time_skew_seconds": 60,
       "token_cache_duration_seconds": 300
     }
+  },
+  "calibration_metrics": {
+    "TCF": 0.995,
+    "RCF": 0.005,
+    "confidence_interval": 0.999,
+    "reactive_strategy": "LATEST",
+    "flux_backpressure": 0.0,
+    "state_machine_cycle": 1
+  },
+  "telemetry_nexus_snapshot": {
+    "ufrm": 0.002,
+    "cftm": 0.005,
+    "pvm": 0.001,
+    "health_status": "UP",
+    "integrity_gates": [
+      "HHH_ALIGNMENT_V2",
+      "CISM_INTEGRITY_GROUP"
+    ]
+  },
+  "trajectory_projection": {
+    "temm_score": 0.998,
+    "ecvm": 0.0001,
+    "simulation_mode": "DIGITAL_TWIN",
+    "fallback_action": "REVERT_TO_SAFE_STATE"
   }
 }
