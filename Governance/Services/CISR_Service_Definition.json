@@ -3,9 +3,8 @@
   "role": "INFRASTRUCTURE",
   "parent": "BaseAxiomaticService",
   "qualifiers": [
-    "CISM_CUSTODIAN",
-    "IMMUTABILITY_LOCK_PROVIDER",
-    "NEXUS_PRIMARY_REGISTRY"
+    { "type": "CISM_CUSTODIAN", "value": "NEXUS_PRIMARY" },
+    { "type": "IMMUTABILITY_LOCK_PROVIDER", "value": "HARD_LOCKED" }
   ],
   "scope": "SINGLETON",
   "abstract": false,
@@ -31,12 +30,23 @@
       "uri": "nexus://storage/cism/certified",
       "required": true,
       "description": "Deterministic OPC relational model storage for state atoms"
+    },
+    {
+      "id": "TRAJECTORY_SEED_CACHE",
+      "type": "VOLATILE_STATE",
+      "uri": "nexus://cache/simulation/seeds",
+      "required": false
     }
   ],
   "lifecycle": {
     "init_method": "onBootstrap",
     "destroy_method": "onHalt",
-    "startup_priority": 100
+    "startup_priority": 100,
+    "aware_interfaces": [
+      "NexusContextAware",
+      "MetricNexusAware",
+      "EnvironmentAware"
+    ]
   },
   "advice_chain": {
     "interceptors": [
@@ -45,7 +55,7 @@
       "PolicyVolatilityInterceptor"
     ],
     "order": -2147483648,
-    "pointcut_expression": "execution(* nexus.core.CISR.*(..))"
+    "pointcut_expression": "execution(* nexus.core.CISR.record*(..)) || execution(* nexus.core.CISR.certify*(..))"
   },
   "post_processors": [
     {
@@ -66,7 +76,8 @@
     "traversal": "DEEP_GRAPH",
     "state_machine_ref": "NumberingStateMachine",
     "inheritance_depth": 8,
-    "mapping_service": "TerminalAtomConversionService"
+    "mapping_service": "TerminalAtomConversionService",
+    "mce_filtering_enabled": true
   },
   "governance_policy": {
     "enforcement": "STRICT",
@@ -90,18 +101,21 @@
   "event_listeners": [
     {
       "event_type": "CONTEXT_REFRESH",
-      "handler": "refreshIntegrityGradients"
+      "handler": "refreshIntegrityGradients",
+      "async": true
     },
     {
       "event_type": "POLICY_DRIFT",
-      "handler": "triggerEmergencyBrake"
+      "handler": "triggerEmergencyBrake",
+      "priority": 0
     }
   ],
   "metadata": {
     "purpose": "High-fidelity hash-locked registry for CISM semantic atoms with trajectory-gated validation.",
     "origin": "NEXUS_CORE",
-    "version": "3.1.5-SYNTH",
+    "version": "3.2.0-SYNTH-SPR",
     "architectural_pattern": "RecursiveCascadingInheritance",
-    "compliance": "HHH_STRICT_V2"
+    "compliance": "HHH_STRICT_V2",
+    "stability_index": "0.992"
   }
 }
