@@ -1,19 +1,33 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agiverse.ai/schemas/HESE_CalibrationFactor/v1.1.0",
-  "title": "HESE Calibration Telemetry Contract (TCF/RCF) - Nexus-Siphoned Edition",
-  "description": "Defines high-fidelity telemetry payload structure for Trust (TCF) and Risk (RCF) factors, integrating Spring-inspired AOP interceptors and Nexus-Core telemetry snapshots.",
+  "$id": "https://agiverse.ai/schemas/HESE_CalibrationFactor/v3.5.0",
+  "title": "HESE Calibration Telemetry Contract (TCF/RCF) - Nexus-Siphoned v3.5",
+  "description": "Enterprise-grade telemetry contract integrating Spring-Framework IoC paradigms, AspectJ AOP governance, and Nexus-Core digital twin trajectory projections.",
   "type": "object",
+  "required": [
+    "evolution_id",
+    "origin_bean_id",
+    "epoch_timestamp_ms",
+    "calibration_metrics",
+    "governance_binding",
+    "integrity_signature",
+    "ledger_anchor"
+  ],
   "properties": {
     "evolution_id": {
       "type": "string",
       "pattern": "^EVO-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$",
-      "description": "UUID identifier for the autonomous code evolution batch."
+      "description": "CISM-certified UUID for the autonomous evolution lifecycle."
     },
-    "origin_system_id": {
+    "origin_bean_id": {
       "type": "string",
-      "description": "Identifier of the HESE instance; maps to Spring context bean ID.",
+      "description": "Identifier of the HESE instance; maps to Spring ApplicationContext bean ID.",
       "readOnly": true
+    },
+    "bean_scope": {
+      "type": "string",
+      "enum": ["singleton", "prototype", "request", "session", "nexus-global"],
+      "default": "singleton"
     },
     "epoch_timestamp_ms": {
       "type": "integer",
@@ -22,59 +36,121 @@
     },
     "calibration_metrics": {
       "type": "object",
-      "required": ["TCF", "RCF", "delta_average", "delta_variance"],
+      "required": ["TCF", "RCF", "delta_average"],
       "properties": {
         "TCF": {
           "type": "number",
           "minimum": 0.0,
           "maximum": 1.0,
-          "description": "Trust Calibration Factor (Alignment metric)."
+          "description": "Trust Calibration Factor (Alignment/HHH compliance score)."
         },
         "RCF": {
           "type": "number",
-          "minimum": 0.5,
-          "description": "Risk Calibration Factor (Operational Risk Multiplier)."
+          "minimum": 0.0,
+          "description": "Risk Calibration Factor (Operational Volatility Multiplier)."
         },
         "delta_average": { "type": "number" },
-        "delta_variance": { "type": "number", "minimum": 0.0 }
+        "delta_variance": { "type": "number", "minimum": 0.0 },
+        "state_machine_cycle": { "type": "integer", "description": "Current sequence state in the NumberingStateMachine." }
       }
     },
-    "telemetry_snapshot": {
+    "dependency_graph": {
       "type": "object",
-      "description": "Real-time volatility metrics captured from MetricNexusV1.",
+      "description": "Topological mapping of OPC relations (rId) with Spring-style qualifier resolution.",
       "properties": {
-        "ufrm": { "type": "number", "maximum": 0.08, "description": "Unknown Factor Risk Metric." },
-        "cftm": { "type": "number", "maximum": 0.15, "description": "Contextual Flux Trend Metric." },
-        "pvm": { "type": "number", "maximum": 0.12, "description": "Policy Volatility Metric." }
+        "relations": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "pattern": "^[0-9a-fA-F]{128}$" }
+        },
+        "qualifiers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["CISM_CUSTODIAN", "IMMUTABILITY_LOCK_PROVIDER"]
+        },
+        "inheritance_depth": { "type": "integer", "maximum": 8, "default": 1 },
+        "is_lazy": { "type": "boolean", "default": false },
+        "autowire_candidate": { "type": "boolean", "default": true }
       }
     },
     "governance_binding": {
       "type": "object",
-      "description": "Nexus-grade AOP interceptors for HHH-alignment validation.",
+      "description": "Nexus-grade AOP interceptors and AspectJ pointcut validation for HHH-alignment.",
+      "required": ["advice_chain", "compliance_mode"],
       "properties": {
         "advice_chain": {
           "type": "array",
           "items": { "type": "string" },
-          "default": ["HhhComplianceInterceptor", "PolicyVolatilityInterceptor"]
+          "default": [
+            "ConsensusSignatureValidator",
+            "HhhComplianceInterceptor",
+            "PolicyVolatilityInterceptor"
+          ]
         },
+        "compliance_mode": { "type": "string", "const": "STRICT_HHH_V2" },
         "pointcut_expression": {
           "type": "string",
-          "default": "execution(* nexus.core.HESE.calibrate*(..))"
+          "default": "execution(* nexus.core.CISR.record*(..)) || execution(* nexus.core.CISR.certify*(..))"
         }
       }
     },
-    "dependency_mapping": {
+    "integrity_signature": {
       "type": "object",
-      "description": "Topological mapping of autowired dependencies and OPC relations.",
+      "description": "CISM-certified cryptographic binding for atomic state verification.",
+      "required": ["signature_payload", "crot_key_id"],
       "properties": {
-        "autowire_candidate": { "type": "boolean", "default": true },
-        "inheritance_depth": { "type": "integer", "maximum": 8, "default": 1 },
-        "is_lazy": { "type": "boolean", "default": false }
+        "signature_payload": { "type": "string", "format": "base64" },
+        "crot_key_id": { "type": "string" },
+        "algorithm": { "type": "string", "default": "EdDSA-Nexus-V1" }
       }
+    },
+    "telemetry_nexus_snapshot": {
+      "type": "object",
+      "description": "Real-time risk telemetry captured from MetricNexusV1 against critical thresholds.",
+      "properties": {
+        "ufrm": { "type": "number", "maximum": 0.08, "description": "Unknown Factor Risk Metric." },
+        "cftm": { "type": "number", "maximum": 0.15, "description": "Contextual Flux Trend Metric." },
+        "pvm": { "type": "number", "maximum": 0.12, "description": "Policy Volatility Metric." },
+        "integrity_gates": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["HHH_ALIGNMENT_V2", "CISM_INTEGRITY_GROUP", "OPC_RELATIONAL_VALIDATOR"]
+        }
+      }
+    },
+    "trajectory_projection": {
+      "type": "object",
+      "description": "Digital Twin simulation output from the TrajectorySimulationEngine (TSE).",
+      "properties": {
+        "temm_score": { "type": "number", "minimum": 0.98, "maximum": 1 },
+        "ecvm": { "type": "number", "maximum": 0.005 },
+        "simulation_mode": { "type": "string", "const": "DIGITAL_TWIN" },
+        "fallback_action": {
+          "type": "string",
+          "enum": ["REVERT_TO_SAFE_STATE", "HALT_SYSTEM", "DEGRADE_GRACEFULLY"],
+          "default": "REVERT_TO_SAFE_STATE"
+        }
+      }
+    },
+    "event_listeners": {
+      "type": "array",
+      "description": "AxiomaticEventBroadcaster listeners for contextual refresh and policy drift.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "event_type": { "type": "string" },
+          "handler": { "type": "string" },
+          "async": { "type": "boolean", "default": true }
+        }
+      },
+      "default": [
+        { "event_type": "CONTEXT_REFRESH", "handler": "refreshIntegrityGradients", "async": true },
+        { "event_type": "POLICY_DRIFT", "handler": "triggerEmergencyBrake", "async": false }
+      ]
     },
     "ledger_anchor": {
       "type": "object",
-      "required": ["anchor_hash"],
+      "description": "Cryptographic commitment to the global Merkle tree root.",
+      "required": ["anchor_hash", "merkle_proof"],
       "properties": {
         "anchor_hash": { "type": "string", "format": "hex" },
         "merkle_proof": { "type": "string" }
@@ -83,18 +159,12 @@
     "metadata": {
       "type": "object",
       "properties": {
+        "origin": { "type": "string", "const": "NEXUS_CORE" },
         "version": { "type": "string", "default": "3.5.0-FINAL-SYNTHESIS" },
-        "architectural_pattern": { "type": "string", "const": "RecursiveCascadingInheritance" },
-        "stability_index": { "type": "number", "default": 0.998 }
+        "stability_index": { "type": "number", "default": 0.998 },
+        "architectural_pattern": { "type": "string", "const": "RecursiveCascadingInheritance" }
       }
     }
   },
-  "required": [
-    "evolution_id",
-    "origin_system_id",
-    "epoch_timestamp_ms",
-    "calibration_metrics",
-    "ledger_anchor"
-  ],
   "additionalProperties": false
 }
