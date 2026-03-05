@@ -1,25 +1,28 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "description": "Governance Data Execution & Constraint Model (GDECM) - Nexus Core v3.1 - Spring-Siphoned Architectures",
+  "description": "Governance Data Execution & Constraint Model (GDECM) - Nexus Core v3.1 - ARCH-OOXML-V2-DOCX-DNA",
   "definitions": {
     "AdviceChain": {
       "type": "object",
       "properties": {
-        "pointcut": { "type": "string", "description": "SpEL expression for execution join-points" },
+        "pointcut": { "type": "string", "description": "SpEL join-point expression" },
         "interceptors": {
           "type": "array",
-          "items": { "type": "string", "description": "Fully qualified Nexus Interceptor class" }
-        }
+          "items": { "type": "string" }
+        },
+        "order": { "type": "integer", "default": 0 }
       }
     },
     "ResourceDescriptor": {
       "type": "object",
       "properties": {
-        "uri": { "type": "string", "description": "Protocol-prefixed resource (e.g., 'siphon://', 'voted://')" },
-        "resolver": { "type": "string", "enum": ["LAZY_PROXY", "EAGER_SINGLETON", "PROTOTYPE"], "default": "EAGER_SINGLETON" },
-        "required": { "type": "boolean", "default": true }
-      }
+        "uri": { "type": "string" },
+        "scope": { "type": "string", "enum": ["SINGLETON", "PROTOTYPE", "REQUEST"], "default": "SINGLETON" },
+        "lazy_init": { "type": "boolean", "default": false },
+        "resolver": { "type": "string", "default": "DefaultSiphonResolver" }
+      },
+      "required": ["uri"]
     }
   },
   "properties": {
@@ -27,7 +30,8 @@
       "type": "object",
       "properties": {
         "namespace": { "type": "string", "default": "nexus.internal" },
-        "active_profiles": { "type": "array", "items": { "type": "string" }, "default": ["default"] },
+        "parent_context": { "type": ["string", "null"] },
+        "active_profiles": { "type": "array", "items": { "type": "string" } },
         "telemetry_nexus": {
           "type": "object",
           "properties": {
@@ -35,9 +39,9 @@
             "critical_thresholds": {
               "type": "object",
               "properties": {
-                "max_pvm": { "type": "number", "description": "Policy Volatility Metric limit" },
-                "max_ufrm": { "type": "number", "description": "Unknown Factor Risk Metric limit" },
-                "max_cftm": { "type": "number", "description": "Contextual Flux Trend Metric limit" }
+                "max_pvm": { "type": "number", "description": "Policy Volatility Metric" },
+                "max_ufrm": { "type": "number", "description": "Unknown Factor Risk Metric" },
+                "max_cftm": { "type": "number", "description": "Contextual Flux Trend Metric" }
               }
             }
           }
@@ -46,7 +50,7 @@
     },
     "abstract_templates": {
       "type": "array",
-      "description": "Recursive Cascading Inheritance templates for stages",
+      "description": "Recursive Cascading templates for stage inheritance",
       "items": { "$ref": "#/properties/stages/items" }
     },
     "stages": {
@@ -55,9 +59,10 @@
         "type": "object",
         "properties": {
           "id": { "type": "string" },
-          "parent_id": { "type": ["string", "null"], "description": "Inheritance pointer for style/constraint cascading" },
-          "condition": { "type": "string", "description": "Conditional deployment SpEL (e.g., '@nexus.isSecure() && #pvm < 0.2')" },
-          "order": { "type": "integer", "default": 0 },
+          "parent": { "type": "string", "description": "Bean-style inheritance pointer" },
+          "abstract": { "type": "boolean", "default": false },
+          "condition": { "type": "string", "description": "SpEL deployment condition" },
+          "depends_on": { "type": "array", "items": { "type": "string" } },
           "resource_dependencies": {
             "type": "array",
             "items": { "$ref": "#/definitions/ResourceDescriptor" }
@@ -67,21 +72,23 @@
             "type": "object",
             "properties": {
               "hhh_enforcement": { "type": "boolean", "default": true },
-              "constraint_taxonomy_refs": { "type": "array", "items": { "type": "string" } },
-              "simulation_mode": { 
-                "type": "string", 
-                "enum": ["BLOCKING", "SHADOW_SIM", "HEURISTIC_ONLY"], 
-                "default": "BLOCKING" 
-              },
-              "max_trajectory_drift": { "type": "number", "default": 0.15 }
+              "axiomatic_verification": { "type": "string", "enum": ["STRICT", "LAX", "SIMULATED"], "default": "STRICT" },
+              "simulation_strategy": { 
+                "type": "object",
+                "properties": {
+                  "mode": { "type": "string", "enum": ["BLOCKING", "SHADOW_SIM", "HEURISTIC"], "default": "BLOCKING" },
+                  "depth": { "type": "integer", "default": 3 },
+                  "max_drift": { "type": "number", "default": 0.15 }
+                }
+              }
             }
           },
           "post_processors": {
             "type": "array",
-            "items": { "type": "string", "description": "BeanPostProcessor equivalents for trajectory results" }
+            "items": { "type": "string" }
           }
         },
-        "required": ["id", "resource_dependencies"]
+        "required": ["id"]
       }
     }
   },
