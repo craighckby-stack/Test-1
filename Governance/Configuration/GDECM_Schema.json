@@ -1,42 +1,69 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
+  "description": "Governance Data Execution & Constraint Model (GDECM) - Nexus Core v3.1",
   "properties": {
+    "context_registry": {
+      "type": "object",
+      "properties": {
+        "namespace": { "type": "string", "default": "nexus.internal" },
+        "telemetry_nexus_binding": { "type": "string", "description": "Mapping to MetricNexus for volatility tracking (UFRM/CFTM)" }
+      }
+    },
     "stages": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "stage_id": { "type": "string", "description": "e.g., S1, S2" },
+          "stage_id": { "type": "string" },
+          "condition": { 
+            "type": "string", 
+            "description": "SpEL-inspired activation expression (e.g., '#pvm < 0.35 && profiles.active == 'secure'')" 
+          },
+          "lifecycle": {
+            "type": "object",
+            "properties": {
+              "pre_proxy_advice": { "type": "string" },
+              "post_execution_callback": { "type": "string" }
+            }
+          },
           "dependencies": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "artifact_key": { "type": "string", "description": "Key referencing CISM entry (e.g., 'Proposal.Voted')" },
+                "artifact_key": { "type": "string", "description": "Resource-abstracted key (e.g., 'voted://Proposal.Voted')" },
                 "required": { "type": "boolean", "default": true },
+                "resolution_strategy": { "type": "string", "enum": ["EAGER", "LAZY"], "default": "EAGER" },
                 "attestation_check": {
                   "type": "object",
                   "properties": {
-                    "method": { "type": "string", "enum": ["HASH_SHA256", "CRYPTO_SIGNATURE", "TIMELOCK", "SCHEMA_VALIDATION"], "description": "Method of integrity assurance." },
+                    "method": { 
+                      "type": "string", 
+                      "enum": ["HASH_SHA256", "CRYPTO_SIGNATURE", "TIMELOCK", "SCHEMA_VALIDATION", "SPEL_EXPRESSION"] 
+                    },
                     "target_hash": { "type": ["string", "null"] },
-                    "required_signer": { "type": ["string", "null"], "description": "Specific authority required for signature validation." }
+                    "required_signer": { "type": ["string", "null"] }
                   },
                   "required": ["method"]
                 },
-                "schema_pointer": { "type": ["string", "null"], "description": "Optional reference to internal schema definition for structure compliance." }
+                "schema_pointer": { "type": ["string", "null"] }
               },
               "required": ["artifact_key", "attestation_check"]
             }
           },
           "execution_constraints": {
             "type": "object",
-            "description": "Runtime limitations (e.g., resource caps, time limits)"
+            "properties": {
+              "max_trajectory_drift": { "type": "number", "default": 0.15 },
+              "hhh_compliance_gate": { "type": "boolean", "default": true },
+              "resource_profile": { "type": "string", "enum": ["LOW_LATENCY", "HIGH_THROUGHPUT", "SIMULATION_SHADOW"] }
+            }
           }
         },
         "required": ["stage_id", "dependencies"]
       }
     }
   },
-  "required": ["stages"],
-  "$schema": "http://json-schema.org/draft-07/schema#"
+  "required": ["stages"]
 }
