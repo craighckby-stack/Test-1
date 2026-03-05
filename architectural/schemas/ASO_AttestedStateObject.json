@@ -1,30 +1,31 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://nexus.governance.registry/schemas/ASO_AttestedStateObject_v3.2.json",
-  "title": "Attested State Object (ASO) - Nexus Core v3.2",
-  "description": "Architecturally precise CISM semantic atom attestation schema. Integrates Spring-modeled dependency resolution, trajectory-gated validation, and HHH-alignment profiles.",
+  "$id": "https://nexus.governance.registry/schemas/ASO_AttestedStateObject_v3.3.json",
+  "title": "Attested State Object (ASO) - Nexus Core v3.3",
+  "description": "High-fidelity architectural blueprint for CISM semantic atoms. Siphons Spring Framework dependency injection patterns and Aspect-Oriented governance into a deterministic trajectory-gated attestation model.",
   "type": "object",
   "required": [
     "atom_hash",
     "certified_at",
     "active_profiles",
     "integrity_signature",
-    "ledger_anchor"
+    "ledger_anchor",
+    "governance_binding"
   ],
   "properties": {
     "atom_hash": {
       "type": "string",
-      "description": "Deterministic SHA-512 hash of the Terminal Semantic Atom payload.",
+      "description": "Deterministic SHA-512 hash representing the Terminal Semantic Atom payload.",
       "pattern": "^[0-9a-fA-F]{128}$"
     },
     "certified_at": {
       "type": "integer",
-      "description": "Epoch timestamp verified by the GATM mechanism and MetricNexus singleton.",
+      "description": "Epoch timestamp validated by the MetricNexus singleton and GATM consensus.",
       "minimum": 1
     },
     "active_profiles": {
       "type": "array",
-      "description": "Spring-grade environment profiles active during attestation (e.g., PROXIMAL_ALIGNMENT, SECURE_EXTRACT_V4).",
+      "description": "Spring-modeled environment profiles (e.g., PROXIMAL_ALIGNMENT, SECURE_EXTRACT_V4) active during state certification.",
       "items": {
         "type": "string"
       },
@@ -32,7 +33,7 @@
     },
     "lifecycle_context": {
       "type": "object",
-      "description": "Maintains deterministic state transition data based on the ASO's progression through the pipeline.",
+      "description": "Manages SmartLifecycle transitions and Spring-grade initialization metadata.",
       "properties": {
         "phase": {
           "type": "string",
@@ -48,23 +49,77 @@
           "type": "integer",
           "default": 100
         },
-        "condition_matches": {
-          "type": "boolean",
-          "description": "Indicates if OnGatedInfrastructureCondition evaluation passed."
+        "aware_interfaces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "NexusContextAware",
+              "MetricNexusAware",
+              "EnvironmentAware",
+              "ConstraintValidatorAware"
+            ]
+          }
+        },
+        "factory_method": {
+          "type": "string",
+          "default": "instantiateAxiomaticRegistry"
         }
       }
     },
     "dependency_graph": {
       "type": "object",
-      "description": "Topological mapping of OPC relations (rId) and parent-child cascading inheritance links.",
-      "additionalProperties": {
-        "type": "string",
-        "pattern": "^[0-9a-fA-F]{128}$"
+      "description": "Topological mapping of OPC relations (rId) with awareness of lazy-init and autowire status.",
+      "properties": {
+        "relations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{128}$"
+          }
+        },
+        "inheritance_depth": {
+          "type": "integer",
+          "maximum": 8
+        },
+        "lazy_init": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "governance_binding": {
+      "type": "object",
+      "description": "Nexus-grade AOP interceptors and pointcut validation for HHH-alignment.",
+      "required": [
+        "advice_chain",
+        "compliance_mode"
+      ],
+      "properties": {
+        "advice_chain": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "ConsensusSignatureValidator",
+            "HhhComplianceInterceptor",
+            "PolicyVolatilityInterceptor"
+          ]
+        },
+        "compliance_mode": {
+          "type": "string",
+          "const": "STRICT_HHH_V2"
+        },
+        "pointcut_signature": {
+          "type": "string",
+          "description": "AspectJ-style expression governing atom record/certify operations."
+        }
       }
     },
     "integrity_signature": {
       "type": "object",
-      "description": "CISM-certified cryptographic binding with support for EdDSA-Nexus algorithms.",
+      "description": "CISM-certified cryptographic binding for atomic state verification.",
       "required": [
         "signature_payload",
         "crot_key_id"
@@ -85,57 +140,69 @@
     },
     "telemetry_nexus_snapshot": {
       "type": "object",
-      "description": "MetricNexus-grade risk telemetry captured at T-0.",
+      "description": "Real-time risk telemetry captured from MetricNexusV1.",
       "properties": {
         "ufrm": {
           "type": "number",
+          "description": "Unknown Factor Risk Metric.",
           "maximum": 0.08
         },
         "cftm": {
           "type": "number",
+          "description": "Contextual Flux Trend Metric.",
           "maximum": 0.15
         },
         "pvm": {
           "type": "number",
+          "description": "Policy Volatility Metric.",
           "maximum": 0.12
         },
-        "hhh_compliance": {
-          "type": "boolean"
-        },
-        "advice_interceptors_applied": {
+        "integrity_gates": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "default": [
+            "HHH_ALIGNMENT_V2",
+            "CISM_INTEGRITY_GROUP",
+            "OPC_RELATIONAL_VALIDATOR"
+          ]
         }
       }
     },
     "trajectory_projection": {
       "type": "object",
-      "description": "Digital Twin simulation results from the TrajectorySimulationEngine.",
+      "description": "Digital Twin simulation output from the TrajectorySimulationEngine.",
       "properties": {
         "temm_score": {
           "type": "number",
+          "description": "Trajectory Execution Merit Match score.",
           "minimum": 0.98,
           "maximum": 1
         },
         "ecvm": {
           "type": "number",
+          "description": "Execution Constraint Violation Metric.",
           "maximum": 0.005
         },
-        "simulation_depth": {
-          "type": "integer",
-          "default": 5
+        "simulation_mode": {
+          "type": "string",
+          "const": "DIGITAL_TWIN"
         },
         "fallback_action": {
           "type": "string",
+          "enum": [
+            "REVERT_TO_SAFE_STATE",
+            "HALT_SYSTEM",
+            "DEGRADE_GRACEFULLY"
+          ],
           "default": "REVERT_TO_SAFE_STATE"
         }
       }
     },
     "ledger_anchor": {
       "type": "object",
-      "description": "Cryptographic commitment to the global ledger root via Merkle tree proofs.",
+      "description": "Cryptographic commitment to the global Merkle tree root.",
       "required": [
         "anchor_hash",
         "merkle_proof"
@@ -159,10 +226,11 @@
         },
         "version": {
           "type": "string",
-          "default": "3.3.0-EXTRACT-V2"
+          "default": "3.3.1-SPRING-CISM"
         },
         "stability_index": {
-          "type": "number"
+          "type": "number",
+          "default": 0.994
         }
       }
     }
