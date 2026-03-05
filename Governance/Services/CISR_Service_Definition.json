@@ -3,68 +3,84 @@
   "role": "INFRASTRUCTURE",
   "qualifiers": [
     "CISM_CUSTODIAN",
-    "IMMUTABILITY_LOCK_PROVIDER"
+    "IMMUTABILITY_LOCK_PROVIDER",
+    "NEXUS_PRIMARY"
   ],
   "scope": "SINGLETON",
+  "profiles": [
+    "PRODUCTION",
+    "GOVERNANCE_STRICT"
+  ],
   "abstract": false,
   "lazy_init": false,
   "primary": true,
   "autowire_candidate": true,
+  "factory_method": "instantiateAxiomaticRegistry",
   "depends_on": [
     "AxiomaticEventBroadcaster",
     "MetricNexusV1",
-    "MerkleTreeProvider"
+    "MerkleTreeProvider",
+    "ConstraintAdherenceValidator"
   ],
   "resource_dependencies": [
     {
       "id": "CISM_SNAPSHOT_STORE",
       "type": "PERSISTENT_STATE",
       "uri": "nexus://storage/cism/certified",
-      "required": true
+      "required": true,
+      "description": "Deterministic OPC relational model storage for state atoms"
     }
   ],
   "lifecycle": {
     "init_method": "onBootstrap",
-    "destroy_method": "onHalt"
+    "destroy_method": "onHalt",
+    "startup_priority": 100
   },
   "advice_chain": {
     "interceptors": [
       "ConsensusSignatureValidator",
-      "HhhComplianceInterceptor"
+      "HhhComplianceInterceptor",
+      "PolicyVolatilityInterceptor"
     ],
-    "order": 0
+    "order": -2147483648,
+    "pointcut_expression": "execution(* nexus.core.CISR.*(..))"
   },
   "post_processors": [
     {
       "id": "MerkleRootGenerator",
       "type": "INTEGRITY",
-      "priority": 1
+      "priority": 1,
+      "action": "COMPUTE_TERMINAL_HASH"
     },
     {
       "id": "PolicyVolatilityAuditor",
       "type": "GOVERNANCE",
-      "priority": 2
+      "priority": 2,
+      "threshold_impact": "PVM_CASCADING"
     }
   ],
   "semantic_atom_config": {
     "strategy": "DeterministicOOXML",
     "traversal": "DEEP_GRAPH",
-    "inheritance_depth": 8
+    "inheritance_depth": 8,
+    "mapping_service": "TerminalAtomConversionService"
   },
   "governance_policy": {
     "enforcement": "STRICT",
     "validation_groups": [
       "GEDM_PRE_FLIGHT",
-      "CISM_INTEGRITY_GROUP"
+      "CISM_INTEGRITY_GROUP",
+      "HHH_ALIGNMENT_V2"
     ],
     "simulation": {
-      "mode": "SHADOW_SIM",
-      "model_handler": "PredictiveModelStub",
+      "mode": "DIGITAL_TWIN",
+      "model_handler": "TrajectorySimulationEngine",
       "depth": 5,
-      "temm_min_score": 0.95,
-      "ufrm_limit": 0.12,
-      "cftm_limit": 0.08,
-      "ecvm_threshold": 0.01,
+      "temm_min_score": 0.98,
+      "ufrm_limit": 0.10,
+      "cftm_limit": 0.05,
+      "ecvm_threshold": 0.005,
+      "stochastic_variance": 0.02,
       "fallback_action": "REVERT_TO_SAFE_STATE"
     }
   },
@@ -80,7 +96,8 @@
       },
       "constraints": [
         "HHH_ALIGNED",
-        "HASH_LOCKED"
+        "HASH_LOCKED",
+        "UFRM_WITHIN_BOUNDS"
       ]
     },
     "RetrieveReference": {
@@ -89,12 +106,14 @@
         "hash": "ExpectedRootHash"
       },
       "integrity_gate": "AxiomaticConstraintValidator",
-      "security_mandate": "ROOT_HASH_MUST_MATCH_REGISTERED"
+      "security_mandate": "ROOT_HASH_MUST_MATCH_REGISTERED",
+      "telemetry_link": "MetricNexusV1"
     }
   },
   "metadata": {
     "purpose": "Ensure immutable, hash-locked availability of all CISM snapshots required for GEDM validation.",
     "origin": "NEXUS_CORE",
-    "version": "3.1.0-SYNTH"
+    "version": "3.1.2-SYNTH",
+    "architectural_pattern": "RecursiveCascadingInheritance"
   }
 }
