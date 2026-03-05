@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://nexus.governance.registry/schemas/ASO_AttestedStateObject_v3.3.json",
-  "title": "Attested State Object (ASO) - Nexus Core v3.3",
-  "description": "High-fidelity architectural blueprint for CISM semantic atoms. Siphons Spring Framework dependency injection patterns and Aspect-Oriented governance into a deterministic trajectory-gated attestation model.",
+  "$id": "https://nexus.governance.registry/schemas/ASO_AttestedStateObject_v3.4.json",
+  "title": "Attested State Object (ASO) - Nexus Core v3.4",
+  "description": "High-fidelity architectural blueprint for CISM semantic atoms. Siphons Spring Framework BeanDefinition paradigms and AOP-gated governance into a deterministic trajectory-gated attestation model.",
   "type": "object",
   "required": [
     "atom_hash",
@@ -33,7 +33,7 @@
     },
     "lifecycle_context": {
       "type": "object",
-      "description": "Manages SmartLifecycle transitions and Spring-grade initialization metadata.",
+      "description": "Manages SmartLifecycle transitions and BeanFactory-grade initialization metadata.",
       "properties": {
         "phase": {
           "type": "string",
@@ -49,6 +49,15 @@
           "type": "integer",
           "default": 100
         },
+        "scope_descriptor": {
+          "type": "string",
+          "enum": [
+            "SINGLETON",
+            "PROTOTYPE",
+            "TRAJECTORY_SCOPE"
+          ],
+          "default": "SINGLETON"
+        },
         "aware_interfaces": {
           "type": "array",
           "items": {
@@ -57,13 +66,18 @@
               "NexusContextAware",
               "MetricNexusAware",
               "EnvironmentAware",
-              "ConstraintValidatorAware"
+              "ConstraintValidatorAware",
+              "AxiomaticEventBroadcasterAware"
             ]
           }
         },
         "factory_method": {
           "type": "string",
           "default": "instantiateAxiomaticRegistry"
+        },
+        "destroy_method": {
+          "type": "string",
+          "default": "onHalt"
         }
       }
     },
@@ -80,11 +94,16 @@
         },
         "inheritance_depth": {
           "type": "integer",
-          "maximum": 8
+          "maximum": 8,
+          "default": 1
         },
-        "lazy_init": {
+        "is_lazy": {
           "type": "boolean",
           "default": false
+        },
+        "autowire_candidate": {
+          "type": "boolean",
+          "default": true
         }
       }
     },
@@ -111,9 +130,10 @@
           "type": "string",
           "const": "STRICT_HHH_V2"
         },
-        "pointcut_signature": {
+        "pointcut_expression": {
           "type": "string",
-          "description": "AspectJ-style expression governing atom record/certify operations."
+          "description": "AspectJ-style expression governing atom record/certify operations (e.g., execution(* nexus.core.CISR.*(..))).",
+          "default": "execution(* nexus.core.CISR.record*(..)) || execution(* nexus.core.CISR.certify*(..))"
         }
       }
     },
@@ -140,7 +160,7 @@
     },
     "telemetry_nexus_snapshot": {
       "type": "object",
-      "description": "Real-time risk telemetry captured from MetricNexusV1.",
+      "description": "Real-time risk telemetry captured from MetricNexusV1 against critical thresholds.",
       "properties": {
         "ufrm": {
           "type": "number",
@@ -172,7 +192,7 @@
     },
     "trajectory_projection": {
       "type": "object",
-      "description": "Digital Twin simulation output from the TrajectorySimulationEngine.",
+      "description": "Digital Twin simulation output from the TrajectorySimulationEngine (TSE).",
       "properties": {
         "temm_score": {
           "type": "number",
@@ -189,6 +209,10 @@
           "type": "string",
           "const": "DIGITAL_TWIN"
         },
+        "stochastic_variance": {
+          "type": "number",
+          "default": 0.02
+        },
         "fallback_action": {
           "type": "string",
           "enum": [
@@ -202,7 +226,7 @@
     },
     "ledger_anchor": {
       "type": "object",
-      "description": "Cryptographic commitment to the global Merkle tree root.",
+      "description": "Cryptographic commitment to the global Merkle tree root (Terminal Atom Hash).",
       "required": [
         "anchor_hash",
         "merkle_proof"
@@ -226,11 +250,15 @@
         },
         "version": {
           "type": "string",
-          "default": "3.3.1-SPRING-CISM"
+          "default": "3.4.0-SPRING-HYBRID"
         },
         "stability_index": {
           "type": "number",
           "default": 0.994
+        },
+        "architectural_pattern": {
+          "type": "string",
+          "const": "RecursiveCascadingInheritance"
         }
       }
     }
