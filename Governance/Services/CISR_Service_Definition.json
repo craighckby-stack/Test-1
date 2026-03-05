@@ -1,26 +1,28 @@
 {
   "id": "CertifiedIntermediateStateRegistry",
   "role": "INFRASTRUCTURE",
+  "parent": "BaseAxiomaticService",
   "qualifiers": [
     "CISM_CUSTODIAN",
     "IMMUTABILITY_LOCK_PROVIDER",
-    "NEXUS_PRIMARY"
+    "NEXUS_PRIMARY_REGISTRY"
   ],
   "scope": "SINGLETON",
-  "profiles": [
-    "PRODUCTION",
-    "GOVERNANCE_STRICT"
-  ],
   "abstract": false,
   "lazy_init": false,
   "primary": true,
   "autowire_candidate": true,
   "factory_method": "instantiateAxiomaticRegistry",
+  "condition": "OnGatedInfrastructureCondition",
   "depends_on": [
     "AxiomaticEventBroadcaster",
     "MetricNexusV1",
     "MerkleTreeProvider",
     "ConstraintAdherenceValidator"
+  ],
+  "constructor_arguments": [
+    "CISM_SNAPSHOT_STORE",
+    "MetricNexusV1"
   ],
   "resource_dependencies": [
     {
@@ -62,6 +64,7 @@
   "semantic_atom_config": {
     "strategy": "DeterministicOOXML",
     "traversal": "DEEP_GRAPH",
+    "state_machine_ref": "NumberingStateMachine",
     "inheritance_depth": 8,
     "mapping_service": "TerminalAtomConversionService"
   },
@@ -84,36 +87,21 @@
       "fallback_action": "REVERT_TO_SAFE_STATE"
     }
   },
-  "interface_manifest": {
-    "RegisterStateSnapshot": {
-      "input_mapping": {
-        "state_map": "IntermediateStateMap",
-        "signature": "VerifierSignature"
-      },
-      "output_mapping": {
-        "m_pointer": "CISM_Reference_Pointer",
-        "root_hash": "RootHash"
-      },
-      "constraints": [
-        "HHH_ALIGNED",
-        "HASH_LOCKED",
-        "UFRM_WITHIN_BOUNDS"
-      ]
+  "event_listeners": [
+    {
+      "event_type": "CONTEXT_REFRESH",
+      "handler": "refreshIntegrityGradients"
     },
-    "RetrieveReference": {
-      "input_mapping": {
-        "uid": "StateUID",
-        "hash": "ExpectedRootHash"
-      },
-      "integrity_gate": "AxiomaticConstraintValidator",
-      "security_mandate": "ROOT_HASH_MUST_MATCH_REGISTERED",
-      "telemetry_link": "MetricNexusV1"
+    {
+      "event_type": "POLICY_DRIFT",
+      "handler": "triggerEmergencyBrake"
     }
-  },
+  ],
   "metadata": {
-    "purpose": "Ensure immutable, hash-locked availability of all CISM snapshots required for GEDM validation.",
+    "purpose": "High-fidelity hash-locked registry for CISM semantic atoms with trajectory-gated validation.",
     "origin": "NEXUS_CORE",
-    "version": "3.1.2-SYNTH",
-    "architectural_pattern": "RecursiveCascadingInheritance"
+    "version": "3.1.5-SYNTH",
+    "architectural_pattern": "RecursiveCascadingInheritance",
+    "compliance": "HHH_STRICT_V2"
   }
 }
