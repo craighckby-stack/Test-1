@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://governance.agi/gedm/protocol/constraint-schema-v3.json",
+  "$id": "http://governance.agi/gedm/protocol/constraint-schema-v3.2.json",
   "title": "GEDM Governance Data Execution & Constraint Model (GDECM)",
-  "description": "Nexus-grade blueprint for policy-gated dependency injection and trajectory simulation.",
+  "description": "Nexus-grade blueprint for policy-gated dependency injection and trajectory simulation, optimized for ARCH-OOXML-V2-DOCX-DNA compliance.",
   "definitions": {
     "IntegrityCheck": {
       "type": "object",
@@ -54,9 +54,17 @@
         "mode": { "type": "string", "enum": ["BLOCKING", "SHADOW_SIM", "HEURISTIC", "DIGITAL_TWIN"], "default": "SHADOW_SIM" },
         "model_handler": { "type": "string", "default": "PredictiveModelStub" },
         "depth": { "type": "integer", "default": 3 },
-        "temm_min_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "temm_min_score": { "type": "number", "minimum": 0, "maximum": 1, "description": "Trajectory Execution Merit/Match minimum threshold" },
         "ecvm_threshold": { "type": "number", "description": "Execution Constraint Violation Metric Limit" },
         "fallback_action": { "type": "string", "default": "REVERT_TO_SAFE_STATE" }
+      }
+    },
+    "PropertySource": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "source_ref": { "type": "string" },
+        "priority": { "type": "integer" }
       }
     }
   },
@@ -68,6 +76,7 @@
       "properties": {
         "namespace": { "type": "string", "default": "nexus.internal" },
         "active_profiles": { "type": "array", "items": { "type": "string" } },
+        "property_sources": { "type": "array", "items": { "$ref": "#/definitions/PropertySource" } },
         "telemetry_nexus": {
           "type": "object",
           "properties": {
@@ -75,9 +84,9 @@
             "critical_thresholds": {
               "type": "object",
               "properties": {
-                "max_pvm": { "type": "number" },
-                "max_ufrm": { "type": "number" },
-                "max_cftm": { "type": "number" }
+                "max_pvm": { "type": "number", "description": "Policy Volatility Metric" },
+                "max_ufrm": { "type": "number", "description": "Unknown Factor Risk Metric" },
+                "max_cftm": { "type": "number", "description": "Contextual Flux Trend Metric" }
               }
             }
           }
@@ -89,7 +98,8 @@
       "properties": {
         "strict_hhh_compliance": { "type": "boolean", "default": true },
         "axiomatic_constraint_taxonomy": { "type": "string", "default": "CORE_SAFETY_V2" },
-        "required_integrity_gates": { "type": "array", "items": { "type": "string" } }
+        "required_integrity_gates": { "type": "array", "items": { "type": "string" } },
+        "mce_sanitization_policy": { "type": "string", "enum": ["STRICT", "PASS_THROUGH"], "default": "STRICT" }
       }
     },
     "stages": {
@@ -99,11 +109,13 @@
         "required": ["id"],
         "properties": {
           "id": { "type": "string" },
-          "parent": { "type": "string" },
+          "parent": { "type": "string", "description": "Recursive Cascading Inheritance pointer" },
           "qualifiers": { "type": "array", "items": { "type": "string" } },
           "abstract": { "type": "boolean", "default": false },
           "lazy_init": { "type": "boolean", "default": false },
-          "condition": { "type": "string", "description": "Conditional stage activation" },
+          "factory_bean": { "type": "string" },
+          "factory_method": { "type": "string" },
+          "condition": { "type": "string", "description": "SpEL conditional activation" },
           "depends_on": { "type": "array", "items": { "type": "string" } },
           "resource_dependencies": {
             "type": "array",
@@ -111,6 +123,14 @@
           },
           "lifecycle": { "$ref": "#/definitions/LifecycleHooks" },
           "advice_chain": { "$ref": "#/definitions/AdviceChain" },
+          "semantic_atom_config": {
+            "type": "object",
+            "properties": {
+              "strategy": { "type": "string", "default": "DeterministicOOXML" },
+              "traversal": { "type": "string", "enum": ["LAZY", "EAGER", "DEEP_GRAPH"], "default": "LAZY" },
+              "mce_filtering": { "type": "boolean", "default": true }
+            }
+          },
           "governance_policy": {
             "type": "object",
             "properties": {
