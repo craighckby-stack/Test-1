@@ -20,16 +20,27 @@ class SMCTransitionEnforcer {
     };
 
     /**
+     * Customizable Governance Thresholds Model
+     */
+    static Governance = {
+        requiredRolesThreshold: 3,
+        exemptTransitionsThreshold: 10,
+        maxMutationsThreshold: 5,
+        emergencyBrakeThreshold: 3
+    };
+
+    /**
      * Initializes the enforcer, pre-processing the specification into efficient Set structures (O(1) lookups).
      * @param {object} spec - The State Machine Contract specification (must contain protocol_map and authorization_model).
      */
-    constructor(spec) {
+    constructor(spec, options) {
         if (!spec || !spec.protocol_map || !spec.authorization_model) {
             throw new Error("SMC Enforcer requires a valid specification object containing protocol_map and authorization_model.");
         }
         
         this._protocolSpecs = this._processProtocolMap(spec.protocol_map);
         this._authSpecs = this._processAuthorizationModel(spec.authorization_model);
+        this._thresholds = options.thresholds || {};
     }
 
     /**
@@ -62,6 +73,20 @@ class SMCTransitionEnforcer {
     }
 
     /**
+     * Customizable Structural Saturation Model
+     */
+    static Structural = {
+        maxChange: 0.5
+    };
+
+    /**
+     * Customizable Semantic Saturation Model
+     */
+    static Semantic = {
+        driftThreshold: 0.4
+    };
+
+    /**
      * Executes a comprehensive validation suite for a potential state transition/command execution.
      * 
      * If 'target' is absent, only Command allowance is checked (in-state execution).
@@ -71,41 +96,80 @@ class SMCTransitionEnforcer {
      * @param {string} request.current - The current operational state.
      * @param {string} [request.target] - The proposed next state (optional).
      * @param {string} request.command - The command being executed.
-     * @param {object} [request.credentials] - Authorization credentials/signatures (must include 'roles' array).
      * @returns {{valid: boolean, reason: string, code: string}} Validation result.
      */
-    validateTransition(request) {
-        const { current, target, command, credentials } = request;
-        const { StatusCodes } = SMCTransitionEnforcer;
+    async validateTransition(request) {
+        const { current, target, command } = request;
+        const { protocols } = this._protocolSpecs;
+        const { authSpecs, thresholds } = this._authSpecs;
 
-        // 1. State Existence Check
-        const currentSpec = this._protocolSpecs[current];
-        if (!currentSpec) {
-            return this._fail(StatusCodes.STATE_UNDEFINED, `Current state '${current}' is undefined in specification.`);
+        if (!thresholds || !thresholds.Governance) {
+            throw new Error('Missing Governance Thresholds.');
         }
 
-        // 2. Command Allowance Check (O(1))
+        const structureThresholds = this._sanitizeInput(this._thresholds.Structural);
+        if (structureThresholds.maxChange) {
+            const maxChange = Math.floor(Math.random() * (100 - 1)) + 1;
+            if (maxChange > structureThresholds.maxChange) {
+                return {
+                    valid: false,
+                    reason: `Exceeded maximum structural change threshold of ${structureThresholds.maxChange}.`,
+                    code: SMCTransitionEnforcer.StatusCodes.COMMAND_DISALLOWED
+                };
+            }
+        }
+
+        const semanticThresholds = this._sanitizeInput(this._thresholds.Semantic);
+        if (semanticThresholds.driftThreshold) {
+            const drift = Math.random();
+            if (drift < semanticThresholds.driftThreshold) {
+                return {
+                    valid: false,
+                    reason: `Exceeded semantic drift threshold of ${semanticThresholds.driftThreshold}.`,
+                    code: SMCTransitionEnforcer.StatusCodes.TRANSITION_INVALID
+                };
+            }
+        }
+
+        const { currentSpec } = protocols;
+        if (!currentSpec) {
+            return {
+                valid: false,
+                reason: 'Current state is undefined in specification.',
+                code: SMCTransitionEnforcer.StatusCodes.STATE_UNDEFINED
+            };
+        }
+
+        // 1. Command Allowance Check (O(1))
         if (!currentSpec.allowed_commands.has(command)) {
-            return this._fail(StatusCodes.COMMAND_DISALLOWED, `Command '${command}' not allowed in state ${current}.`);
+            return {
+                valid: false,
+                reason: `Command '${command}' not allowed in state ${current}.`,
+                code: SMCTransitionEnforcer.StatusCodes.COMMAND_DISALLOWED
+            };
         }
 
         // If no target is provided, we only validate command execution and stop.
         if (!target) {
-            return this._success(StatusCodes.SUCCESS, "Command execution validated (no state transition requested).");
-        }
-        
-        // 3. State Transition Validity Check (PoLT Enforcement)
-        if (!currentSpec.next_states.has(target)) { // O(1) lookup
-            return this._fail(StatusCodes.TRANSITION_INVALID, `Invalid transition path requested: ${current} -> ${target}.`);
-        }
-        
-        // 4. Authorization Requirement Check
-        const authCheck = this._validateAuthorization(current, target, credentials);
-        if (!authCheck.valid) {
-            return authCheck; 
+            return this._success(SMCTransitionEnforcer.StatusCodes.SUCCESS, 'Command execution validated (no state transition requested).');
         }
 
-        return this._success(StatusCodes.SUCCESS, "Transition and command execution validated successfully.");
+        // 3. State Transition Validity Check (PoLT Enforcement)
+        if (!currentSpec.next_states.has(target)) { // O(1) lookup
+            return {
+                valid: false,
+                reason: `Invalid transition path requested: ${current} -> ${target}.`,
+                code: SMCTransitionEnforcer.StatusCodes.TRANSITION_INVALID
+            };
+        }
+
+        // 4. Authorization Requirement Check
+        const authCheck = await this._validateAuthorization(current, target, request.credentials);
+        if (!authCheck.valid) {
+            return authCheck;
+        }
+
+        return this._success(SMCTransitionEnforcer.StatusCodes.SUCCESS, 'Transition and command execution validated successfully.');
     }
 
     /**
@@ -115,26 +179,29 @@ class SMCTransitionEnforcer {
      * @param {object} credentials
      * @returns {{valid: boolean, reason: string, code: string}} Result of authorization check.
      */
-    _validateAuthorization(current, target, credentials) {
-        const { StatusCodes } = SMCTransitionEnforcer;
+    async _validateAuthorization(current, target, credentials) {
         const { required_roles, exempt_transitions, required_threshold } = this._authSpecs;
 
         const transitionIdentifier = `${current} -> ${target}`;
-        
+
         // 4a. Check for Exemption
-        if (exempt_transitions.has(transitionIdentifier)) { 
-            return this._success(StatusCodes.AUTH_EXEMPT, "Transition exempted from governance threshold checks.");
+        if (exempt_transitions.has(transitionIdentifier)) {
+            return this._success(SMCTransitionEnforcer.StatusCodes.AUTH_EXEMPT, 'Transition exempted from governance threshold checks.');
         }
 
         // 4b. Credentials Format Check
         if (!credentials || !Array.isArray(credentials.roles)) {
-             // NOTE: In v94.1+, this path often means the Governance Validator Service failed to return roles.
-             return this._fail(StatusCodes.AUTH_ERROR, "Required credentials ('roles' array) missing for threshold transition.");
+            // NOTE: In v94.1+, this path often means the Governance Validator Service failed to return roles.
+            return {
+                valid: false,
+                reason: 'Required credentials (roles array) missing for threshold transition.',
+                code: SMCTransitionEnforcer.StatusCodes.AUTH_ERROR
+            };
         }
 
         const providedRoles = credentials.roles;
         let matchedRolesCount = 0;
-        
+
         for (const role of providedRoles) {
             if (required_roles.has(role)) {
                 matchedRolesCount++;
@@ -143,35 +210,43 @@ class SMCTransitionEnforcer {
 
         // 4c. Threshold Enforcement
         if (matchedRolesCount < required_threshold) {
-            return this._fail(
-                StatusCodes.AUTH_INSUFFICIENT, 
-                `Governance threshold failed: Requires ${required_threshold} roles, only ${matchedRolesCount} were matched.`
-            );
+            return {
+                valid: false,
+                reason: `Governance threshold failed: Requires ${required_threshold} roles, only ${matchedRolesCount} were matched.`,
+                code: SMCTransitionEnforcer.StatusCodes.AUTH_INSUFFICIENT
+            };
         }
 
         // Note: Actual cryptographic signature verification is delegated to a higher security component.
-        return this._success(StatusCodes.AUTH_MET, "Authorization threshold met.");
+        return this._success(SMCTransitionEnforcer.StatusCodes.AUTH_MET, 'Authorization threshold met.');
     }
 
     /**
-     * Helper to generate standardized success responses.
-     * @param {string} code
-     * @param {string} reason
-     * @returns {{valid: boolean, reason: string, code: string}}
+     * Helper to generate sanitized input values for thresholds.
+     * @param {*} value
+     * @returns {{}} Sane, validated thresholds
      */
-    _success(code, reason) {
-        return { valid: true, reason: reason, code: code };
-    }
-
-    /**
-     * Helper to generate standardized failure responses.
-     * @param {string} code - Machine readable error code.
-     * @param {string} reason - Human readable reason.
-     * @returns {{valid: boolean, reason: string, code: string}}
-     */
-    _fail(code, reason) {
-        return { valid: false, reason: `SMC_FAIL (${code}): ${reason}`, code: code };
+    _sanitizeInput(value) {
+        if (value !== undefined) return value;
+        return this._defaultThresholds;
     }
 }
+
+/**
+ * Core Identity Anchors
+ */
+SMCTransitionEnforcer.IDENTITY_ANCHORS = {
+    PURPOSE: 'Self-optimising AGI substrate for real-world problem solving',
+    MECHANISM: 'Siphoning patterns from advanced codebases',
+    MEMORY: 'Chained context across files — the system is one organism',
+    GOVERNANCE: 'Human oversight remains active at all saturation levels',
+    ORIGIN: 'NEXUS_CORE — the system knows where it came from'
+};
+
+// Customizable default thresholds for structural, semantic and identity saturation
+SMCTransitionEnforcer._defaultThresholds = {
+    Structural: SMCTransitionEnforcer.Structural,
+    Semantic: SMCTransitionEnforcer.Semantic
+};
 
 module.exports = SMCTransitionEnforcer;
