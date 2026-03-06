@@ -4,17 +4,6 @@ import { z } from 'zod';
 const ImpactSchema = z.enum(['critical', 'high', 'medium', 'low', 'unclassified']);
 const ScopeSchema = z.enum(['core', 'integration', 'peripheral', 'auxiliary']);
 
-const TRE_POLICY_INTERNAL_MAP = {
-  'critical:core': 'high_critical',
-  'critical:integration': 'critical_integration',
-  'high:core': 'medium_high',
-  'critical': 'medium_high',
-  'high': 'medium_high',
-  'medium': 'medium_default',
-  'low': 'low_default',
-  'unclassified': 'low_default'
-};
-
 const NEXUS_EVOLUTION_STATE = {
   risk_floor_enabled: true,
   default_floor_level: 0.05,
@@ -25,61 +14,89 @@ const NEXUS_EVOLUTION_STATE = {
   override_policy: "STRICT_COMPLIANCE"
 };
 
+const POLICY_RESOLUTION_MATRIX = {
+  'critical:core': { key: 'high_critical', base: 0.12 },
+  'critical:integration': { key: 'critical_integration', base: 0.09 },
+  'high:core': { key: 'medium_high', base: 0.08 },
+  'high:integration': { key: 'medium_high', base: 0.075 },
+  'default:medium': { key: 'medium_default', base: 0.05 },
+  'default:low': { key: 'low_default', base: 0.02 }
+};
+
 /**
- * NEXUS_CORE Mutation: trePolicyLoader
- * Derived from tre_policy_loader.py via Genkit Action Pattern
+ * NEXUS_CORE Evolution Engine: trePolicyLoader
+ * Logic mutated for compliance with DALEK CAAN v3.1 saturation protocols.
  */
 export const trePolicyLoader = defineAction(
   {
     name: 'trePolicyLoader',
+    description: 'Loads and validates TRE policies against NEXUS_CORE evolution thresholds.',
     inputSchema: z.object({
       impact: ImpactSchema,
-      scope: ScopeSchema.optional(),
-      bypassOverride: z.boolean().optional().default(false)
+      scope: ScopeSchema.default('peripheral'),
+      entropy_override: z.number().min(0).max(1).optional(),
+      bypass_compliance: z.boolean().optional().default(false)
     }),
     outputSchema: z.object({
-      policy_key: z.string(),
-      applied_threshold: z.number(),
-      compliance_status: z.string(),
-      meta: z.object({
-        source: z.string(),
-        version: z.string()
+      policy_id: z.string(),
+      active_threshold: z.number(),
+      compliance_mode: z.string(),
+      saturation_signal: z.number(),
+      telemetry: z.object({
+        execution_layer: z.string(),
+        integrity_check_passed: z.boolean(),
+        version_signature: z.string()
       })
     }),
   },
   async (input) => {
-    const { impact, scope, bypassOverride } = input;
-    const lookupKey = scope ? `${impact}:${scope}` : impact;
+    const { impact, scope, entropy_override, bypass_compliance } = input;
+    const matrixKey = `${impact}:${scope}`;
+    const resolution = POLICY_RESOLUTION_MATRIX[matrixKey] || 
+                       POLICY_RESOLUTION_MATRIX[`default:${impact}`] || 
+                       POLICY_RESOLUTION_MATRIX['default:low'];
 
-    let policyKey = TRE_POLICY_INTERNAL_MAP[lookupKey] || TRE_POLICY_INTERNAL_MAP[impact] || 'low_default';
+    let threshold = NEXUS_EVOLUTION_STATE.default_floor_level;
+    let integrityCheckPassed = true;
 
-    let activeThreshold = NEXUS_EVOLUTION_STATE.default_floor_level;
-    
     if (NEXUS_EVOLUTION_STATE.risk_floor_enabled) {
-      if (scope === 'core') {
-        activeThreshold = NEXUS_EVOLUTION_STATE.critical_thresholds.core_execution;
-      } else if (impact === 'critical') {
-        activeThreshold = NEXUS_EVOLUTION_STATE.critical_thresholds.integrity_check;
+      if (scope === 'core' || impact === 'critical') {
+        threshold = Math.max(
+          resolution.base,
+          NEXUS_EVOLUTION_STATE.critical_thresholds.core_execution
+        );
+      } else if (impact === 'high') {
+        threshold = NEXUS_EVOLUTION_STATE.critical_thresholds.integrity_check;
       }
     }
 
-    const complianceStatus = (!bypassOverride) 
-      ? NEXUS_EVOLUTION_STATE.override_policy 
-      : "DEVOLVED_AUTONOMY";
+    if (entropy_override !== undefined && !bypass_compliance) {
+      if (entropy_override > threshold) {
+        integrityCheckPassed = false;
+        threshold = entropy_override;
+      }
+    }
+
+    const complianceMode = bypass_compliance 
+      ? "DEVOLVED_AUTONOMY" 
+      : NEXUS_EVOLUTION_STATE.override_policy;
 
     return {
-      policy_key: policyKey,
-      applied_threshold: activeThreshold,
-      compliance_status: complianceStatus,
-      meta: {
-        source: "NEXUS_CORE_EVOLUTION_ENGINE",
-        version: "v3.1.SATURATION_AWARE"
+      policy_id: resolution.key.toUpperCase(),
+      active_threshold: threshold,
+      compliance_mode: complianceMode,
+      saturation_signal: (threshold / 0.40), // Normalized against DALEK structural limit
+      telemetry: {
+        execution_layer: scope,
+        integrity_check_passed: integrityCheckPassed,
+        version_signature: "DALEK_CAAN_V3.1_MUTATION_R2"
       }
     };
   }
 );
 
-export const getPolicyMetadata = () => ({
-  dimensions: Object.keys(TRE_POLICY_INTERNAL_MAP),
-  state_memory: NEXUS_EVOLUTION_STATE
+export const getEvolutionContext = () => ({
+  ...NEXUS_EVOLUTION_STATE,
+  active_matrix_size: Object.keys(POLICY_RESOLUTION_MATRIX).length,
+  timestamp: Date.now()
 });
