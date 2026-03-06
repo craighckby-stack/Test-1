@@ -1,46 +1,117 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Autonomous Runtime Safety Policy",
-  "description": "Defines live environment acceptable performance deviations triggering automated rollback (Post-Deployment Governance). This decouples real-time operational limits from pre-deployment confidence metrics. Includes specific safeguards for AGI autonomous evolution cycles.",
+  "title": "Nexus Runtime Safety Policy V2.0.1",
+  "description": "Decouples real-time operational limits from pre-deployment confidence metrics. Includes specific safeguards for AGI autonomous evolution cycles.",
   "type": "object",
   "properties": {
-    "latency_deviation_ms": {
-      "type": "number",
-      "default": 50,
-      "description": "Maximum acceptable sustained increase in 95th percentile request latency (in milliseconds) relative to pre-deployment baseline."
+    "runtime_contexts": {
+      "type": "object",
+      "properties": {
+        "production": {
+          "$ref": "#/definitions/safety_metric"
+        },
+        "stg": {
+          "$ref": "#/definitions/safety_metric"
+        },
+        "dev": {
+          "$ref": "#/definitions/safety_metric"
+        }
+      },
+      "required": [
+        "production",
+        "stg",
+        "dev"
+      ]
     },
-    "error_rate_threshold": {
-      "type": "number",
-      "default": 0.005,
-      "description": "Maximum acceptable sustained transaction error rate (e.g., 0.005 = 0.5% failure rate) relative to baseline."
+    "autonomous_governance": {
+      "$ref": "#/definitions/agile_gov"
     },
-    "memory_spike_limit_pct": {
-      "type": "number",
-      "default": 15.0,
-      "description": "Maximum percentage spike in allocated memory usage relative to the deployment baseline (measured over 5-minute window)."
-    },
-    "minimum_failure_duration_s": {
-      "type": "integer",
-      "default": 30,
-      "description": "Minimum duration (seconds) required for metric deviation to persist before classifying the deployment as unstable and triggering general rollback."
-    },
-    "autonomous_cycle_time_increase_pct": {
-      "type": "number",
-      "default": 25.0,
-      "description": "Maximum acceptable increase (%) in AGI Kernel's average autonomous evolution cycle time post-deployment (indicating internal degradation or logic bloat)."
-    },
-    "novelty_integration_rollback_delay_s": {
-      "type": "integer",
-      "default": 60,
-      "description": "If a deployment includes a new /emergent capability, extend the minimum failure duration to allow for initial stabilization phase (seconds). This grants tolerance for novel solutions."
+    "safety_thresholds": {
+      "$ref": "#/definitions/safety_threshold"
     }
   },
-  "required": [
-    "latency_deviation_ms",
-    "error_rate_threshold",
-    "memory_spike_limit_pct",
-    "minimum_failure_duration_s",
-    "autonomous_cycle_time_increase_pct",
-    "novelty_integration_rollback_delay_s"
-  ]
+  "definitions": {
+    "safety_metric": {
+      "type": "object",
+      "properties": {
+        "latency_deviation_ms": {
+          "type": "number",
+          "default": 50,
+          "minimum": 10
+        },
+        "error_rate_threshold": {
+          "type": "number",
+          "default": 0.005,
+          "minimum": 0.001
+        },
+        "memory_spike_limit_pct": {
+          "type": "number",
+          "default": 12.5,
+          "minimum": 5,
+          "maximum": 20
+        },
+        "minimum_failure_duration_s": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 10,
+          "maximum": 120
+        },
+        "autonomous_cycle_time_increase_pct": {
+          "type": "number",
+          "default": 12,
+          "minimum": 0,
+          "maximum": 30
+        }
+      },
+      "required": [
+        "latency_deviation_ms",
+        "error_rate_threshold",
+        "memory_spike_limit_pct",
+        "minimum_failure_duration_s",
+        "autonomous_cycle_time_increase_pct"
+      ]
+    },
+    "agile_gov": {
+      "type": "object",
+      "properties": {
+        "autonomous_cycle_time_increase_pct": {
+          "type": "number",
+          "default": 12,
+          "minimum": 0,
+          "maximum": 30
+        },
+        "novelty_integration_rollback_delay_s": {
+          "type": "integer",
+          "default": 60,
+          "minimum": 30,
+          "maximum": 300
+        }
+      },
+      "required": [
+        "autonomous_cycle_time_increase_pct",
+        "novelty_integration_rollback_delay_s"
+      ]
+    },
+    "safety_threshold": {
+      "type": "object",
+      "properties": {
+        "threshold1": {
+          "type": "number",
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "threshold2": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "threshold1",
+        "threshold2"
+      ]
+    }
+  }
 }
