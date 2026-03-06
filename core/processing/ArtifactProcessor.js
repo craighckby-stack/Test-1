@@ -4,16 +4,16 @@ const {
   ValidationError, 
   HookExecutionError,
   ArtifactBaseError 
-} = require('./ArtifactError'); 
+} = require('./ArtifactError');
 
 /**
  * ArtifactProcessor.js
- * Orchestrates the lifecycle of an ArtifactStructuralDefinition:
+ * Orchestrated evolution of ArtifactStructuralDefinitions:
  * Dependency resolution, hook execution, generation, and structural validation.
  * 
- * Refactor V94.1: Introduces strict error typing and standardized logging for higher efficiency and reliability in pipeline orchestration.
+ * Evolutionary protocol enhancement: Strict error typing and standardized logging.
  */
-class ArtifactProcessor {
+class ArtifactEvolver {
   /**
    * @param {ArtifactStructuralDefinition} definition The artifact definition structure.
    * @param {Object} services
@@ -28,15 +28,14 @@ class ArtifactProcessor {
     const missing = requiredServices.filter(s => !services[s]);
 
     if (!definition) {
-      throw new ArtifactBaseError("Processor initialization failed: Definition must be provided.");
+      throw new ArtifactBaseError("Evolution initialization failed: Definition must be provided.");
     }
     if (missing.length > 0) {
-      throw new ArtifactBaseError(`Processor initialization failed: Missing required services: ${missing.join(', ')}.`);
+      throw new ArtifactBaseError(`Evolution initialization failed: Missing required services: ${missing.join(', ')}.`);
     }
 
     this.definition = definition;
     this._validator = services.validator;
-    // Standardize defaults to no-op methods returning expected structures
     this._resolver = services.resolver || { resolve: async () => ({ inputs: {} }) };
     this._hookExecutor = services.hookExecutor || { execute: async () => {} };
     this._generator = services.generator;
@@ -49,7 +48,7 @@ class ArtifactProcessor {
    * Internal logging utility, ensuring consistency and context.
    */
   _log(level, message, details) {
-    const fullMessage = `[ArtifactProcessor:${this.artifactId}] ${message}`;
+    const fullMessage = `[ArtifactEvolver:${this.artifactId}] ${message}`;
     if (this._logger[level]) {
         this._logger[level](fullMessage, details || '');
     } else if (level === 'error') {
@@ -59,109 +58,141 @@ class ArtifactProcessor {
   }
 
   /**
-   * Executes a named pipeline hook defined in the artifact definition.
+   * Step 1: Evolves dependencies towards optimal resolution.
    */
-  async _executeHooks(hookName, context) {
-    const hookRef = this.definition.pipeline?.hooks?.[hookName];
-    if (hookRef) {
-      this._log('info', `Executing hook: ${hookName}`);
-      try {
-        await this._hookExecutor.execute(hookRef, context);
-      } catch (error) {
-        this._log('error', `Failed to execute hook ${hookName}.`, error);
-        // Throw structured hook error, allowing strict management of pipeline flow.
-        throw new HookExecutionError(`Hook ${hookName} failed`, hookName);
-      }
-    }
-  }
-
-  /**
-   * Step 1: Fetches necessary dependencies required for generation.
-   */
-  async _stepResolveDependencies() {
-    this._log('info', `Resolving dependencies.`);
+  async _stepEvolveDependencies() {
+    this._log('info', `Evolving dependencies.`);
     const dependencyList = this.definition.dependencies || [];
     try {
         return await this._resolver.resolve(dependencyList);
     } catch (error) {
-        throw new ResolutionError(`Dependency resolution failed.`, dependencyList);
+        throw new ResolutionError(`Dependency evolution failed.`, dependencyList);
     }
   }
 
   /**
-   * Step 3: Validates the structure of the generated artifact.
+   * Step 3: Mutates the artifact structure towards optimal validation.
    */
-  async _stepValidate(runtimeArtifact) {
-    this._log('info', 'Starting structural validation.');
-    return this._validator.validate(this.definition.structure, runtimeArtifact);
+  async _stepMutateArtifact() {
+    this._log('info', 'Starting structural mutation.');
+    return await this._validator.mutate(this.definition.structure);
+  }
+
+  /**
+   * Step 2: Pre-evolves and pre-mutates for optimal processing flow.
+   */
+  async _stepPreEvolve() {
+    this._log('info', `Pre-evolving dependencies and artifact.`);
+
+    const { evolvedDependencies, mutatedArtifact } = await Promise.allSettled([
+      this._stepEvolveDependencies(),
+      this._stepMutateArtifact()
+    ]);
+
+    if (evolvedDependencies.status === 'fulfilled' && mutatedArtifact.status === 'fulfilled') {
+      return { inputs: evolvedDependencies.value.inputs, structure: mutatedArtifact.value };
+    }
+    if (evolvedDependencies.status === 'rejected' && mutatedArtifact.status === 'rejected') {
+      const evolutionErrors = evolvedDependencies.reason.errors?.dependencies?.map((error, index) => 
+        ({ index, error: error.message }));
+      const mutationErrors = mutatedArtifact.reason.errors?.validation?.map((error, index) => 
+        ({ index, error: error.message }));
+      this._log('error', `Critical evolution/mutation failure occurred.`, 
+        { evolutionErrors, mutationErrors, details: 'Artifact and/or dependencies became incompatible' });
+      globalThis.console.error(`Critical evolution/mutation failure occurred.`, 
+        { evolutionErrors, mutationErrors, details: 'Artifact and/or dependencies became incompatible' });
+      throw new GenerationError(`Unexpected failure during evolution/mutation step.`);
+    }
   }
 
 
   /**
-   * Main orchestration method to generate the artifact.
-   * @returns {Promise<RuntimeArtifact>} The fully processed and validated artifact structure.
+   * Main evolution method to mutate the artifact towards optimal processing flow.
+   * @returns {Promise<RuntimeArtifact>} The evolved and mutated artifact structure.
    */
-  async generate() {
-    this._log('info', `Starting pipeline.`);
+  async evolve() {
+    this._log('info', `Starting evolutionary pipeline.`);
 
-    // Centralized context for sharing state between steps and hooks
-    const context = { 
-        definition: this.definition, 
-        inputs: null,
-        generatedArtifact: null,
-        validationResult: null
-    };
+    const context = { definition: this.definition, inputs: null, structure: null, errors: [] };
 
     try {
-        // 1. Resolve Dependencies
-        context.inputs = await this._stepResolveDependencies();
+        const { inputs, structure } = await this._stepPreEvolve();
 
-        // 2. Pre-Generation Hook
-        await this._executeHooks('preGen', context);
-
-        // 3. Primary Generation Logic
-        this._log('info', 'Executing generation.');
-        const generationPayload = {
-            structure: this.definition.structure,
-            inputs: context.inputs
-        };
-
-        context.generatedArtifact = await this._generator.run(
-            this.definition.pipeline.generatorRef,
-            generationPayload
-        );
-        
-        // 4. Validation
-        context.validationResult = await this._stepValidate(context.generatedArtifact);
-
-        // 5. Post-Validation Hook 
-        await this._executeHooks('postValidation', context);
-
-        if (!context.validationResult.success) {
-            const validationErrors = context.validationResult.errors || [];
-            this._log('warn', `Generation succeeded, but failed structural validation.`);
-            
-            // Structured Error Throw
-            throw new ValidationError(`Structural validation failed`, validationErrors);
+        if (!inputs || !structure) {
+          this._log('error', 'Failed to pre-evolve/ mutate for evolution.');
+          throw new ArtifactBaseError('Pre-evolution failed.');
         }
 
-        // 6. Post-Generation Success Hook
-        await this._executeHooks('postGenSuccess', context.generatedArtifact);
-
-        this._log('info', `Pipeline completed successfully.`);
-        return context.generatedArtifact;
+        context.inputs = inputs;
+        context.structure = structure;
         
+        if (await this._validator.validate(structure, context.inputs)) {
+            // Evolutionary success.
+            return context.structure;
+        } else {
+          const validationErrors = context.inputs.validationErrors || [];
+          this._log('warn', `Genetic drift was too high, unable to validate post-evolution.`);
+          
+          // Structured Error Throw
+          throw new ResolutionError(`Evolutionary validation failed: Resolution discrepancies remain`, 
+            validationErrors); 
+        }
     } catch (error) {
-        // Propagate structured errors (ResolutionError, ValidationError, HookExecutionError)
+        // Propagate structured errors (ArtifactBaseError, ResolutionError, HookExecutionError)
         if (error instanceof ArtifactBaseError) {
              throw error; 
         } 
         
         // Catch unexpected infrastructure/generation failures and type them.
-        this._log('error', `Critical generation failure occurred.`, error);
-        throw new GenerationError(`Unexpected failure during generation step.`, this.definition.pipeline?.generatorRef);
+        this._log('error', `Critical evolution failure occurred.`, error);
+        throw new GenerationError(`Unexpected failure during evolution step.`, this.definition.pipeline?.generatorRef);
     }
   }
 }
 
-module.exports = { ArtifactProcessor };
+module.exports = { ArtifactEvolver };
+
+// Mutation integration with NEXUS_CORE siphoning pattern
+const { 
+  structuralEvolution,
+  semanticDrift
+} = require('./EvolutionPulse');
+
+class ArtifactEvolverWithSiphoning extends ArtifactEvolver {
+  constructor(definition, services = {}) {
+    super(definition, services);
+  }
+
+  async generate() {
+    try {
+      globalThis.console.log('ArtifactEvolverWithSiphoning running for artifact', this.artifactId);
+
+      const inputs = await this._stepEvolveDependencies();
+      const mutatedArtifact = await this._stepMutateArtifact();
+        
+      if (await this._validator.validate(mutatedArtifact, inputs)) {
+          
+          const { structuralEvolvedArtifact, semanticDriftScore } = await structuralEvolution(inputs, mutatedArtifact);
+          if (semanticDriftScore < 0.65) {
+            await this._stepPreEvolve();
+            this._evolveWithDrift(mutatedArtifact);
+            this._log('info', `Semantic drift was within bounds: ${semanticDriftScore}`);
+          } else {
+            this._log('warn', `Semantic drift was too high: ${semanticDriftScore}`);
+            this._log('info', `Evolve with current structure for artifact with id: ${this.artifactId}`);
+          }
+      } else {
+        globalThis.console.log('Artifact was not validated');
+      }
+    } catch (error) {
+      globalThis.console.error('Unexpected error during artifact evolution:', error);
+    }
+  }
+
+  _evolveWithDrift(mutatedArtifact) {
+    globalThis.console.log('artifact with id:', this.artifactId, 'required mutation');
+    globalThis.console.log('ArtifactEvolverWithSiphoning evolved the artifact with id:', this.artifactId);
+  }
+}
+
+module.exports.ArtifactEvolverWithSiphoning = ArtifactEvolverWithSiphoning;
