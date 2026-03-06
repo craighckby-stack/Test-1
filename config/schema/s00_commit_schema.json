@@ -1,55 +1,53 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "S02 Initial State Commit Configuration Schema V2",
+  "$id": "http://sovereign.agi/schema/state_commit_config_v2.json",
+  "title": "N03 State Commit Configuration Schema V2 - NEXUS_CORE Enhanced",
   "type": "object",
   "properties": {
-    "process_identification": {
+    "state_commit_identification": {
       "type": "object",
       "properties": {
-        "name": { "type": "string", "enum": ["AUTOGEN_DEFAULT"] },
-        "handler_source": {
-          "type": "string",
-          "description": "Module or class handling initial commit state"
-        },
-        "output_artifact": { "type": "string", "enum": ["INITIAL_STATE_COMMIT_RECORD"] },
-        "timestamp": { "type": "string", "format": "date-time" }
+        "commit_name": { "type": "string", "enum": ["AUTOGEN_DEFAULT_V2"] },
+        "handler_module": { "type": "string", "description": "Module or class handling state commit" },
+        "output_record_type": { "type": "string", "enum": ["STATE_COMMIT_RECORD_V2"] },
+        "commit_timestamp": { "type": "string", "format": "date-time" },
+        "commit_hash": { "type": "string", "format": "uri" }
       },
-      "required": ["name", "handler_source", "output_artifact", "timestamp"]
+      "required": ["commit_name", "handler_module", "output_record_type", "commit_timestamp"]
     },
-    "integrity_control": {
+    "state_commit_integrity": {
       "type": "object",
       "properties": {
-        "hashing": {
+        "transaction_verification": {
           "type": "object",
           "properties": {
-            "algorithm": { "type": "string", "enum": ["SHA-256", "SHA-512"] },
-            "salt": { "type": "string", "format": "hex" },
-            "salt_source": { "type": "string", "enum": ["OS", "USER", "MODULE_DIR"] }
+            "algorithm": { "type": "string", "enum": ["SHA-256", "SHA-512", "BLAKE2"] },
+            "transaction_salt": { "type": "string", "format": "hex" },
+            "transaction_salt_source": { "type": "string", "enum": ["OS", "USER", "MODULE_DIR"] }
           },
-          "required": ["algorithm", "salt"]
+          "required": ["algorithm", "transaction_salt"]
         },
-        "serialization": {
+        "data_serialization": {
           "type": "object",
           "properties": {
-            "method": { "type": "string", "enum": ["JSON", "BIN_PACK"] },
-            "standard": { "type": "string", "enum": ["MINIJSON"] }
+            "serialization_method": { "type": "string", "enum": ["JSON", "BIN_PACK", "GZIP"] },
+            "serialization_standard": { "type": "string", "enum": ["MINIJSON", "JSONLD"] }
           },
-          "required": ["method", "standard"]
+          "required": ["serialization_method", "serialization_standard"]
         },
-        "pre_execution_verifier": { "type": "string", "format": "uuid" }
+        "pre_commit_verifier": { "type": "string", "format": "uuid" }
       },
-      "required": ["hashing", "serialization", "pre_execution_verifier"]
+      "required": ["transaction_verification", "data_serialization", "pre_commit_verifier"]
     },
-    "resource_dependencies": {
+    "dependent_resources": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "id": { "type": "string", "pattern": "^[A-Z0-9_]{5,}$" },
           "path": { "type": "string", "format": "path" },
-          "status": { "type": "string", "enum": ["MANDATORY", "OPTIONAL"] },
-          "description": { "type": "object", "deprecated": true },
-          "resource_requirements": {
+          "dependency_status": { "type": "string", "enum": ["MANDATORY", "OPTIONAL"] },
+          "resource_requirement": {
             "type": "object",
             "required": ["processing", "memory", "disk"],
             "properties": {
@@ -59,31 +57,31 @@
             },
             "description": "System-level resource requirements"
           },
-          "environmental_dependencies": {
+          "external_dependencies": {
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["EXTERNAL_DEPENDENCY_1", "EXTERNAL_DEPENDENCY_2"]
+              "enum": ["EXTERNAL_DEPENDENCY_1_V2", "EXTERNAL_DEPENDENCY_2_V2"]
             }
           },
-          "external_service_dependencies": {
+          "service_dependencies": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["host", "port", "credentials"],
+              "required": ["host", "port", "service_credentials"],
               "properties": {
                 "host": { "type": "string", "format": "domain" },
                 "port": { "type": "integer", "minimum": 1 },
-                "credentials": { "type": "object", "properties": { "username": { "type": "string" }, "password": { "type": "string", "format": "password" } }, "required": ["username", "password"] }
+                "service_credentials": { "type": "object", "properties": { "service_username": { "type": "string" }, "service_password": { "type": "string", "format": "password" } }, "required": ["service_username", "service_password"] }
               },
               "description": "External service dependencies with host, port and credentials"
             }
           }
         },
-        "required": ["id", "path", "status"]
+        "required": ["id", "path", "dependency_status"]
       },
       "minItems": 1
     }
   },
-  "required": ["process_identification", "integrity_control", "resource_dependencies"]
+  "required": ["state_commit_identification", "state_commit_integrity", "dependent_resources"]
 }
