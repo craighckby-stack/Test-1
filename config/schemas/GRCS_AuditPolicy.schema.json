@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.agi.system/GRCS_AuditPolicy/v1",
+  "$id": "https://schemas.agi.system/GRCS_AuditPolicy/v2",
   "title": "Self-Prioritising GRCS Audit Policy and Execution Schema",
   "description": "Defines scheduling, execution policies, and enforcement actions for continuous control verification with autonomous engine integration.",
   "type": "object",
@@ -30,9 +30,33 @@
             "type": "integer",
             "description": "Number of preceding jobs required for chained context.",
             "default": 5
+          },
+          "chainedContext": {
+            "type": "array",
+            "description": "Stored context of previous jobs.",
+            "items": {
+              "$ref": "#/$defs/Job"
+            }
           }
         },
         "required": ["ruleId", "controlVerificationInterval", "contextWindow"]
+      }
+    },
+    "$defs": {
+      "Job": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+          },
+          "jobData": {
+            "type": "object",
+            "description": "Job-specific data."
+          }
+        },
+        "required": ["jobId", "jobData"]
       }
     }
   },
