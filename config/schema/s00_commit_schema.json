@@ -1,16 +1,20 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "S00 Initial State Commit Configuration Schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "S02 Initial State Commit Configuration Schema V2",
   "type": "object",
   "properties": {
     "process_identification": {
       "type": "object",
       "properties": {
-        "name": { "type": "string", "enum": ["S00_INITIAL_STATE_COMMIT"] },
-        "handler_utility": { "type": "string" },
-        "output_artifact": { "type": "string", "enum": ["CSR_ROOT"] }
+        "name": { "type": "string", "enum": ["AUTOGEN_DEFAULT"] },
+        "handler_source": {
+          "type": "string",
+          "description": "Module or class handling initial commit state"
+        },
+        "output_artifact": { "type": "string", "enum": ["INITIAL_STATE_COMMIT_RECORD"] },
+        "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "handler_utility", "output_artifact"]
+      "required": ["name", "handler_source", "output_artifact", "timestamp"]
     },
     "integrity_control": {
       "type": "object",
@@ -18,20 +22,21 @@
         "hashing": {
           "type": "object",
           "properties": {
-            "algorithm": { "type": "string" },
-            "constraints": { "type": "array", "items": { "type": "string" } }
+            "algorithm": { "type": "string", "enum": ["SHA-256", "SHA-512"] },
+            "salt": { "type": "string", "format": "hex" },
+            "salt_source": { "type": "string", "enum": ["OS", "USER", "MODULE_DIR"] }
           },
-          "required": ["algorithm", "constraints"]
+          "required": ["algorithm", "salt"]
         },
         "serialization": {
           "type": "object",
           "properties": {
-            "method": { "type": "string" },
-            "standard": { "type": "string" }
+            "method": { "type": "string", "enum": ["JSON", "BIN_PACK"] },
+            "standard": { "type": "string", "enum": ["MINIJSON"] }
           },
           "required": ["method", "standard"]
         },
-        "pre_execution_verifier": { "type": "string" }
+        "pre_execution_verifier": { "type": "string", "format": "uuid" }
       },
       "required": ["hashing", "serialization", "pre_execution_verifier"]
     },
@@ -40,10 +45,40 @@
       "items": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
+          "id": { "type": "string", "pattern": "^[A-Z0-9_]{5,}$" },
           "path": { "type": "string", "format": "path" },
           "status": { "type": "string", "enum": ["MANDATORY", "OPTIONAL"] },
-          "description": { "type": "string" }
+          "description": { "type": "object", "deprecated": true },
+          "resource_requirements": {
+            "type": "object",
+            "required": ["processing", "memory", "disk"],
+            "properties": {
+              "processing": { "type": "integer", "minimum": 1 },
+              "memory": { "type": "integer", "minimum": 1 },
+              "disk": { "type": "integer", "minimum": 1 }
+            },
+            "description": "System-level resource requirements"
+          },
+          "environmental_dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["EXTERNAL_DEPENDENCY_1", "EXTERNAL_DEPENDENCY_2"]
+            }
+          },
+          "external_service_dependencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["host", "port", "credentials"],
+              "properties": {
+                "host": { "type": "string", "format": "domain" },
+                "port": { "type": "integer", "minimum": 1 },
+                "credentials": { "type": "object", "properties": { "username": { "type": "string" }, "password": { "type": "string", "format": "password" } }, "required": ["username", "password"] }
+              },
+              "description": "External service dependencies with host, port and credentials"
+            }
+          }
         },
         "required": ["id", "path", "status"]
       },
