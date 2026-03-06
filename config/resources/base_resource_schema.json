@@ -1,5 +1,5 @@
 {
-  "schemaId": "RES_SCH_V2",
+  "schemaId": "RES_SCH_V3",
   "resourceTypes": {
     "KubeCluster": {
       "requiredFields": ["provider", "region", "minNodes"],
@@ -17,6 +17,11 @@
           "name": "scalingPolicy",
           "type": "str",
           "description": "Scaling strategy for the cluster"
+        },
+        {
+          "name": "predictiveModel",
+          "type": "obj",
+          "description": "Predictive model configuration"
         }
       ]
     },
@@ -35,32 +40,36 @@
           "name": "connectionOptions",
           "type": "obj",
           "description": "Postgres connection options"
+        },
+        {
+          "name": "securitySettings",
+          "type": "obj",
+          "description": "Security settings for Postgres instance"
         }
       ]
     }
   },
   "metadata": {
-    "description": "Defines the mandatory structure and validation for resource entries referenced by GODM, integrated with QoS and allocation strategies",
-    "qosTierPrioritization": {
-      "Tier1_Critical": 120, 
-      "Tier2_High": 100,
-      "Tier3_Medium": 70
-    },
-    "allocationStrategies": [
+    "description": "Defines the mandatory structure and validation for resource entries referenced by GODM, integrated with QoS and allocation strategies with predictive and security enhancements",
+    "qosTierPrioritizationExtension": [
       {
-        "qosTier": "Tier1_Critical",
-        "strategy": "Predictive_Priority_Aware",
-        "failover": "AllocateMinimalAndWarn",
-        "maxWaitMs": 30,
-        "lookbackWindowDays": 30
-      },
-      {
-        "qosTier": "Tier2_High",
-        "strategy": "JIT_X_Scaled",
-        "failover": "QueueUntilAvailable",
-        "maxWaitMs": 250,
-        "MLModel": "LSTM_Demand_Predictor_V4"
+        "newTier": "Tier0_Urgent",
+        "newPriority": 150
       }
-    ]
+    ],
+    "allocationStrategiesExtension": [
+      {
+        "newStrategy": "Predictive_Priority_SelfAdaptive",
+        "newQueueType": "PriorityQueue",
+        "newMachineLearningModel": "ANN_Resource_Predictor_V5"
+      }
+    ],
+    "mlModels": {
+      "LSTM_Demand_Predictor_V5": {
+        "newFeatures": ["diskReadLatencyAvg", "cpuCores", "memoryFreePercent"],
+        "trainingFrequencyHours": 4
+      }
+    },
+    "sensitivityTolerancePercent": 2.5
   }
 }
