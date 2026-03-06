@@ -8,6 +8,25 @@
  */
 
 /**
+ * @typedef {Object} AuditSinkConfig
+ * @property {Array<IAuditLogSink>} sinks - An array of log sink plugins.
+ * @property {LoggerConfig} loggerConfig - The Logger configuration.
+ * @property {AuditLoggerConfig} auditLoggerConfig - The AuditLogger configuration.
+ */
+
+/**
+ * @typedef {Object} LoggerConfig
+ * @property {string} logLevel - The log level for the Logger.
+ * @property {string} logFilePath - The file path for log persistence.
+ */
+
+/**
+ * @typedef {Object} AuditLoggerConfig
+ * @property {string} logDirectory - The directory path for audit log persistence.
+ * @property {string} logFormat - The format for audit log entries.
+ */
+
+/**
  * AuditLogger_Service provides a centralized, decoupled mechanism
  * for logging immutable audit events across the AGI system.
  */
@@ -21,12 +40,24 @@ class AuditLogger_Service {
     /**
      * Initializes the Audit Logger Service.
      * Requires external log sink plugins (implementing IAuditLogSink).
-     * @param {Array<IAuditLogSink>} sinks - An array of log sink plugins.
+     * @param {AuditSinkConfig} config - An object containing the sinks and logger/audit configurations.
      */
-    constructor(sinks = []) {
-        this.#setupSinks(sinks);
+    constructor(config) {
+        this.#setupSinks(config.sinks);
         this.#initializeValidation();
+        this.#configureLogger(config.loggerConfig);
+        this.#configureAuditLogger(config.auditLoggerConfig);
     }
+
+    /**
+     * @type {Logger}
+     */
+    #logger;
+
+    /**
+     * @type {AuditLogger}
+     */
+    #auditLogger;
 
     /**
      * Extracts dependency resolution and assignment.
@@ -49,6 +80,34 @@ class AuditLogger_Service {
                 throw new Error(`Sink ${sink.constructor.name} does not implement required 'log(event)' method.`);
             }
         });
+    }
+
+    /**
+     * @type {Record<string, string>}
+     */
+    #loggerConfig;
+
+    /**
+     * @type {Record<string, string>}
+     */
+    #auditLoggerConfig;
+
+    /**
+     * Configures the Logger instance.
+     * @param {LoggerConfig} config - The Logger configuration.
+     */
+    #configureLogger(config) {
+        // Create a custom Logger implementation based on the provided configuration
+        this.#logger = new Logger(config.logLevel, config.logFilePath);
+    }
+
+    /**
+     * Configures the Audit Logger instance.
+     * @param {AuditLoggerConfig} config - The AuditLogger configuration.
+     */
+    #configureAuditLogger(config) {
+        // Create a custom Audit Logger implementation based on the provided configuration
+        this.#auditLogger = new AuditLogger(config.logDirectory, config.logFormat);
     }
 
     /**
@@ -126,6 +185,42 @@ class AuditLogger_Service {
 
         // Wait for all sinks to complete or fail gracefully
         await Promise.all(dispatchPromises);
+    }
+}
+
+/**
+ * Logger implementation based on the provided configuration.
+ */
+class Logger {
+    #level;
+    #filePath;
+
+    constructor(level, filePath) {
+        this.#level = level;
+        this.#filePath = filePath;
+    }
+
+    log(level, message) {
+        // Simple implementation for demonstration purposes
+        console.log(`${level} [LOGGER] ${message}`);
+    }
+}
+
+/**
+ * AuditLogger implementation based on the provided configuration.
+ */
+class AuditLogger {
+    #logDirectory;
+    #logFormat;
+
+    constructor(logDirectory, logFormat) {
+        this.#logDirectory = logDirectory;
+        this.#logFormat = logFormat;
+    }
+
+    log(event) {
+        // Simple implementation for demonstration purposes
+        console.log(`AUDIT ${event.action} [ENTITY: ${event.entity}, TIMESTAMP: ${event.timestamp}]`);
     }
 }
 
