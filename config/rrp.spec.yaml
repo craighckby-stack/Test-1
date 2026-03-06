@@ -3,17 +3,31 @@ class RRP_Evo {
     this._schema_version = schema_version;
     this._structural_change_percentage = structural_change_percentage;
     this._saturation_level = saturation_level;
+    this._saturation_context = { ... this._context_defaults };
+  }
+
+  get _context_defaults() {
+    return {
+      kernel_metrics_id: "4.2.1",
+      kernel_memory: 3072,
+      semantic_drift_threshold: 0.35
+    };
   }
 
   init(context = {}) {
-    this.protocol_mandate = 'RRP_EXECUTION IMMEDIATE';
+    const { correction_code_map, handler_config, chained_context_snapshot } = context;
+
+    this.protocol_mandate = 'RRP_EXECUTION_IMMEDIATE';
     this.rollback_definitions = {};
     this.rollbacks_siphoned = 0;
 
     this.config_framework = {
       framework_version: '1.1.0',
       saturation_level: this._saturation_level,
-      chained_context_snapshot: context.chained_context_snapshot || []
+      chained_context_snapshot: chained_context_snapshot || [],
+      correction_code_map,
+      handler_config,
+      ...this._saturation_context
     };
 
     this.rollback_definitions['RRP:SCHEMA_FAIL'] = this._define_schema_rollbacks();
@@ -26,36 +40,16 @@ class RRP_Evo {
   }
 
   mutate(context = {}) {
-    const saturation_levels = this.config_framework.known_config_profiles;
-    if (!saturation_levels.includes(this._saturation_level)) {
+    const { correction_code_map_id, execution_utility_id } = this.config_framework.kernel_metrics;
+    const { max_files_per_session, max_mutations_per_file, cooldown_between_sessions_minutes } = this.config_framework.saturation_params;
+    const { semantic_drift_threshold } = this._context_defaults;
+
+    if (!this.config_framework.known_config_profiles.includes(this._saturation_level)) {
       throw new Error(`Saturation level "${this._saturation_level}" not recognized.`);
     }
 
-    const max_files_per_session = this._saturation_level === 'ACCELERATED'
-      ? (this._saturation_level === 'UNSATURATED'
-        ? Infinity
-        : 100)
-      : this._saturation_level === 'UNSATURATED'
-        ? Infinity
-        : 50;
-
-    const max_mutations_per_file = this._saturation_level === 'ACCELERATED'
-      ? this._saturation_level === 'UNSATURATED'
-        ? 20
-        : 10
-      : this._saturation_level === 'UNSATURATED'
-        ? 20
-        : 5;
-
-    const emergency_brake_corruption_threshold = this._saturation_level === 'UNSATURATED'
-      ? 0
-      : this._saturation_level === 'ACCELERATED'
-        ? 10
-        : 7;
-
     const _check_semantic_drift = () => {
-      // Ensure file names and directory contexts persist for semantic continuity
-      if (context.file_names.some(name => !isNaN(name)) || context.directory_context === 'governance') {
+      if (Object.values(context).some(value => value === null || value === undefined || isNaN(value))) {
         console.warn("Semantic change detected.");
         return true;
       } else {
@@ -71,7 +65,25 @@ class RRP_Evo {
       this._config_unsaturated_profile();
     }
 
-    return this._RRP_evolution_snapshot;
+    if (_check_semantic_drift()) {
+      throw new Error(`Semantic drift exceeds threshold (${semantic_drift_threshold}).`);
+    }
+
+    const _validate_emergency_brake = () => {
+      const { max_consecutive_mutations_without_validation, emergency_brake_corruption_threshold } = this.config_framework.saturation_params;
+      const correlation_score = Math.random() * 100;
+      if (correlation_score < emergency_brake_corruption_threshold) {
+        throw new Error("Emergency brake threshold exceeded.");
+      }
+    };
+
+    try {
+      _validate_emergency_brake();
+    } catch (error) {
+      throw error;
+    }
+
+    return this._RRP_evolution_snapshot();
   }
 
   saturate() {
@@ -93,11 +105,12 @@ class RRP_Evo {
       chained_context_snapshot: this.config_framework.chained_context_snapshot,
       max_files_per_session: this.config_framework.max_files_per_session,
       max_mutations_per_file: this.config_framework.max_mutations_per_file,
-      emergency_brake_corruption_threshold: this.config_framework.emergency_brake_corruption_threshold,
-      _check_semantic_drift,
+      emergency_brake_corruption_threshold: this.config_framework.saturation_params.emergency_brake_corruption_threshold,
+      semantic_drift_threshold: this._context_defaults.semantic_drift_threshold,
       structural_change_percentage: this._structural_change_percentage,
       saturation_level: this._saturation_level,
-      siphoned_rollbacks: this.rollbacks_siphoned
+      siphoned_rollbacks: this.rollbacks_siphoned,
+      kernel_metrics: this.config_framework.kernel_metrics
     };
   }
 
@@ -107,7 +120,6 @@ class RRP_Evo {
         delete value.metadata_hook;
       }
     });
-
     this.rollbacks_siphoned += Object.values(this.rollback_definitions).length;
   }
 
@@ -171,8 +183,12 @@ class RRP_Evo {
 }
 
 const RRP_Evo_instance = new RRP_Evo(1.0);
-RRP_Evo_instance.init({ chained_context_snapshot: ['RRP:SCHEMA_FAIL', 'RRP:FINALITY_BREACH'] });
+RRP_Evo_instance.init({
+  chained_context_snapshot: ['RRP:SCHEMA_FAIL', 'RRP:FINALITY_BREACH'],
+  correction_code_map: { ... require('./c-01_correction_codes_v2.1.json') },
+  handler_config: { ... require('./agi_kernel_utils_v3.2.json') }
+});
 const evolution_snapshot = RRP_Evo_instance.mutate();
+console.log(evolution_snapshot);
 const saturation_metadata = RRP_Evo_instance.saturate();
-
-console.log(evolution_snapshot, saturation_metadata);
+console.log(saturation_metadata);
