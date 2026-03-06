@@ -1,58 +1,75 @@
-# VPE_validation_hook.py
+// VPE_validation_hook.js
+import { json } from 'json5';
 
-import json
-import jsonschema
+class VetoProposalValidator {
+  # vpcs_schema;
+  # propose_schema_path;
 
-class VetoProposalValidator:
-    def __init__(self, vpcs_schema_path, proposal_schema_ref):
-        # Load the VPCS Schema (V2.0) defining the parameters and constraints
-        with open(vpcs_schema_path, 'r') as f:
-            self.vpcs_data = json.load(f)
-        
-        # Load the dedicated schema for the proposal envelope (if required)
-        # self.proposal_schema = ...
+  constructor(vpcs_schema_path, propose_schema_ref) {
+    this.#vpcs_schema = json.readFileSync(vpcs_schema_path, 'utf8');
+    this.#propose_schema_path = propose_schema_ref;
+    if (this.#propose_schema_path) this.#validate_schema(this.#propose_schema_path);
+  }
 
-    def validate_proposal(self, proposed_change_data):
-        """Validates a proposed parameter change against VPCS V2.0 constraints.
-           Fails early if technical constraints, policy limits, or justification
-           requirements are violated, saving governance computation time.
-        """
-        param_id = proposed_change_data.get('param_id')
-        new_value = proposed_change_data.get('new_value')
-        justification = proposed_change_data.get('justification', {}) 
+  async #validate_schema(schema_path) {
+    const schema = json.readFileSync(schema_path, 'utf8');
+    try {
+      await new Promise((resolve, reject) => {
+        jsonschema.validate(schema, this.#vpcs_schema, (err, result) => (err ? reject(err) : resolve(result)));
+      });
+    } catch (error) {
+      if (error.code === 'R6022') throw new Error('Invalid proposal schema');
+      throw error;
+    }
+  }
 
-        # 1. Locate the parameter definition in the VPCS
-        param_config = next(
-            (p for p in self.vpcs_data['system_parameters'] if p['param_id'] == param_id),
-            None
-        )
+  validate_proposal(proposed_change_data) {
+    const param_id = proposed_change_data.get('param_id');
+    const new_value = proposed_change_data.get('new_value');
+    const justification = proposed_change_data.get('justification', {});
 
-        if not param_config:
-            raise ValueError(f"Parameter {param_id} not found in VPCS.")
+    const param_config = this.#vpcs_schema.system_parameters.find((p) => p.param_id === param_id);
 
-        # 2. Check technical limits
-        tech = param_config['technical_constraints']
-        if not (tech['hard_limit_min'] <= new_value <= tech['hard_limit_max']):
-            raise PermissionError("Violation: New value exceeds hard technical limits.")
+    if (!param_config) {
+      throw new Error(`Parameter ${param_id} not found in VPCS.`);
+    }
 
-        # 3. Check governance limits (must be validated, but not necessarily blocked here if policy is permissive)
-        gov = param_config['governance_constraints']
-        if not (gov['policy_limit_min'] <= new_value <= gov['policy_limit_max']):
-            # This may require an escalated veto resolution process, but is flagged immediately.
-            print(f"Warning: New value exceeds standing policy limits for {param_id}.")
-        
-        # 4. Check justification requirements
-        just_req = param_config.get('justification_requirements', {})
-        for field in just_req.get('mandatory_fields', []):
-            if field not in justification or not justification[field]:
-                raise ValueError(f"Violation: Missing mandatory justification field: {field}.")
-        
-        if len(justification.get('description', '')) < just_req.get('min_description_length', 0):
-             raise ValueError("Violation: Justification description is too short.")
+    const tech = param_config.technical_constraints;
+    if (!(tech.hard_limit_min <= new_value && new_value <= tech.hard_limit_max)) {
+      throw new PermissionError(`Violation: New value exceeds hard technical limits.`);
+    }
 
-        return True
+    const gov = param_config.governance_constraints;
+    if (!(gov.policy_limit_min <= new_value && new_value <= gov.policy_limit_max)) {
+      console.warn(`Warning: New value exceeds standing policy limits for ${param_id}.`);
+    }
 
-# Example usage stub for demonstration:
-# validator = VetoProposalValidator('./VPCS_V2.0_schema.json', './proposal_schema.json')
-# if validator.validate_proposal(example_proposal):
-#     print('Proposal valid. Proceeding to Governance Veto Queue.')
+    const just_req = param_config.justification_requirements;
+    if (just_req) {
+      for (const field of just_req.mandatory_fields || []) {
+        if (!(field in justification && justification[field])) {
+          throw new Error(`Violation: Missing mandatory justification field: ${field}.`);
+        }
+      }
+    }
+
+    if (just_req && just_req.min_description_length && !justification.description || justification.description.length < just_req.min_description_length) {
+      throw new Error('Violation: Justification description is too short.');
+    }
+
+    return true;
+  }
+}
+
+try {
+  new VetoProposalValidator('VPCS_V2.0_schema.json', 'proposal_schema.json').validate_proposal({
+    param_id: 'example_param',
+    new_value: 1,
+    justification: { description: 'Example justification' },
+  });
+} catch (error) {
+  console.error('Validation failed:', error.message);
+}
+
+class PermissionError extends Error {}
+class VetoProposalValidatorError extends Error {}
