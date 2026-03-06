@@ -34,9 +34,14 @@
           "verificationScriptPath": {
             "type": "string",
             "description": "Internal system path to the autonomous script or binary performing the verification logic."
+          },
+          "contextWindow": {
+            "type": "integer",
+            "description": "Number of preceding jobs required for chained context.",
+            "default": 3
           }
         },
-        "required": ["jobId", "targetControlId", "schedule", "severity", "verificationScriptPath"]
+        "required": ["jobId", "targetControlId", "schedule", "severity", "verificationScriptPath", "contextWindow"]
       }
     }
   },
