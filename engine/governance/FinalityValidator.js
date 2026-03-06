@@ -6,9 +6,12 @@ import { calculateAuditHash } from '../../util/crypto';
  * and validating the P01 Finality Result based on governance inputs.
  */
 export class FinalityValidator {
-  constructor(ruleSet) {
+  constructor(ruleSet, chainId, networkName) {
     this.ruleSet = ruleSet;
+    this.chainId = chainId;
+    this.networkName = networkName;
     this.ruleEngineVersion = 'v1.1';
+    this.contextMap = {};
   }
 
   /**
@@ -17,6 +20,11 @@ export class FinalityValidator {
    * @returns {object} P01_Finality_Result conforming object.
    */
   calculate(proposalState) {
+    // Implement chainId and networkName context
+    const chainContext = this._getChainContext(this.chainId);
+    const networkContext = this._getNetworkContext(this.networkName);
+    this.contextMap = { ...chainContext, ...networkContext };
+
     // Implementation calculates status (e.g., checks quorum/thresholds)
     const status = this._determineStatus(proposalState);
     const finalizedAt = new Date().toISOString();
@@ -28,11 +36,12 @@ export class FinalityValidator {
       finalizedAt: finalizedAt,
       ruleEngineVersion: this.ruleEngineVersion,
       triggeringCriterion: status.criterion,
-      details: status.details || {}
+      details: status.details || {},
+      contextHash: this._calculateContextHash(this.contextMap)
     };
 
     // Create the canonical audit hash based on the deterministic inputs and rules.
-    rawResult.auditHash = calculateAuditHash(rawResult, proposalState, this.ruleSet);
+    rawResult.auditHash = calculateAuditHash(rawResult, proposalState, this.ruleSet, this.contextMap);
 
     // Validation should occur here against the schema
     // validateResultSchema(rawResult);
@@ -47,5 +56,28 @@ export class FinalityValidator {
     }
     // ... more rules
     return { status: 'PENDING', criterion: 'NotApplicable' }; 
+  }
+
+  _getChainContext(chainId) {
+    // Chain-specific context generation (e.g., block height, timestamp)
+    return {
+      chainId,
+      blockHeight: Date.now(),
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  _getNetworkContext(networkName) {
+    // Network-specific context generation (e.g., network ID, protocol version)
+    return {
+      networkId: Date.now(),
+      protocolVersion: 'v1.2'
+    };
+  }
+
+  _calculateContextHash(contextMap) {
+    // Simple hashing function to generate a hash from the context map
+    const stringifiedContext = JSON.stringify(contextMap);
+    return crypto.createHash('sha256').update(stringifiedContext).digest('hex');
   }
 }
