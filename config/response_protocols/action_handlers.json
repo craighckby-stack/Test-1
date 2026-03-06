@@ -2,26 +2,59 @@
   "ACTION_LOCKDOWN": {
     "handler": "system.core.lockdown_routine",
     "params": {
-      "mode": "LEVEL_5_ISOLATION"
+      "mode": "LEVEL_5_ISOLATION",
+      "duration": "PT5M"
+    },
+    "prehooks": {
+      "pre_lockdown": {
+        "handler": "system.security.trigger_safeguards",
+        "params": {
+          "safeguard_name": "VEHICLE_PROTECTION"
+        }
+      }
     }
   },
   "ACTION_DIAGNOSTIC_ENTRY": {
     "handler": "system.diagnostics.enter_mode",
     "params": {
-      "target_module": "RCA_INTEGRITY"
+      "target_module": "RCA_INTEGRITY",
+      "diagnostic_level": "VERBOSE"
+    },
+    "posthooks": {
+      "post_diagnostic": {
+        "handler": "system.log.entry_audit_log",
+        "params": {
+          "log_event": "DIAGNOSTIC_REPORT_SUBMITTED"
+        }
+      }
     }
   },
   "ACTION_RETRY_TARGET_STAGE": {
     "handler": "system.scheduler.retry_stage",
     "params": {
       "strategy": "BACKOFF_LINEAR",
-      "target_source": "trigger.associated_stage"
+      "target_source": "trigger.associated_stage",
+      "max_attempts": 5
+    },
+    "prehooks": {
+      "pre_retry": {
+        "handler": "system.metrics.increment",
+        "params": {
+          "metric_key": "retries.VEC_002.count"
+        }
+      }
     }
   },
   "ACTION_INCREMENT_COUNTER": {
     "handler": "system.metrics.increment",
     "params": {
-      "metric_key": "failure.VEC_002.count"
+      "metric_key": "failure.VEC_002.count",
+      "increment_value": 1
+    },
+    "dependencies": {
+      "action:ACTION_RETRY_TARGET_STAGE": {
+        "relation": "PARENT_TARGET"
+      }
     }
   }
 }
