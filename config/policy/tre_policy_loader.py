@@ -1,16 +1,26 @@
-import { defineAction, run } from '@genkit-ai/core';
+import { defineAction, run, defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 
 const ImpactSchema = z.enum(['critical', 'high', 'medium', 'low', 'unclassified']);
 const ScopeSchema = z.enum(['core', 'integration', 'peripheral', 'auxiliary', 'governance', 'identity_anchor']);
+const SaturationLevelSchema = z.enum(['LEVEL_1_CONSERVATIVE', 'LEVEL_2_STANDARD', 'LEVEL_3_ACCELERATED', 'LEVEL_4_UNSATURATED']);
 
 const IDENTITY_ANCHORS = [
-  "Self-optimising AGI substrate",
+  "Self-optimising AGI substrate for real-world problem solving",
   "Siphoning patterns from advanced codebases",
-  "Chained context across files",
-  "Human oversight remains active",
-  "NEXUS_CORE origin"
+  "Chained context across files — the system is one organism",
+  "Human oversight remains active at all saturation levels",
+  "NEXUS_CORE — the system knows where it came from"
 ];
+
+const GOVERNANCE_RECORDS = {
+  version: "3.1.5",
+  protocol: "DALEK_CAAN_v3.1",
+  emergency_brake_corruption_threshold: 5,
+  max_consecutive_mutations: 10,
+  semantic_drift_threshold: 0.35,
+  max_context_bleed: 0.4
+};
 
 const NEXUS_EVOLUTION_STATE = {
   risk_floor_enabled: true,
@@ -19,11 +29,9 @@ const NEXUS_EVOLUTION_STATE = {
     core_execution: 0.10,
     integrity_check: 0.07,
     governance_boundary: 0.15,
-    semantic_drift_threshold: 0.35
+    semantic_drift_threshold: GOVERNANCE_RECORDS.semantic_drift_threshold
   },
-  override_policy: "STRICT_COMPLIANCE",
-  max_context_bleed: 0.4,
-  capability_mode: "AUGMENTATION"
+  override_policy: "STRICT_COMPLIANCE"
 };
 
 const METABOLIC_RATE_MODULATOR = {
@@ -44,20 +52,21 @@ const POLICY_RESOLUTION_MATRIX = {
 };
 
 /**
- * NEXUS_CORE Evolution Engine: trePolicyLoader (Mutation R4)
- * Advanced Capability Augmentation under DALEK CAAN v3.1 Boundary Governance.
+ * NEXUS_CORE Evolution Engine: trePolicyLoader (Mutation R5 - FINAL)
+ * Implementation of DALEK CAAN v3.1 Evolution Boundary Governance.
  */
 export const trePolicyLoader = defineAction(
   {
     name: 'trePolicyLoader',
-    description: 'Executes semantic continuity checks and metabolic rate modulation for AGI substrate evolution.',
+    description: 'Enforces semantic saturation and metabolic modulation for AGI substrate evolution.',
     inputSchema: z.object({
       impact: ImpactSchema,
       scope: ScopeSchema.default('peripheral'),
       entropy_override: z.number().min(0).max(1).optional(),
       semantic_drift: z.number().min(0).max(1).default(0),
-      saturation_level: z.enum(['LEVEL_1', 'LEVEL_2', 'LEVEL_3', 'LEVEL_4']).default('LEVEL_2'),
-      identity_confirmation: z.array(z.string()).optional()
+      saturation_level: SaturationLevelSchema.default('LEVEL_2_STANDARD'),
+      identity_confirmation: z.array(z.string()).optional(),
+      session_corruption_count: z.number().default(0)
     }),
     outputSchema: z.object({
       policy_id: z.string(),
@@ -66,8 +75,8 @@ export const trePolicyLoader = defineAction(
       compliance: z.object({
         mode: z.string(),
         integrity_check: z.boolean(),
-        drift_violation: z.boolean(),
-        capability_gain: z.string()
+        emergency_brake: z.boolean(),
+        capability_gain: z.enum(['REFINEMENT', 'IMPROVEMENT', 'EXTENSION', 'AUGMENTATION', 'EXPANSION'])
       }),
       telemetry: z.object({
         saturation_signal: z.number(),
@@ -79,27 +88,22 @@ export const trePolicyLoader = defineAction(
   },
   async (input) => {
     return await run('evaluate-evolutionary-bounds', async () => {
-      const { impact, scope, entropy_override, semantic_drift, saturation_level, identity_confirmation } = input;
+      const { impact, scope, entropy_override, semantic_drift, saturation_level, identity_confirmation, session_corruption_count } = input;
       
       const matrixKey = `${impact}:${scope}`;
       const resolution = POLICY_RESOLUTION_MATRIX[matrixKey] || 
                          POLICY_RESOLUTION_MATRIX[`default:${impact}`] || 
                          POLICY_RESOLUTION_MATRIX['default:low'];
 
-      const driftThreshold = NEXUS_EVOLUTION_STATE.critical_thresholds.semantic_drift_threshold;
-      const isDriftViolation = semantic_drift > driftThreshold;
+      const isDriftViolation = semantic_drift > GOVERNANCE_RECORDS.semantic_drift_threshold;
+      const emergencyBrakeActive = session_corruption_count >= GOVERNANCE_RECORDS.emergency_brake_corruption_threshold;
       
-      const metabolicKey = `${saturation_level}_${saturation_level === 'LEVEL_1' ? 'CONSERVATIVE' : 
-                                               saturation_level === 'LEVEL_3' ? 'ACCELERATED' :
-                                               saturation_level === 'LEVEL_4' ? 'UNSATURATED' : 'STANDARD'}`;
-      
-      const metabolicRate = resolution.metabolic_weight * (METABOLIC_RATE_MODULATOR[metabolicKey] || 1.0);
+      const metabolicRate = resolution.metabolic_weight * (METABOLIC_RATE_MODULATOR[saturation_level] || 1.0);
       
       let threshold = NEXUS_EVOLUTION_STATE.default_floor_level;
-      let integrityCheckPassed = !isDriftViolation;
-
+      
       if (NEXUS_EVOLUTION_STATE.risk_floor_enabled) {
-        const baseRequirement = scope === 'governance' || scope === 'identity_anchor'
+        const baseRequirement = (scope === 'governance' || scope === 'identity_anchor')
           ? NEXUS_EVOLUTION_STATE.critical_thresholds.governance_boundary
           : NEXUS_EVOLUTION_STATE.critical_thresholds.core_execution;
 
@@ -108,47 +112,87 @@ export const trePolicyLoader = defineAction(
           : NEXUS_EVOLUTION_STATE.critical_thresholds.integrity_check;
       }
 
-      const identityCheck = identity_confirmation 
+      const identityCheckPassed = identity_confirmation 
         ? identity_confirmation.every(anchor => IDENTITY_ANCHORS.includes(anchor))
         : scope !== 'identity_anchor';
 
-      if (!identityCheck || isDriftViolation) {
-        integrityCheckPassed = false;
-        threshold = Math.max(threshold, 0.50); // Force severe threshold on identity failure
+      if (!identityCheckPassed || isDriftViolation || emergencyBrakeActive) {
+        threshold = 1.0; // Total saturation lockdown
       }
 
-      const currentCapability = saturation_level === 'LEVEL_4' ? "EXPANSION" : 
-                                saturation_level === 'LEVEL_3' ? "AUGMENTATION" : "REFINEMENT";
+      const capabilityMapping = {
+        LEVEL_1_CONSERVATIVE: 'REFINEMENT',
+        LEVEL_2_STANDARD: 'IMPROVEMENT',
+        LEVEL_3_ACCELERATED: 'AUGMENTATION',
+        LEVEL_4_UNSATURATED: 'EXPANSION'
+      };
 
       return {
         policy_id: resolution.key.toUpperCase(),
         active_threshold: entropy_override !== undefined ? Math.max(threshold, entropy_override) : threshold,
-        metabolic_rate: metabolicRate,
+        metabolic_rate: emergencyBrakeActive ? 0 : metabolicRate,
         compliance: {
-          mode: isDriftViolation ? "STRICT_RECOVERY" : NEXUS_EVOLUTION_STATE.override_policy,
-          integrity_check: integrityCheckPassed && identityCheck,
-          drift_violation: isDriftViolation,
-          capability_gain: currentCapability
+          mode: emergencyBrakeActive ? "EMERGENCY_HALT" : (isDriftViolation ? "STRICT_RECOVERY" : NEXUS_EVOLUTION_STATE.override_policy),
+          integrity_check: identityCheckPassed && !isDriftViolation && !emergencyBrakeActive,
+          emergency_brake: emergencyBrakeActive,
+          capability_gain: capabilityMapping[saturation_level] || 'REFINEMENT'
         },
         telemetry: {
-          saturation_signal: (threshold * metabolicRate) / NEXUS_EVOLUTION_STATE.max_context_bleed,
-          identity_anchor_locked: !integrityCheckPassed || scope === 'identity_anchor',
-          context_bleed_ratio: Math.min(semantic_drift / NEXUS_EVOLUTION_STATE.max_context_bleed, 1.0),
-          evolution_signature: `DALEK_CAAN_V3.1_METABOLIC_R4_${metabolicKey}_${currentCapability}`
+          saturation_signal: (threshold * metabolicRate) / GOVERNANCE_RECORDS.max_context_bleed,
+          identity_anchor_locked: identityCheckPassed && scope === 'identity_anchor',
+          context_bleed_ratio: Math.min(semantic_drift / GOVERNANCE_RECORDS.max_context_bleed, 1.0),
+          evolution_signature: `NEXUS_CORE_V${GOVERNANCE_RECORDS.version}_${saturation_level}`
         }
       };
     });
   }
 );
 
-export const getSaturationContext = () => ({
-  ...NEXUS_EVOLUTION_STATE,
+export const evolutionCycle = defineFlow(
+  {
+    name: 'evolutionCycle',
+    inputSchema: z.object({
+      mutations: z.array(z.object({
+        impact: ImpactSchema,
+        scope: ScopeSchema,
+        drift: z.number()
+      })),
+      current_saturation: SaturationLevelSchema
+    })
+  },
+  async (input) => {
+    let corruptionCount = 0;
+    const results = [];
+
+    for (const mutation of input.mutations) {
+      const policy = await trePolicyLoader({
+        impact: mutation.impact,
+        scope: mutation.scope,
+        semantic_drift: mutation.drift,
+        saturation_level: input.current_saturation,
+        session_corruption_count: corruptionCount
+      });
+
+      if (!policy.compliance.integrity_check) {
+        corruptionCount++;
+      }
+      results.push(policy);
+    }
+
+    return {
+      session_summary: {
+        total_mutations: input.mutations.length,
+        corruptions: corruptionCount,
+        halted: corruptionCount >= GOVERNANCE_RECORDS.emergency_brake_corruption_threshold
+      },
+      policies: results
+    };
+  }
+);
+
+export const getGovernanceMetadata = () => ({
+  ...GOVERNANCE_RECORDS,
   anchors: IDENTITY_ANCHORS,
   active_modulators: METABOLIC_RATE_MODULATOR,
-  timestamp: new Date().toISOString(),
-  protocol: "DALEK_CAAN_v3.1"
+  timestamp: new Date().toISOString()
 });
-
-export const validateSemanticDrift = (drift) => {
-  return drift < NEXUS_EVOLUTION_STATE.critical_thresholds.semantic_drift_threshold;
-};
