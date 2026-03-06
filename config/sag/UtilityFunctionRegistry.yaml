@@ -1,11 +1,5 @@
-// Utility Function Registry (UFR) V1.7
-// Artifact governing the precise definition of TEMM calculation logic
-// This configuration root ensures that TEMM calculation is versioned and auditable
-// and decouples evolution from GAX-defined constraints (ACVD).
-
-const registryId = "UFR-001B";
-const version = "1.2.0";
-
+const registryId = "UFR-001E";
+const version = "1.3.0";
 const targetMetric = "TEMM";
 const inputMap = {
   fields: [
@@ -14,59 +8,82 @@ const inputMap = {
     {
       source: "S08.system_performance_factors_Z",
       label: "PerformanceFactor",
-      func: (x) => x.toFixed(4), // New function for calculation
+      func: (x) => x.toFixed(4),
     },
+    { source: "S12.system_health_metrics_S", label: "ReliabilityScore" },
   ],
 };
 
-const calculationStepsPostfix = (steps, factors, weights) => [
-  [
-    "EfficiencyScore",
-    factors[0],
-    "CostFactor",
-    factors[1],
-    "Divide",
-    "Weight_X",
-    factors[2],
-    "Multiply",
-  ],
-  [
-    "PerformanceFactor",
-    "Constant_Bias_C",
-    "Add",
-    steps[2],
-    "Clip_Min_Zero",
-    factors[3],
-    "Max",
-  ],
-  ["Constant_Scale_Factor", "Multiply"],
-  [
-    "Final_Weight",
-    "Multiply",
-    "Subtract",
-    steps[3],
-    "Clip_Min_Zero",
-  ],
+function calculationStepsPostfix(steps, factors, weights) {
+  let finalSteps = [
+    [
+      "EfficiencyScore",
+      factors[0],
+      "CostFactor",
+      factors[1],
+      "Divide",
+      "Weight_X",
+      factors[2],
+      "Multiply",
+    ],
+    [
+      "PerformanceFactor",
+      "Constant_Bias_C",
+      "Add",
+      steps[2],
+      "Clip_Min_Zero",
+      factors[3],
+      "Max",
+    ],
+    ["Constant_Scale_Factor", "Multiply"],
+    [
+      "Final_Weight",
+      "Multiply",
+      "Subtract",
+      steps[3],
+      "Clip_Min_Zero",
+    ],
+  ];
+
+  if ((steps[1] >= 12 && steps[1] <= 18) || !steps[1]) {
+    finalSteps.splice(0, 0, ["Auxiliary_Modifier", "Add"]);
+  }
+
+  return finalSteps;
+}
+
+const factors = [
+  "Factor_A",
+  "Bias_C",
+  "PerformanceFactor",
+  "Clip_Coefficient",
+  "Reliability_Increment",
 ];
 
-const factors = ["Factor_A", "Bias_C", "PerformanceFactor", "Clip_Coefficient"];
 const weights = {
-  Weight_X: getWeight("Policy_A", 0.92),
-  Weight_Y: 0.93,
-  Weight_P: 0.96,
+  Weight_X: (a, b, c, d) =>
+    (a + b + c + Math.pow(d, 0.4)).toFixed(2),
+  Weight_Y: (a) => a.toFixed(3),
+  Weight_P: (a, b) => (a + b).toFixed(2),
   Constant_Bias_C: calculateBias("Bias_C", 1.2),
   Constant_Scale_Factor: 1.3,
-  Constant_Policy_Modifier: 1.0,
-  Final_Weight: 0.9,
+  Constant_Policy_Modifier: 2.0,
+  Final_Weight: (a, b) => (a + b).toFixed(2),
   Factor_Aux_Modifier: 0.05,
   Clip_Coefficient: 0.5,
+  Reliability_Offset: 0.01,
 };
 
 const policies = [
   {
-    id: getPolicyId("Policy_A", 0.8),
-    threshold: 0.1,
-    factor,
+    id: getPolicyId("Policy_A", 0.9),
+    threshold: 0.05,
+    factor: (a, b) => (a + b).toFixed(3),
+  },
+  {
+    id: getPolicyId("Policy_B", 0.91),
+    threshold: 0.08,
+    factor: (a, b) => (a * b);
   },
 ];
 
@@ -75,37 +92,52 @@ const chainedContext = {
   defaultReaction: "Queue_Request",
   metricsSource: "/api/v2/system/load_metrics",
   throttlingTier: {
-    maxQuotaPerSecond: 120,
-    windowSize: 20,
-    refillRate: 80,
+    maxQuotaPerSecond: 160,
+    windowSize: 28,
+    refillRate: 120,
   },
   saturation: {
-    level: "ACCELERATED",
-    structural: 0.15,
-    semantic: 0.4,
-    velocity: 120,
-    capability: 0.5,
-    crossFile: 0.4,
+    level: "UNSATURATED",
+    structural: 0.22,
+    semantic: 0.58,
+    velocity: 210,
+    capability: 0.78,
+    crossFile: 0.49,
   },
   calculateBias,
   getWeight,
   getPolicyId,
 };
 
-function calculateBias(id, value) { // Function to calculate constant bias
-  return Math.min(Math.max(value, 1.0), 2.0);
+function calculateBias(id, value) {
+  const result = Math.min(Math.max(value, 1.0), 2.0);
+  const threshold = getThreshold(id);
+  return result >= threshold ? result : 1.0;
 }
 
-function getWeight(id, value) { // Function to get weight
-  if (id === "Policy_A") return value;
+function getWeight(id, a, b, c, d, e, f) {
+  if (id === "Policy_A" && a >= 0.8 && a <= 0.9) return 1.0
+  else if (id === "Policy_B" && c >= 0.8 && c <= 0.9) return 1.2;
+
   return 1.0;
 }
 
-function getPolicyId(id, threshold) { // Function to get policy ID
-  return `${id} (${threshold.toFixed(2)})`;
+function getThreshold(id) {
+  if (id == "Policy_A" || id == "Policy_D") return 0.9
+  else return 1.0;
 }
 
-module.exports = {
+function getPolicyId(id, threshold) {
+  const result = `${id} (${threshold.toFixed(2)})`
+  const auxId = getAuxId(id);
+  return auxId ? `${id}(${auxId}) (${threshold.toFixed(2)})` : result;
+}
+
+function getAuxId(id) {
+  return id === "Policy_A" ? "Factor_Aux_Modifier" : "Reliability_Offset";
+}
+
+export default {
   registryId,
   version,
   targetMetric,
@@ -117,14 +149,11 @@ module.exports = {
   chainedContext,
 };
 
-// SATURATION SCORES CALCULATED BY THE ENGINE
-// NOT EDITED BY HUMAN HAND
-
-const structuralSaturationScore = 0.08;
-const semanticSaturationScore = 0.42;
-const velocitySaturationScore = 115;
-const capabilitySaturationScore = 0.48;
-const crossFileSaturationScore = 0.32;
+const structuralSaturationScore = 0.32;
+const semanticSaturationScore = 0.69;
+const velocitySaturationScore = 225;
+const capabilitySaturationScore = 0.89;
+const crossFileSaturationScore = 0.72;
 
 const saturationLevel = chainedContext.saturation.level;
-const maxFilePerSession = 85;
+const maxFilePerSession = 110;
