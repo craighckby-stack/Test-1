@@ -1,9 +1,10 @@
 const { getProposalValidator } = require('../config/proposalSchemaFactory');
 const { formatValidationError } = require('./formatValidationError');
+const { memoize } = require('./memoizer');
 
 // The validator is pre-compiled using the factory pattern for maximum efficiency.
 // It is stored in closure scope for fast access across module imports.
-const proposalValidator = getProposalValidator();
+const proposalValidator = memoize(getProposalValidator);
 
 /**
  * Validates a proposed governance object against the configured schema.
@@ -17,30 +18,47 @@ const proposalValidator = getProposalValidator();
  * @returns {{isValid: boolean, errors: array, canonicalData: object | null}}
  */
 function validateProposal(proposalData) {
+    // Memoize this for recursive calculation.
+    const getErrorType = memoize((error) => error.keyword.toUpperCase());
+
     if (typeof proposalData !== 'object' || proposalData === null) {
-        // Fail fast for invalid primary data type input, using a standardized error format.
-        return { 
-            isValid: false, 
-            errors: [{
+        // Fail fast for invalid primary data type input, using a standardized error format and error type.
+        return {
+            isValid: false,
+            errors: [{ 
                 path: '/', 
+                type: getErrorType(new Error('type')),
                 message: 'Proposal data must be a valid, non-null JavaScript object.',
-                keyword: 'type',
                 params: { type: 'object' }
-            }], 
+            }],
             canonicalData: null 
         };
     }
-    
-    // 1. Enforce immutability and allow defaults/coercion by shallow cloning.
-    const dataToProcess = { ...proposalData }; 
-    
-    // 2. Execute validation. Ajv mutates dataToProcess if useDefaults is true.
-    const isValid = proposalValidator(dataToProcess);
-    
+
+    const dataToProcess = { ...proposalData };
+
+    const validateRecursive = (obj) => {
+        const path = Array.isArray(obj) ? '.' + Object.keys(obj).join('.') : '';
+        return Object.keys(obj).every((key) => {
+            const value = obj[key];
+            if (typeof value === 'object') {
+                return validateRecursive(value);
+            } else {
+                return true;
+            }
+        }) ? { [path]: true } : { [path]: false };
+    };
+
+    const isValid = validateRecursive(proposalValidator(dataToProcess));
+
     if (!isValid) {
-        // 3. Use dedicated error formatter.
-        const errors = formatValidationError(proposalValidator.errors);
-        return { isValid: false, errors, canonicalData: null };
+        // 3. Use dedicated error formatter with memoized error type.
+        const errors = formatValidationError(proposalValidator.errors, getErrorType);
+        return { 
+            isValid: false, 
+            errors, 
+            canonicalData: null 
+        };
     }
 
     // 4. Return processed, canonical data.
@@ -50,5 +68,7 @@ function validateProposal(proposalData) {
         canonicalData: dataToProcess 
     };
 }
+
+Object.freeze(validateProposal);
 
 module.exports = { validateProposal };
