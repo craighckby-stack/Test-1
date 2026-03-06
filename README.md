@@ -1,20 +1,35 @@
-# NEXUS_CORE
+# NEXUS_CORE README
 
 ## Project Overview
-NEXUS_CORE is a system that integrates patterns from external repositories to evolve code.
+
+NEXUS_CORE is a system that evolves code by integrating patterns from external repositories.
 
 ## Siphoning Process
-The siphoning process selects architectural origins (referenced as "DeepMind" and "Google") to apply to local files. This is achieved by retrieving patterns from external sources, identifying applicable patterns for the local files, and then transforming the local files using the selected patterns.
+
+The siphoning process involves selecting architectural origins, such as DeepMind and Google, and their corresponding patterns. These patterns are then applied to local files, enabling the evolution of code.
+
+### Technical Mechanism
+
+1. **Origin Selection**: Identify available architectural origin patterns from external repositories.
+2. **Pattern Selection**: Choose relevant patterns from the selected origins based on specific criteria.
+3. **Pattern Application**: Apply the selected patterns to local files, integrating their knowledge and expertise.
 
 ## Chained Context
-A shared state/memory (suggested by the term "context_summary") ensures consistency across evolved files by maintaining a single instance of state information. This includes model parameters such as forecasting service and calibration targets.
 
-## Technical Dependencies
-* The siphoning process relies on data generated in "config/resource_forecasting_models.json" to inform pattern selection.
-* The chained context includes:
-  - "forecasting_service" with settings: enabled (true), default model (LSTM_CostPredictor_V3), lookback window (30 days), sensitivity tolerance (2.5%).
-  - "model_parameters" with definitions for LSTM_CostPredictor_V3 including training frequency (24 hours) and feature usage ("cpu_load", "network_iops", "memory_usage").
-  - "calibration_targets" with threshold values for expected cost (p95: 0.15) and expected latency (p99_ms: 500).
+The chained context implementation ensures consistency across evolved files by maintaining a shared state/memory.
+
+### Technical Implementation
+
+1. **Shared Memory**: Establish a shared memory space for storing and updating state information.
+2. **Contextual Updates**: Update the shared memory with contextual information from each file, ensuring synchronization.
+3. **Consistency Checks**: Perform consistency checks across all files to maintain a cohesive and synchronized state.
 
 ## Current Status
-As of latest file processing, 1050 files have been processed with "config/resource_forecasting_models.json" being the latest updated file. The system is in an active state, indicated by a "SATURATION_STATUS" of "Active".
+
+- **files processed**: 1060
+- **latest file**: `config/rrp_action_registry_v1.json`
+- **DNA signature**: None
+- **context summary**: [object Object]
+- **saturation status**: Active
+
+The system is currently in an active state, processing 1060 files, with the latest file being `config/rrp_action_registry_v1.json`. The DNA signature is not present, and the context summary is an object.
