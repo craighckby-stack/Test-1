@@ -1,19 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.agi.system/GRCS_AuditPolicy/v2",
-  "title": "Self-Prioritising GRCS Audit Policy and Execution Schema",
+  "$id": "https://schemas.agi.system/GRCS_AuditPolicy/variant/v2",
+  "title": "Self-Prioritising GRCS Audit Policy and Execution Schema (Variant v2)",
   "description": "Defines scheduling, execution policies, and enforcement actions for continuous control verification with autonomous engine integration.",
   "type": "object",
   "properties": {
     "policyId": {
       "type": "string",
       "format": "ulid",
-      "description": "Unique identifier for the self-prioritising Audit Policy.",
+      "description": "Unique identifier for the self-prioritising Audit Policy with variant identifier (v2).",
       "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
     },
     "autonomousPolicyRules": {
       "type": "array",
-      "description": "Dynamic scheduling and execution policies with autonomous engine integration.",
+      "description": "Dynamic scheduling and execution policies with autonomous engine integration, incorporating variant-specific considerations.",
       "items": {
         "type": "object",
         "properties": {
@@ -24,18 +24,19 @@
           },
           "controlVerificationInterval": {
             "type": "integer",
-            "description": "Interval in milliseconds for control verification ( referenced by controlId )."
+            "description": "Interval in milliseconds for control verification ( referenced by controlId ), with adaptive threshold based on job performance metrics.",
+            "default": 30000
           },
           "contextWindow": {
             "type": "integer",
-            "description": "Number of preceding jobs required for chained context.",
-            "default": 5
+            "description": "Number of preceding jobs required for chained context, taking into account variant-specific rules for job data aggregation.",
+            "default": 7
           },
           "chainedContext": {
             "type": "array",
-            "description": "Stored context of previous jobs.",
+            "description": "Stored context of previous jobs, with variant-specific format and data structure modifications.",
             "items": {
-              "$ref": "#/$defs/Job"
+              "$ref": "#/$defs/JobVariant"
             }
           }
         },
@@ -43,7 +44,7 @@
       }
     },
     "$defs": {
-      "Job": {
+      "JobVariant": {
         "type": "object",
         "properties": {
           "jobId": {
@@ -51,9 +52,13 @@
             "format": "ulid",
             "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
           },
+          "variantSpecificData": {
+            "type": "object",
+            "description": "Variant-specific job data, incorporating modifications for v2 variant."
+          },
           "jobData": {
             "type": "object",
-            "description": "Job-specific data."
+            "description": "Job-specific data, with potential variant-specific format changes."
           }
         },
         "required": ["jobId", "jobData"]
