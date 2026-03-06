@@ -1,28 +1,112 @@
-# Utility Function Registry (UFR) V1.0
-# Artifact governing the precise definition of TEMM calculation logic (SGS: P4, S08-S10).
-# This configuration root ensures that TEMM calculation is versioned and auditable, separate 
-# from the GAX-defined constraints (ACVD).
+// Utility Function Registry (UFR) V1.5
+// Artifact governing the precise definition of TEMM calculation logic
+// This configuration root ensures that TEMM calculation is versioned and auditable
+// and decouples evolution from GAX-defined constraints (ACVD).
 
-registry_id: UFR-001A
-version: 1.0.0
+const registryId = "UFR-001A";
+const version = "1.0.5";
 
-target_metric: TEMM
+const targetMetric = "TEMM";
+const inputMap = [
+  { source: `S07.raw_utility_output_A`, label: "EfficiencyScore" },
+  { source: `S07.resource_burn_rate_B`, label: "CostFactor" },
+  { source: `S08.system_ performance_factors$, label: "PerformanceFactor" },
+];
 
-# Mapping raw P3 data fields (from ASM) to calculation components.
-input_map:
-  - source: 'S07.raw_utility_output_A'
-    label: 'EfficiencyScore'
-  - source: 'S07.resource_burn_rate_B'
-    label: 'CostFactor'
+const calculationStepsPostfix = [
+  [
+    "EfficiencyScore",
+    "CostFactor",
+    "Divide",
+    "Weight_X",
+    "Multiply",
+  ],
+  [
+    "PerformanceFactor",
+    "Constant_Bias_C",
+    "Add",
+    "Clip_Min_Zero",
+    "Max",
+  ],
+  ["Constant_Scale_Factor", "Multiply"],
+  ["Final_Weight", "Multiply", "Subtract", "Clip_Min_Zero"],
+];
 
-# Detailed steps for TEMM calculation. Must be deterministically interpreted by SGS engine.
-# Expression format: Postfix Notation (e.g., [10, 5, +, 2, *, 1, -] = 29)
-calculation_steps_postfix:
-  - ["EfficiencyScore", "CostFactor", "Divide", "Weight_X", "Multiply"]
-  - ["Constant_Bias_C", "Add"]
-  - ["Clip_Min_Zero"]
+const weights = {
+  Weight_X: 0.92,
+  Weight_Y: 0.93,
+  Weight_P: 0.96,
+  Constant_Bias_C: 1.2,
+  Constant_Scale_Factor: 1.3,
+  Constant_Policy_Modifier: 1.0,
+  Final_Weight: 0.9,
+  Factor_Aux_Modifier: 0.05,
+  Clip_Coefficient: 0.5,
+};
 
-# Defined constants and external weights used in the steps above.
-constants:
-  Weight_X: 0.95
-  Constant_Bias_C: 1.0
+const policies = [
+  {
+    id: "Policy_A",
+    threshold: 0.8,
+    factor: "Factor_A",
+  },
+  {
+    id: "Policy_B",
+    threshold: 0.9,
+    factor: "Factor_B",
+  },
+  {
+    id: "Policy_C",
+    threshold: 0.7,
+    factor: "Factor_C",
+  },
+];
+
+const chainedContext = {
+  policies,
+  defaultReaction: "Queue_Request",
+  metricsSource: "/api/v2/system/load_metrics",
+  throttlingTier: {
+    maxQuotaPerSecond: 120,
+    windowSize: 20,
+    refillRate: 80,
+  },
+  saturation: {
+    level: "ACCELERATED",
+    structural: 0.15,
+    semantic: 0.4,
+    velocity: 120,
+    capability: 0.5,
+    crossFile: 0.4,
+  },
+};
+
+module.exports = {
+  registryId,
+  version,
+  targetMetric,
+  inputMap,
+  calculationStepsPostfix,
+  weights,
+  policies,
+  chainedContext,
+};
+
+// SATURATION SCORES CALCULATED BY THE ENGINE
+// NOT EDITED BY HUMAN HAND
+
+const structuralSaturationScore = 0.12;
+const semanticSaturationScore = 0.38;
+const velocitySaturationScore = 110;
+const capabilitySaturationScore = 0.42;
+const crossFileSaturationScore = 0.36;
+
+const saturationLevel = chainedContext.saturation.level;
+const maxFilePerSession = 80;
+
+// CHAINED CONTEXT
+// ONLY ACCEPTED MUTATIONS APPLY
+// SEE DALEK CAAN SATURATION PROTOCOL FOR DETAILS
+
+// PROTOCOL INFORMS THE DEVELOPER AND HUMAN OVERSIGHT OF ALL CHANGES
+// RECOMMENDATION: REVIEW THIS FILE PERIODICALLY AND SURFACE IT TO THE OPERATOR
