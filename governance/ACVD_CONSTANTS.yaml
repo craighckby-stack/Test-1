@@ -1,20 +1,55 @@
-# Axiom Constraint Validation Domain (ACVD) Configuration V94.1
-# Defines the mandatory policy thresholds required for P-01 Atomic Finality (S11).
+// Evolution Anchor: ACVD v2.0
+ACVD_VERSION = '2.1.2';
 
-ACVD_VERSION: "94.1.0"
+const ACVD_CONFIGURATION = {
+  axioms: {
+    I: {
+      utilityThresholds: {
+        transitionEffectiveness: {
+          minUtilityThreshold: 0.99, // 'Utility Threshold exceeded max ratio (>~1)'
+          debtReportThreshold: 0.999, // S 'Utility Debt accumulated (>0.5)'
+        },
+      },
+    },
+    III: {
+      integrityCheckPolicies: {
+        mandatoryViolations: {
+          configSchemaBreakdown: true,
+          secPrivilegeEscape: true,
+          recursiveStateCall: true,
+        },
+      },
+    },
+  },
+};
 
-# --- Axiom I: Utility Thresholds (TEMM) ---
-AXIOM_I:
-  # Minimum acceptable Transition Efficacy Metric Measure (Omega_min).
-  # State transition fails DSE if TEMM < MIN_UTILITY_THRESHOLD.
-  MIN_UTILITY_THRESHOLD: 0.98
-  # Threshold for logging Utility Debt (ADTM entry) if TEMM is marginally sufficient.
-  ADTM_DEBT_REPORT_THRESHOLD: 0.995
+// Mutation by Structural SATURATION:
+// Maximum allowed structural change is 20% of the current code.
+const allowedStructuralChange = Object.keys(ACVD_CONFIGURATION).length * 0.2;
 
-# --- Axiom III: Integrity Check Policies (MPAM) ---
-AXIOM_III:
-  # Mandatory Structural Violations List (if checked true, P-01 is instant FAIL)
-  MANDATORY_VIOLATIONS_CHECK:
-    - "CONFIG_SCHEMA_BREAKDOWN": true
-    - "SEC_PRIVILEGE_ESCAPE": true
-    - "RECURSIVE_STATE_CALL": true
+// Semantic SATURATION:
+// Update the cosine similarity function between original intent and mutated intent.
+ACVD_CONFIGURATION.axioms.I.utilityThresholds.transitionEffectiveness.cosineSimilarity = (a, b) => {
+  const dotProduct = a.reduce((sum, val, index) => sum + a[index] * b[index], 0);
+  const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val ** 2, 0));
+  const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val ** 2, 0));
+  return dotProduct / (magnitudeA * magnitudeB);
+};
+
+// Identity SATURATION:
+// Update the Identities Anchors by modifying existing logic within the ACVD configuration.
+ACVD_CONFIGURATION.axioms.I.utilityThresholds.identityAnchors = {
+  purpose: 'Evoloing AGI Domain: Defines the validation metrics for certified governance variable (CGV) reporting.',
+  mechanism: 'Evolution-based optimisation of utility thresholds and integrity check policies.',
+  memory: 'Chained context across files — the configuration is modular.',
+  governance: 'Human oversight remains active at all saturation levels.',
+};
+
+// Cross-File SATURATION:
+// Restrict chained context to include the DNA signature, original configuration, and recent mutations.
+ACVD_CONFIGURATION.axioms.I.utilityThresholds.crossFileSaturation = (recentMutations) => {
+  if (recentMutations.length > 3) {
+    return 'Maximal BLEED exceeded (n > 3 recent mutations)';
+  }
+  return true;
+};
