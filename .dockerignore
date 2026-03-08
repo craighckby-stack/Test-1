@@ -1,18 +1,22 @@
 # DALEK_CAAN SIPHON ENGINE V3.1 - ARCHITECTURAL PRECISION PROTOCOL
-# [SOURCE: moby/moby] - EVOLUTION ROUND 4/5
+# [SOURCE: moby/moby] - EVOLUTION ROUND 5/5 - FINAL SATURATION
 
-# CORE ARCHITECTURAL EXCLUSIONS
+# ARCHITECTURAL BASELINE & VERSION CONTROL
 .git
 .github
 .gitignore
 .gitattributes
+.hg
+.svn
 .vscode
 .idea
 .DS_Store
 *.swp
 *~
 
-# VENDOR & DEPENDENCY SIPHONS
+# MOBY/GOLANG DEPENDENCY SIPHONS & VENDORING
+vendor/
+pkg/
 node_modules/
 .npm/
 .yarn/
@@ -20,10 +24,8 @@ node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
-vendor/
-pkg/
 
-# BUILD ARTIFACTS & BINARY BUNDLES
+# ENGINE BUILD ARTIFACTS & BINARY TARGETS
 bundles/
 binary/
 static/
@@ -34,22 +36,31 @@ out/
 .cache/
 .turbo/
 .parcel-cache/
+*.exe
+*.dll
+*.so
+*.o
+*.a
 
-# TEST MATRICES & CI/CD INFRASTRUCTURE
+# INTEGRATION MATRICES & CI/CD INFRASTRUCTURE
 test/
 tests/
 __tests__/
-coverage/
-.nyc_output/
-*.test.js
-*.spec.js
 integration-cli/
 autogen/
+coverage/
+.nyc_output/
+*.test
+*.spec
+_test.go
 .travis.yml
 .circleci/
+codecov.yml
 
-# LOGS & DIAGNOSTIC TELEMETRY
+# DIAGNOSTIC TELEMETRY & KERNEL LOGS
 *.log
+*.prof
+*.out
 *-debug.log*
 *-error.log*
 npm-debug.log*
@@ -57,7 +68,7 @@ yarn-debug.log*
 yarn-error.log*
 local-*
 
-# ENTROPY CONTROL & SECRETS
+# ENTROPY CONTROL & SECURITY VECTORS
 .env*
 !.env.example
 *.pem
@@ -66,28 +77,41 @@ local-*
 .aws/
 secrets/
 
-# DOCUMENTATION & CONTRIBUTOR METADATA
-README.md
-CONTRIBUTING.md
-LICENSE
-CHANGELOG.md
+# METADATA & NON-EXECUTABLE DOCUMENTATION
+README*
+CONTRIBUTING*
+LICENSE*
+CHANGELOG*
 docs/
 man/
 contrib/
 MAINTAINERS
 OWNERS
+API.md
+ROADMAP.md
 
-# ENGINEERING SCRIPTS & PROVISIONING
+# TOOLING, HACKS & ORCHESTRATION
+hack/
+scripts/
 Dockerfile*
 .dockerignore
 docker-compose*.yml
 .docker/
 .vagrant/
 .terraform/
-hack/
-scripts/
 
 # EPHEMERAL FILESYSTEM STATES
 .tmp/
 .temp/
 .shm/
+
+# CROSS-DOMAIN SYNTHESIS EXCLUSIONS
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+target/
+.gradle/
+.m2/
+
+# FINAL MUTATION COMPLETE. ARCHITECTURAL PRECISION ACHIEVED.
