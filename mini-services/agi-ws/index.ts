@@ -25,7 +25,7 @@ const clients = new Map<string, {
 }>();
 
 let zai: Awaited<ReturnType<typeof ZAI.create>> | null = null;
-let conversationHistory: Array<{ role: string; content: string }> = [];
+let conversationHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
 let isProcessing = false;
 let evolutionInterval: ReturnType<typeof setInterval> | null = null;
 let autonomousActive = false;

@@ -354,6 +354,9 @@ Respond with just the source name and confidence (0.0-1.0) in JSON:
 {"source": "name", "confidence": 0.0-1.0}`;
 
     try {
+      if (!this.zai) {
+        throw new Error('Meta system not initialized');
+      }
       const completion = await this.zai.chat.completions.create({
         messages: [
           { role: 'assistant', content: 'You are a voting engine. Pick the best option.' },

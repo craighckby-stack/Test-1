@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAGI } from '@/lib/agi/core';
+import { getAGI, type PatternMatch } from '@/lib/agi/core';
 import { db } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     if (code) {
       // Get patterns for evolution
-      let patterns = [];
+      let patterns: PatternMatch[] = [];
       
       if (patternIds && patternIds.length > 0) {
         const dbPatterns = await db.pattern.findMany({

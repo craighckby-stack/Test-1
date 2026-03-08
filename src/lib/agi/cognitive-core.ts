@@ -27,7 +27,7 @@ export class CognitiveCore {
   private zai: Awaited<ReturnType<typeof ZAI.create>> | null = null;
   private state: CognitiveState;
   private systemPrompt: string;
-  private conversationHistory: Array<{ role: string; content: string }>;
+  private conversationHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   
   constructor() {
     this.state = {

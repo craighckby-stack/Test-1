@@ -112,19 +112,28 @@ export async function POST(request: NextRequest) {
 
         const repoData = await repoResponse.json();
 
-        // Create or update repository record
-        const repo = await db.repository.upsert({
-          where: { url: repoData.html_url },
-          create: {
-            name: repoData.full_name,
-            url: repoData.html_url,
-            description: repoData.description || '',
-            analysisStatus: 'pending'
-          },
-          update: {
-            description: repoData.description || ''
-          }
+        // Find or create repository record
+        let repo = await db.repository.findFirst({
+          where: { url: repoData.html_url }
         });
+        
+        if (!repo) {
+          repo = await db.repository.create({
+            data: {
+              name: repoData.full_name,
+              url: repoData.html_url,
+              description: repoData.description || '',
+              analysisStatus: 'pending'
+            }
+          });
+        } else {
+          repo = await db.repository.update({
+            where: { id: repo.id },
+            data: {
+              description: repoData.description || ''
+            }
+          });
+        }
 
         // Fetch file tree
         const treeResponse = await fetch(
