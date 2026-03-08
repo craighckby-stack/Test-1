@@ -2,6 +2,7 @@
 .git
 .gitignore
 .dockerignore
+.github
 LICENSE
 README.md
 CHANGELOG.md
@@ -31,7 +32,7 @@ obj/
 *.pyc
 __pycache__/
 
-# Fragment: /genkit (Domain-Specific Orchestration Fragments)
+# Fragment: /genkit (Domain-Specific AI Orchestration Fragments)
 .genkit/
 genkit-state/
 genkit.json
@@ -39,6 +40,9 @@ genkit-env.json
 **/flow-state/
 **/trace-data/
 **/prompts/metadata.json
+**/evals/
+**/telemetry/
+**/cache/genkit/
 
 # Fragment: /settings (Environmental Constraints & Contextual State)
 .env
@@ -54,6 +58,7 @@ genkit-env.json
 *.pem
 *.key
 *.crt
+service-account.json
 
 # Fragment: /sidecars (Auxiliary Logic & Teleportation Patterns)
 tests/
@@ -76,6 +81,7 @@ Dockerfile*
 docker-compose*
 .docker
 kubeconfig
+helm/
 
 # Archive Logic (Compressed Package Architecture)
 *.zip
