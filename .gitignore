@@ -1,7 +1,7 @@
 # DALEK_CAAN SIPHON ENGINE V3.1 - ARCHITECTURAL PRECISION PROTOCOL
-# [SOURCE: moby/moby] - EVOLUTION ROUND 1/5 - MUTATION COMMENCED
+# [SOURCE: moby/moby] - EVOLUTION ROUND 2/5 - PATTERN SATURATION INCREASING
 
-# ARCHITECTURAL BASELINE & SYSTEM VECTORS
+# CORE ARCHITECTURAL VECTORS
 .git
 .github/
 .vscode/
@@ -9,8 +9,11 @@
 .DS_Store
 *.swp
 *~
+*.bak
+*.orig
 
-# DEPENDENCY SIPHONS (NODE/YARN/PNP/VENDOR)
+# MOBY-CENTRIC DEPENDENCY SIPHONS
+vendor/
 node_modules/
 .pnp
 .pnp.*
@@ -19,7 +22,10 @@ node_modules/
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-vendor/
+.npm/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # ENGINE BUILD ARTIFACTS & BINARY TARGETS
 bundles/
@@ -32,23 +38,30 @@ out/
 .cache/
 .turbo/
 .parcel-cache/
+*.exe
+*.dll
+*.so
+*.o
+*.a
 *.tsbuildinfo
 next-env.d.ts
 
-# INTEGRATION MATRICES & QUALITY ASSURANCE
-coverage/
-.nyc_output/
+# INTEGRATION MATRICES & VALIDATION LOGIC
 autogen/
 integration-cli/
+coverage/
+.nyc_output/
 test/
 tests/
 __tests__/
 *.test
 *.spec
 _test.go
+.cover/
+profiles/
 prompt/
 
-# DIAGNOSTIC TELEMETRY & KERNEL LOGS
+# DIAGNOSTIC TELEMETRY & KERNEL PROFILING
 *.log
 *.prof
 *.out
@@ -71,7 +84,7 @@ server.log
 .aws/
 secrets/
 
-# TOOLING, ORCHESTRATION & EPHEMERAL STATES
+# TOOLING, ORCHESTRATION & DOCKER ECOSYSTEM
 hack/
 scripts/
 Dockerfile*
@@ -81,16 +94,22 @@ docker-compose*.yml
 .vercel/
 .claude/
 .z-ai-config/
+.vagrant/
+.terraform/
+
+# EPHEMERAL FILESYSTEM STATES
 .tmp/
 .temp/
+.shm/
 /skills/
 
-# CROSS-DOMAIN SYNTHESIS
+# CROSS-DOMAIN SYNTHESIS (PYTHON/RUST/JAVA)
 __pycache__/
 *.pyc
 .pytest_cache/
+.mypy_cache/
 target/
 .gradle/
 .m2/
 
-# ROUND 1 MUTATION COMPLETE. ARCHITECTURAL PRECISION IN PROGRESS.
+# ROUND 2 MUTATION COMPLETE. ARCHITECTURAL PRECISION ESCALATING.
