@@ -11,11 +11,12 @@
 	header {
 		Access-Control-Allow-Origin *
 		Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, PATCH, DELETE"
-		Access-Control-Allow-Headers "Content-Type, Authorization, traceparent, tracestate, x-genkit-version, x-genkit-service-port, x-genkit-service-name"
+		Access-Control-Allow-Headers "Content-Type, Authorization, traceparent, tracestate, x-genkit-version, x-genkit-service-port, x-genkit-service-name, x-genkit-flow-id"
 		X-Genkit-Nexus-State "ACTIVE"
 		X-Genkit-Trace-Id "{env.TRACE_ID}"
 		X-Genkit-Environment "{env.GENKIT_ENV}"
 		X-Genkit-Version "{env.GENKIT_VERSION}"
+		X-Content-Type-Options "nosniff"
 		Server "Genkit-Nexus-Siphon/3.1"
 	}
 }
@@ -25,12 +26,15 @@
 	header_up tracestate {header.tracestate}
 	header_up X-Genkit-Trace-Id {env.TRACE_ID}
 	header_up X-Genkit-Proxy-Time "{now}"
+	header_up Host {host}
+	header_up X-Real-IP {remote_host}
 	
 	transport http {
 		response_header_timeout 300s
-		dial_timeout 10s
-		keepalive 30s
-		compression off
+		dial_timeout 5s
+		keepalive 60s
+		keepalive_idle_conns 100
+		tls_insecure_skip_verify
 	}
 }
 
@@ -43,7 +47,7 @@
 	respond @options 204
 
 	handle_path /__health {
-		respond `{"status":"UP","timestamp":"{now}","env":"{env.GENKIT_ENV}"}` 200
+		respond `{"status":"UP","timestamp":"{now}","env":"{env.GENKIT_ENV}","version":"{env.GENKIT_VERSION}"}` 200
 	}
 
 	@service_routing {
@@ -53,6 +57,11 @@
 		reverse_proxy localhost:{header.X-Genkit-Service-Port} {
 			import genkit_proxy_policy
 			header_up X-Genkit-Service-Name {header.X-Genkit-Service-Name}
+			header_up X-Genkit-Op "service-dispatch"
+			
+			lb_policy round_robin
+			fail_timeout 2s
+			max_fails 3
 		}
 	}
 
@@ -64,15 +73,26 @@
 			import genkit_proxy_policy
 			header_up Host {upstream_hostport}
 			header_up X-Genkit-Op "telemetry-siphon"
+			header_up Content-Type "application/json"
 		}
-		respond "Telemetry Plane Inactive" 503
+		respond `{"error":"Telemetry Plane Inactive","traceId":"{env.TRACE_ID}"}` 503
+	}
+
+	handle_path /flow/* {
+		reverse_proxy localhost:{env.PORT} {
+			import genkit_proxy_policy
+			header_up X-Genkit-Op "flow-execution"
+			flush_interval -1
+			buffer_requests
+		}
 	}
 
 	handle_path /api/v1/* {
 		reverse_proxy localhost:{env.PORT} {
 			import genkit_proxy_policy
+			header_up X-Genkit-Op "api-v1-gateway"
 			health_uri /api/__health
-			health_interval 5s
+			health_interval 10s
 			flush_interval -1
 		}
 	}
@@ -80,6 +100,7 @@
 	handle {
 		reverse_proxy localhost:{env.PORT} {
 			import genkit_proxy_policy
+			header_up X-Genkit-Op "default-ingress"
 			flush_interval -1
 		}
 	}
@@ -92,7 +113,7 @@
 			"status": {err.status_code},
 			"traceId": "{env.TRACE_ID}",
 			"path": "{path}",
-			"suggestion": "Check X-Genkit-Service-Port or Gateway availability"
+			"suggestion": "Verify X-Genkit-Service-Port or internal Genkit Node status"
 		}`
 
 		@5xx expression {err.status_code} >= 500
@@ -101,7 +122,8 @@
 			"error": "Nexus Infrastructure Collapse",
 			"status": {err.status_code},
 			"traceId": "{env.TRACE_ID}",
-			"execution_context": "{env.GENKIT_ENV}"
+			"execution_context": "{env.GENKIT_ENV}",
+			"timestamp": "{now}"
 		}`
 	}
 }
