@@ -1,6 +1,7 @@
-# HIGH-ORDER CONTEXT MINIMIZATION PROTOCOL (moby/moby-derived)
+# DALEK_CAAN SIPHON ENGINE V3.1 - ARCHITECTURAL PRECISION PROTOCOL
+# [SOURCE: moby/moby] - EVOLUTION ROUND 4/5
 
-# Version Control & Metadata
+# CORE ARCHITECTURAL EXCLUSIONS
 .git
 .github
 .gitignore
@@ -11,7 +12,7 @@
 *.swp
 *~
 
-# Dependency Siphons & Vendor Trees
+# VENDOR & DEPENDENCY SIPHONS
 node_modules/
 .npm/
 .yarn/
@@ -20,20 +21,21 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 vendor/
+pkg/
 
-# Architectural Artifacts & Build Bundles
-.next/
-out/
-dist/
-build/
-.cache/
-.turbo/
-.parcel-cache/
+# BUILD ARTIFACTS & BINARY BUNDLES
 bundles/
 binary/
 static/
+dist/
+build/
+out/
+.next/
+.cache/
+.turbo/
+.parcel-cache/
 
-# Test Matrices & Coverage
+# TEST MATRICES & CI/CD INFRASTRUCTURE
 test/
 tests/
 __tests__/
@@ -43,8 +45,10 @@ coverage/
 *.spec.js
 integration-cli/
 autogen/
+.travis.yml
+.circleci/
 
-# Logs & Diagnostics
+# LOGS & DIAGNOSTIC TELEMETRY
 *.log
 *-debug.log*
 *-error.log*
@@ -53,7 +57,7 @@ yarn-debug.log*
 yarn-error.log*
 local-*
 
-# Entropy & Secrets
+# ENTROPY CONTROL & SECRETS
 .env*
 !.env.example
 *.pem
@@ -62,7 +66,7 @@ local-*
 .aws/
 secrets/
 
-# Documentation & Human-Readable Metadata
+# DOCUMENTATION & CONTRIBUTOR METADATA
 README.md
 CONTRIBUTING.md
 LICENSE
@@ -70,19 +74,20 @@ CHANGELOG.md
 docs/
 man/
 contrib/
+MAINTAINERS
+OWNERS
 
-# Infrastructure & Provisioning
-Dockerfile
+# ENGINEERING SCRIPTS & PROVISIONING
+Dockerfile*
 .dockerignore
 docker-compose*.yml
 .docker/
 .vagrant/
 .terraform/
 hack/
-MAINTAINERS
-OWNERS
+scripts/
 
-# Optimization: Pruned Temporary Files
+# EPHEMERAL FILESYSTEM STATES
 .tmp/
 .temp/
 .shm/
