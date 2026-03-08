@@ -19,11 +19,19 @@ export {
   type DecisionOption,
   type ConsensusResult
 } from './governance';
-export { 
-  AutonomousScheduler, 
-  getAutonomousScheduler, 
-  type AutonomousGoal, 
-  type AutonomousTask, 
+export {
+  AutonomousScheduler,
+  getAutonomousScheduler,
+  type AutonomousGoal,
+  type AutonomousTask,
   type SchedulerState,
   type TaskQueue
 } from './autonomous-scheduler';
+export {
+  MetaSystem,
+  getMetaSystem,
+  type FileMetadata,
+  type MetaVote,
+  type MetaRound
+} from './meta-system';
+export { AGICore, getAGI, type AGIConfig, type AnalysisResult as AGIAnalysisResult, type PatternMatch } from './core';

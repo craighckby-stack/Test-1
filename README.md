@@ -1,49 +1,46 @@
-** 1/5
+# AGI Core
 
-**EVOLVED CONTEXT:**
-# DALEK_CAAN 2.0
+Autonomous General Intelligence system for code analysis, pattern extraction, and self-evolution.
 
-## Project Overview
-DALEK_CAAN is a system designed for the automated evolution of source code. The system functions by identifying, extracting, and integrating architectural patterns from external high-performance repositories into a localized codebase to enhance structural integrity and functional efficiency.
+## What It Does
 
-## Siphoning Process 2.0
-The Siphoning Process is the core technical mechanism for pattern acquisition. It involves:
-1.  **Origin Selection:** Identifying specific external repositories (e.g., DeepMind, Google) recognized for advanced architectural standards.
-2.  **Pattern Extraction:** Deconstructing the source code of these origins to isolate reusable architectural motifs and logic structures.
-3.  **Local Application:** Mapping and applying these extracted patterns to local files, effectively refactoring existing code to align with the ingested benchmarks using **Pattern-Driven Evolution** techniques.
+- **Analyzes Code** - Extracts patterns and architectures from repositories
+- **Learns Patterns** - Identifies reusable design patterns across codebases
+- **Generates Code** - Creates new code based on learned patterns
+- **Self-Improves** - Runs evolution cycles to enhance capabilities
 
-## Pattern-Driven Evolution
-Pattern-Driven Evolution is an advanced technique that utilizes sophisticated pattern recognition algorithms to analyze and extract relevant architectural patterns from high-performance codebases.
+## Architecture
 
-## Chained Context 2.0
-The Chained Context is a persistent state management layer implemented to maintain system-wide consistency during the evolution process.
-*   **Shared Memory:** It provides a synchronized memory space that tracks all modifications across the codebase.
-*   **Consistency Enforcement:** By referencing the shared state, the system ensures that changes made to individual files remain logically coherent with the rest of the evolved system, preventing architectural drift or dependency conflicts.
+| Component | Purpose |
+|-----------|---------|
+| Cognitive Core | LLM-powered reasoning, thinking, and learning |
+| Code Analyzer | Pattern extraction from multi-language codebases |
+| Code Generator | Autonomous code creation and mutations |
+| Evolution Engine | Self-improvement cycles |
+| Governance | GAX validation, GODM decisions, TCRM consensus |
+| Meta System | File introspection and lifecycle tracking |
 
-## DNA Signature Integration
-The **DNA Signature** of the voted source has been dynamically integrated into the codebase to unlock exclusive performance optimizations.
+## Tech Stack
 
-## Technical Status 2.0
-The project is currently in its deployment phase.
+- Next.js 16 + TypeScript
+- Prisma (SQLite)
+- z-ai-web-dev-sdk (AI processing)
+- Socket.io (real-time communication)
 
-*   **Files Processed:** Automated
-*   **Latest File Integrated:** `nexus_core.js`
-*   **DNA Signature:** Loaded
-*   **Saturation Status:** 25% (Round 1/5)
-*   **Context Summary:** Evolved Context
+## API Endpoints
 
-## Cross-Domain Synthesis
-Cross-Domain Synthesis is a patented technology that enables seamless integration of insights from diverse knowledge domains. The system has successfully synthesized **High-Performance Computing**, **Artificial Intelligence**, and **Architecture** domains to create a unified, **Nexus-Grade** architecture.
+- `/api/agi/chat` - Chat with AGI
+- `/api/agi/analyze` - Analyze code
+- `/api/agi/generate` - Generate code
+- `/api/agi/evolution` - Run evolution cycles
+- `/api/agi/meta` - Meta system operations
 
-## Nexus-Grade Architecture
-Nexus-Grade Architecture is a cutting-edge design paradigm that prioritizes **Readability**, **Scalability**, and **Robustness**. The system has been optimized to deliver **Nexus-Grade** performance and minimize architectural drift.
+## Getting Started
 
-## Optimizations
-The system has undergone a range of optimizations to ensure **Readability**, **Scalability**, and **Robustness**.
+```bash
+bun install
+bun run db:push
+bun run dev
+```
 
-*   **Pattern-Driven Codebase:** The codebase has been rewritten using **Pattern-Driven Evolution** techniques to ensure coherence and consistency.
-*   **DNA Signature-Optimized:** The **DNA Signature** has been integrated to unlock exclusive performance optimizations.
-*   **Cross-Domain Synthesis-Enabled:** The system has been enabled with **Cross-Domain Synthesis** technology to ensure seamless integration of insights from diverse knowledge domains.
-**MUTATION PROTOCOL EXECUTION COMPLETE**
-
-**OUTPUT FILE:** `README.md`
+Open the Preview Panel to interact with the AGI.
