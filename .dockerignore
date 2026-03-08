@@ -1,5 +1,6 @@
 .git
 .github
+.gitignore
 .vscode
 .idea
 .DS_Store
@@ -8,8 +9,8 @@
 
 node_modules/
 .npm/
-*-debug.log*
-*-error.log*
+.yarn/
+.pnpm-store/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
@@ -19,18 +20,41 @@ out/
 dist/
 build/
 .cache/
+.turbo/
+.parcel-cache/
 
 test/
 tests/
+__tests__/
 coverage/
 .nyc_output/
+*.test.js
+*.spec.js
 
 *.log
+*-debug.log*
+*-error.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 local-*
+
 .env*
+!.env.example
+*.pem
+*.key
+.ssh/
+.aws/
 
 README.md
 CONTRIBUTING.md
 LICENSE
+CHANGELOG.md
+docs/
+
 Dockerfile
 .dockerignore
+docker-compose*.yml
+.docker/
+.vagrant/
+.terraform/
