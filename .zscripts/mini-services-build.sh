@@ -2,144 +2,156 @@
 
 set -eo pipefail
 
-# --- CONFIGURATION: ARCHITECTURAL STATE ---
-readonly GENKIT_VERSION="0.1.0-siphon"
+# --- ARCHITECTURAL STATE: GENKIT CORE ---
+readonly GENKIT_VERSION="0.3.1-siphon"
 readonly TRACE_ID="${BUILD_ID:-$(date +%s%N)}"
 readonly PROJECT_ROOT="${MINI_SERVICES_ROOT:-$(pwd)}"
-readonly BUNDLE_PATH="${MINI_SERVICES_DIST:-/tmp/genkit-build-$TRACE_ID}"
+readonly BUNDLE_PATH="${MINI_SERVICES_DIST:-/tmp/genkit-siphon-$TRACE_ID}"
 readonly ARTIFACT_ROOT="${PROJECT_ROOT}/dist"
 readonly TELEMETRY_LOG="${BUNDLE_PATH}/telemetry.jsonl"
 
-# --- GENKIT CORE: TELEMETRY ENGINE ---
-log_telemetry() {
-    local span_name=$1 status=$2 metadata=$3
+# --- GENKIT: TRACING ENGINE ---
+log_span() {
+    local span_name=$1 status=$2 attr=$3
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
     mkdir -p "$(dirname "$TELEMETRY_LOG")"
     local entry
     entry=$(printf '{"timestamp":"%s","traceId":"%s","spanName":"%s","status":"%s","attr":%s}' \
-        "$timestamp" "$TRACE_ID" "$span_name" "$status" "${metadata:-{}}")
+        "$timestamp" "$TRACE_ID" "$span_name" "$status" "${attr:-{}}")
     
     echo "$entry" >> "$TELEMETRY_LOG"
-    [[ "$status" == "ERROR" ]] && echo "!! [TRACE_ERROR] $span_name: $metadata" >&2
+    [[ "$status" == "ERROR" ]] && echo "!! [SPAN_FAILURE] $span_name: $attr" >&2
 }
 
-invoke_action() {
+# --- GENKIT: ACTION RUNNER ---
+run_action() {
     local action_id=$1
     local action_fn=$2
     local start_ns
     start_ns=$(date +%s%N)
 
-    log_telemetry "$action_id" "STARTED" '{"version":"'"$GENKIT_VERSION"'"}'
+    log_span "$action_id" "STARTED" '{"version":"'"$GENKIT_VERSION"'"}'
 
     if $action_fn; then
         local end_ns=$(date +%s%N)
-        local duration_ms=$(( (end_ns - start_ns) / 1000000 ))
-        log_telemetry "$action_id" "SUCCESS" '{"latency_ms":'"$duration_ms"'}'
+        local latency=$(( (end_ns - start_ns) / 1000000 ))
+        log_span "$action_id" "SUCCESS" '{"latency_ms":'"$latency"'}'
     else
-        local err_code=$?
-        log_telemetry "$action_id" "ERROR" '{"exit_code":'"$err_code"'}'
-        return "$err_code"
+        local exit_code=$?
+        log_span "$action_id" "ERROR" '{"exit_code":'"$exit_code"'}'
+        return "$exit_code"
     fi
 }
 
-# --- ACTION: ENTROPY PRUNING ---
-action_prune_entropy() {
+# --- ACTION: ENVIRONMENT SANITIZATION ---
+action_entropy_pruning() {
+    log_span "pruning" "PROCESSING" '{"scope":"cache_and_logs"}'
     find "$PROJECT_ROOT" -maxdepth 2 -name "node_modules" -type d -exec rm -rf {} +
     find "$PROJECT_ROOT" -name "*.log" -type f -delete
-    mkdir -p "$BUNDLE_PATH"
+    mkdir -p "$BUNDLE_PATH/services"
 }
 
-# --- ACTION: RUNTIME VALIDATION ---
-action_validate_runtime() {
-    local missing=()
-    command -v bun >/dev/null 2>&1 || missing+=("bun")
-    
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        log_telemetry "runtime_validation" "ERROR" '{"missing_binaries":"'"${missing[*]}"'"}'
-        return 1
-    fi
-}
-
-# --- ACTION: SERVICE DISCOVERY & COMPILATION ---
-action_compile_services() {
-    local services_dir="${PROJECT_ROOT}/services"
-    [[ ! -d "$services_dir" ]] && services_dir="$PROJECT_ROOT"
-
-    for dir in "$services_dir"/*; do
-        [[ -d "$dir" && -f "$dir/package.json" ]] || continue
-        
-        local name
-        name=$(basename "$dir")
-        local entry=""
-        
-        for e in "src/index.ts" "index.ts" "main.ts"; do
-            [[ -f "$dir/$e" ]] && entry="$dir/$e" && break
-        done
-
-        if [[ -n "$entry" ]]; then
-            log_telemetry "service_build" "PROCESSING" '{"service":"'"$name"'"}'
-            bun build "$entry" \
-                --outfile "$BUNDLE_PATH/services/$name.js" \
-                --target bun \
-                --minify-whitespace \
-                --minify-syntax \
-                --sourcemap=external > /dev/null
+# --- ACTION: RUNTIME VERIFICATION ---
+action_verify_runtime() {
+    local bin=("bun" "node")
+    for b in "${bin[@]}"; do
+        if ! command -v "$b" >/dev/null 2>&1; then
+            log_span "runtime_check" "ERROR" '{"missing":"'"$b"'"}'
+            return 1
         fi
     done
 }
 
-# --- ACTION: DATA PROJECTION (PRISMA/SCHEMA) ---
+# --- ACTION: MULTI-SERVICE COMPILATION ---
+action_compile_services() {
+    local services_dir="${PROJECT_ROOT}/services"
+    [[ ! -d "$services_dir" ]] && services_dir="$PROJECT_ROOT"
+
+    while IFS= read -r -d '' pkg_json; do
+        local dir
+        dir=$(dirname "$pkg_json")
+        local name
+        name=$(basename "$dir")
+        
+        local entry=""
+        for e in "index.ts" "main.ts" "src/index.ts" "src/main.ts"; do
+            [[ -f "$dir/$e" ]] && entry="$dir/$e" && break
+        done
+
+        if [[ -n "$entry" ]]; then
+            log_span "compilation" "PROCESSING" '{"service":"'"$name"'"}'
+            bun build "$entry" \
+                --outfile "$BUNDLE_PATH/services/$name.js" \
+                --target node \
+                --minify \
+                --sourcemap=external \
+                --define "process.env.GENKIT_TRACE_ID=\"$TRACE_ID\""
+        fi
+    done < <(find "$services_dir" -maxdepth 2 -name "package.json" -print0)
+}
+
+# --- ACTION: SCHEMA PROJECTION ---
 action_project_schema() {
-    if find "$PROJECT_ROOT" -name "schema.prisma" | grep -q .; then
-        log_telemetry "schema_projection" "PROCESSING" '{"engine":"prisma"}'
-        bun x prisma generate --schema="$(find "$PROJECT_ROOT" -name "schema.prisma" | head -n 1)"
+    local prisma_schema
+    prisma_schema=$(find "$PROJECT_ROOT" -name "schema.prisma" | head -n 1)
+    
+    if [[ -n "$prisma_schema" ]]; then
+        log_span "schema_projection" "PROCESSING" '{"path":"'"$prisma_schema"'"}'
+        (
+            cd "$(dirname "$prisma_schema")"
+            bun x prisma generate
+        )
+        # Mirror schema for runtime migration potential
+        cp "$prisma_schema" "$BUNDLE_PATH/schema.prisma"
     fi
 }
 
 # --- ACTION: ARTIFACT SEALING ---
 action_seal_artifact() {
     mkdir -p "$ARTIFACT_ROOT"
-    local output_file="${ARTIFACT_ROOT}/services-bundle-${TRACE_ID}.tar.gz"
+    local output="${ARTIFACT_ROOT}/genkit-bundle-${TRACE_ID}.tar.gz"
     
-    # Inject minimal entrypoint if missing
-    if [[ ! -f "$BUNDLE_PATH/entrypoint.sh" ]]; then
-        cat <<EOF > "$BUNDLE_PATH/entrypoint.sh"
+    # Deterministic entrypoint generation
+    cat <<EOF > "$BUNDLE_PATH/entrypoint.sh"
 #!/usr/bin/env bash
+set -e
+echo "[GENKIT_RUNTIME] Starting services for trace: $TRACE_ID"
 for svc in services/*.js; do
-  bun run "\$svc" &
+  echo "[BOOT] \$svc"
+  node "\$svc" &
 done
 wait
 EOF
-    fi
     chmod +x "$BUNDLE_PATH/entrypoint.sh"
     
-    tar -czf "$output_file" -C "$BUNDLE_PATH" .
-    log_telemetry "artifact_sealed" "SUCCESS" '{"path":"'"$output_file"'"}'
+    tar -czf "$output" -C "$BUNDLE_PATH" .
+    log_span "artifact_sealed" "SUCCESS" '{"artifact":"'"$output"'"}'
+    echo "RELEASE_PATH: $output"
 }
 
-# --- ORCHESTRATOR: GENKIT FLOW ---
-define_genkit_flow() {
-    log_telemetry "genkit_flow_init" "SUCCESS" '{"root":"'"$PROJECT_ROOT"'"}'
+# --- GENKIT FLOW ORCHESTRATION ---
+execute_genkit_flow() {
+    log_span "flow_initiation" "SUCCESS" '{"root":"'"$PROJECT_ROOT"'"}'
 
-    local flow_manifest=(
-        "workspace:prune|action_prune_entropy"
-        "runtime:validate|action_validate_runtime"
-        "services:compile|action_compile_services"
-        "schema:project|action_project_schema"
+    local pipeline=(
+        "pruning|action_entropy_pruning"
+        "runtime:check|action_verify_runtime"
+        "services:build|action_compile_services"
+        "schema:sync|action_project_schema"
         "artifact:seal|action_seal_artifact"
     )
 
-    for step in "${flow_manifest[@]}"; do
-        IFS="|" read -r action_id action_fn <<< "$step"
-        invoke_action "$action_id" "$action_fn" || {
-            log_telemetry "flow_aborted" "FATAL" '{"failed_at":"'"$action_id"'"}'
+    for stage in "${pipeline[@]}"; do
+        IFS="|" read -r id fn <<< "$stage"
+        run_action "$id" "$fn" || {
+            log_span "flow_interrupted" "FATAL" '{"failed_stage":"'"$id"'"}'
             exit 1
         }
     done
 
-    echo "ARCHITECTURAL_PRECISION_ACHIEVED: $TRACE_ID"
+    log_span "flow_completion" "SUCCESS" '{"status":"ARCHITECTURAL_PRECISION_ACHIEVED"}'
 }
 
-define_genkit_flow "$@"
+execute_genkit_flow "$@"
