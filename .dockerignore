@@ -1,12 +1,17 @@
+# HIGH-ORDER CONTEXT MINIMIZATION PROTOCOL (moby/moby-derived)
+
+# Version Control & Metadata
 .git
 .github
 .gitignore
+.gitattributes
 .vscode
 .idea
 .DS_Store
 *.swp
 *~
 
+# Dependency Siphons & Vendor Trees
 node_modules/
 .npm/
 .yarn/
@@ -14,7 +19,9 @@ node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+vendor/
 
+# Architectural Artifacts & Build Bundles
 .next/
 out/
 dist/
@@ -22,7 +29,11 @@ build/
 .cache/
 .turbo/
 .parcel-cache/
+bundles/
+binary/
+static/
 
+# Test Matrices & Coverage
 test/
 tests/
 __tests__/
@@ -30,7 +41,10 @@ coverage/
 .nyc_output/
 *.test.js
 *.spec.js
+integration-cli/
+autogen/
 
+# Logs & Diagnostics
 *.log
 *-debug.log*
 *-error.log*
@@ -39,22 +53,36 @@ yarn-debug.log*
 yarn-error.log*
 local-*
 
+# Entropy & Secrets
 .env*
 !.env.example
 *.pem
 *.key
 .ssh/
 .aws/
+secrets/
 
+# Documentation & Human-Readable Metadata
 README.md
 CONTRIBUTING.md
 LICENSE
 CHANGELOG.md
 docs/
+man/
+contrib/
 
+# Infrastructure & Provisioning
 Dockerfile
 .dockerignore
 docker-compose*.yml
 .docker/
 .vagrant/
 .terraform/
+hack/
+MAINTAINERS
+OWNERS
+
+# Optimization: Pruned Temporary Files
+.tmp/
+.temp/
+.shm/
