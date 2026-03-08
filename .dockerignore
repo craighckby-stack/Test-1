@@ -16,6 +16,7 @@ yarn-error.log*
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+npm-shrinkwrap.json
 
 # Fragment: /dist (Presentation Layer / Compiled Artifacts)
 dist/
@@ -27,6 +28,8 @@ obj/
 *.tsbuildinfo
 *.map
 *.d.ts
+*.pyc
+__pycache__/
 
 # Fragment: /genkit (Domain-Specific Orchestration Fragments)
 .genkit/
@@ -35,6 +38,7 @@ genkit.json
 genkit-env.json
 **/flow-state/
 **/trace-data/
+**/prompts/metadata.json
 
 # Fragment: /settings (Environmental Constraints & Contextual State)
 .env
@@ -45,8 +49,11 @@ genkit-env.json
 .aws
 .gcloud
 .config
+.firebase
+.firebaserc
 *.pem
 *.key
+*.crt
 
 # Fragment: /sidecars (Auxiliary Logic & Teleportation Patterns)
 tests/
@@ -60,18 +67,23 @@ tmp/
 *.log
 *.bak
 *.swp
+.history/
+.vscode/
+.idea/
 
 # Fragment: /containers (Infrastructure Definition Overrides)
 Dockerfile*
 docker-compose*
 .docker
+kubeconfig
 
-# Archive Logic (Compressed Container Constraints)
+# Archive Logic (Compressed Package Architecture)
 *.zip
 *.tar.gz
 *.rar
 *.7z
 *.iso
+*.dmg
 
 # OS Metadata (Registry Noise & Path Collisions)
 .DS_Store
