@@ -11,10 +11,12 @@
 	header {
 		Access-Control-Allow-Origin *
 		Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, PATCH, DELETE"
-		Access-Control-Allow-Headers "Content-Type, Authorization, traceparent, tracestate, x-genkit-version, x-genkit-service-port"
+		Access-Control-Allow-Headers "Content-Type, Authorization, traceparent, tracestate, x-genkit-version, x-genkit-service-port, x-genkit-service-name"
 		X-Genkit-Nexus-State "ACTIVE"
 		X-Genkit-Trace-Id "{env.TRACE_ID}"
 		X-Genkit-Environment "{env.GENKIT_ENV}"
+		X-Genkit-Version "{env.GENKIT_VERSION}"
+		Server "Genkit-Nexus-Siphon/3.1"
 	}
 }
 
@@ -23,6 +25,13 @@
 	header_up tracestate {header.tracestate}
 	header_up X-Genkit-Trace-Id {env.TRACE_ID}
 	header_up X-Genkit-Proxy-Time "{now}"
+	
+	transport http {
+		response_header_timeout 300s
+		dial_timeout 10s
+		keepalive 30s
+		compression off
+	}
 }
 
 :81 {
@@ -33,12 +42,17 @@
 	}
 	respond @options 204
 
+	handle_path /__health {
+		respond `{"status":"UP","timestamp":"{now}","env":"{env.GENKIT_ENV}"}` 200
+	}
+
 	@service_routing {
 		header X-Genkit-Service-Port *
 	}
 	handle @service_routing {
 		reverse_proxy localhost:{header.X-Genkit-Service-Port} {
 			import genkit_proxy_policy
+			header_up X-Genkit-Service-Name {header.X-Genkit-Service-Name}
 		}
 	}
 
@@ -49,8 +63,9 @@
 		reverse_proxy @has_telemetry {env.GENKIT_TELEMETRY_SERVER} {
 			import genkit_proxy_policy
 			header_up Host {upstream_hostport}
+			header_up X-Genkit-Op "telemetry-siphon"
 		}
-		respond "Telemetry Inactive" 503
+		respond "Telemetry Plane Inactive" 503
 	}
 
 	handle_path /api/v1/* {
@@ -58,23 +73,35 @@
 			import genkit_proxy_policy
 			health_uri /api/__health
 			health_interval 5s
-			health_timeout 2s
+			flush_interval -1
 		}
 	}
 
 	handle {
 		reverse_proxy localhost:{env.PORT} {
 			import genkit_proxy_policy
+			flush_interval -1
 		}
 	}
 
 	handle_errors {
 		@4xx expression {err.status_code} >= 400 && {err.status_code} < 500
 		header @4xx Content-Type application/json
-		respond @4xx `{ "error": "Client Error", "status": {err.status_code}, "traceId": "{env.TRACE_ID}", "path": "{path}" }`
+		respond @4xx `{
+			"error": "Nexus Routing Fault",
+			"status": {err.status_code},
+			"traceId": "{env.TRACE_ID}",
+			"path": "{path}",
+			"suggestion": "Check X-Genkit-Service-Port or Gateway availability"
+		}`
 
 		@5xx expression {err.status_code} >= 500
 		header @5xx Content-Type application/json
-		respond @5xx `{ "error": "Nexus Infrastructure Fault", "status": {err.status_code}, "traceId": "{env.TRACE_ID}" }`
+		respond @5xx `{
+			"error": "Nexus Infrastructure Collapse",
+			"status": {err.status_code},
+			"traceId": "{env.TRACE_ID}",
+			"execution_context": "{env.GENKIT_ENV}"
+		}`
 	}
 }
