@@ -2,8 +2,8 @@
 
 set -eo pipefail
 
-# --- ARCHITECTURAL STATE: GENKIT CORE v3.1 ---
-readonly GENKIT_VERSION="0.4.2-siphon-precision"
+# --- ARCHITECTURAL STATE: GENKIT CORE v3.2 (FINAL EVOLUTION) ---
+readonly GENKIT_VERSION="0.5.0-siphon-nexus"
 readonly TRACE_ID="${BUILD_ID:-$(date +%s%N)}"
 readonly PROJECT_ROOT="${MINI_SERVICES_ROOT:-$(pwd)}"
 readonly BUNDLE_PATH="${MINI_SERVICES_DIST:-/tmp/genkit-siphon-$TRACE_ID}"
@@ -12,7 +12,6 @@ readonly TELEMETRY_LOG="${BUNDLE_PATH}/telemetry.jsonl"
 readonly SERVICE_MANIFEST="${BUNDLE_PATH}/manifest.json"
 
 # --- GENKIT: TELEMETRY DISPATCHER ---
-# Implements high-order tracing patterns for observability
 log_telemetry() {
     local span_name=$1 status=$2 metadata=$3
     local timestamp
@@ -28,7 +27,6 @@ log_telemetry() {
 }
 
 # --- GENKIT: ACTION INVOKER ---
-# Wraps functional units in a timed, monitored execution block
 invoke_action() {
     local action_id=$1
     local action_fn=$2
@@ -49,7 +47,6 @@ invoke_action() {
 }
 
 # --- ACTION: ENTROPY NEUTRALIZATION ---
-# Prunes workspace artifacts to ensure build determinism
 action_prune_entropy() {
     log_telemetry "entropy_pruning" "PROCESSING" '{"scope":"workspace_cleanse"}'
     
@@ -58,6 +55,7 @@ action_prune_entropy() {
     find "$PROJECT_ROOT" -name "*.log" -type f -delete
     
     mkdir -p "$BUNDLE_PATH/services"
+    mkdir -p "$ARTIFACT_ROOT"
 }
 
 # --- ACTION: RUNTIME VALIDATION ---
@@ -73,14 +71,35 @@ action_validate_runtime() {
     fi
 }
 
-# --- ACTION: SERVICE COMPILATION (SIPHON DNA) ---
-# Discovers and compiles service entrypoints into standalone bundles
+# --- ACTION: FRONTEND COMPILATION ---
+action_compile_frontend() {
+    if [[ -f "$PROJECT_ROOT/next.config.js" || -f "$PROJECT_ROOT/next.config.mjs" ]]; then
+        (
+            cd "$PROJECT_ROOT"
+            export NEXT_TELEMETRY_DISABLED=1
+            export NODE_ENV=production
+            
+            bun install --frozen-lockfile --quiet
+            bun run build
+            
+            if [[ -d ".next/standalone" ]]; then
+                cp -r .next/standalone/. "$BUNDLE_PATH/"
+                [[ -d ".next/static" ]] && mkdir -p "$BUNDLE_PATH/.next" && cp -r .next/static "$BUNDLE_PATH/.next/"
+                [[ -d "public" ]] && cp -r public "$BUNDLE_PATH/"
+            fi
+        )
+    fi
+}
+
+# --- ACTION: SERVICE COMPILATION ---
 action_compile_services() {
     local services_found=()
     
     while IFS= read -r -d '' pkg_json; do
         local dir
         dir=$(dirname "$pkg_json")
+        [[ "$dir" == "$PROJECT_ROOT" ]] && continue
+        
         local svc_name
         svc_name=$(basename "$dir")
         
@@ -104,12 +123,10 @@ action_compile_services() {
         fi
     done < <(find "$PROJECT_ROOT" -maxdepth 3 -name "package.json" -not -path "*/node_modules/*" -print0)
 
-    # Generate internal service manifest
     printf '{"traceId":"%s","services":[%s]}' "$TRACE_ID" "$(IFS=,; echo "${services_found[*]}")" > "$SERVICE_MANIFEST"
 }
 
 # --- ACTION: DATA PROJECTION ---
-# Synchronizes Prisma schemas and generates client artifacts
 action_project_schema() {
     local schema_path
     schema_path=$(find "$PROJECT_ROOT" -name "schema.prisma" -not -path "*/node_modules/*" | head -n 1)
@@ -121,26 +138,39 @@ action_project_schema() {
             bun x prisma generate
         )
         cp "$schema_path" "$BUNDLE_PATH/schema.prisma"
+        [[ -d "$(dirname "$schema_path")/node_modules" ]] && cp -r "$(dirname "$schema_path")/node_modules" "$BUNDLE_PATH/"
     fi
 }
 
 # --- ACTION: ARTIFACT SEALING ---
-# Packs the compiled bundle and generates the process entrypoint
 action_seal_artifact() {
-    mkdir -p "$ARTIFACT_ROOT"
     local output_file="${ARTIFACT_ROOT}/genkit-release-${TRACE_ID}.tar.gz"
     
-    # Generate Process Manager Entrypoint
+    # Process Manager Entrypoint with Signal Forwarding
     cat <<'EOF' > "$BUNDLE_PATH/entrypoint.sh"
 #!/usr/bin/env bash
 set -e
 export GENKIT_RUNTIME_BOOT=$(date +%s)
-echo "[GENKIT] Initializing micro-services..."
+pids=()
+
+cleanup() {
+    echo "[GENKIT] Shutting down services..."
+    for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+echo "[GENKIT] Initializing Nexus-grade micro-services..."
+[[ -f "server.js" ]] && node server.js & pids+=($!)
+
 for svc in services/*.js; do
     echo "[BOOT] Starting $svc"
     node "$svc" &
+    pids+=($!)
 done
-wait
+
+wait "${pids[@]}"
 EOF
     chmod +x "$BUNDLE_PATH/entrypoint.sh"
     
@@ -151,13 +181,13 @@ EOF
 }
 
 # --- MAIN: GENKIT FLOW ORCHESTRATOR ---
-# Declarative execution pipeline with error reflection
 define_genkit_flow() {
     log_telemetry "genkit_flow_init" "SUCCESS" '{"root":"'"$PROJECT_ROOT"'"}'
 
     local flow_manifest=(
         "workspace:prune|action_prune_entropy"
         "runtime:validate|action_validate_runtime"
+        "frontend:compile|action_compile_frontend"
         "services:compile|action_compile_services"
         "schema:project|action_project_schema"
         "artifact:seal|action_seal_artifact"
