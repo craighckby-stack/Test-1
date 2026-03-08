@@ -1,126 +1,133 @@
-#!/bin/sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+export GENKIT_VERSION="1.3.0-nexus"
+export BUNDLE_PATH="${BUNDLE_PATH:-$(cd "$(dirname "$0")/.." && pwd)}"
+export TRACE_ID="${TRACE_ID:-$(date +%s%N | cut -b1-16)}"
+export NODE_ENV="${NODE_ENV:-production}"
+export PORT=${PORT:-3000}
+export HOSTNAME=${HOSTNAME:-0.0.0.0}
 
-# 获取脚本所在目录
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUILD_DIR="$SCRIPT_DIR"
+declare -a PIDS=()
 
-# 存储所有子进程的 PID
-pids=""
+genkit_telemetry_emit() {
+    local op=$1 status=$2 meta=$3
+    printf '{"ts":"%s","op":"%s","status":"%s","traceId":"%s","v":"%s","meta":%s}\n' \
+        "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$op" "$status" "$TRACE_ID" "$GENKIT_VERSION" "$meta"
+}
 
-# 清理函数：优雅关闭所有服务
-cleanup() {
-    echo ""
-    echo "🛑 正在关闭所有服务..."
+genkit_invoke_op() {
+    local sid=$1 fn=$2
+    genkit_telemetry_emit "$sid" "START" "{}"
+    if $fn; then
+        genkit_telemetry_emit "$sid" "COMPLETED" "{}"
+    else
+        genkit_telemetry_emit "$sid" "FAILED" "{\"error\":\"operation_failed\"}"
+        return 1
+    fi
+}
+
+_nexus_shutdown() {
+    genkit_telemetry_emit "nexus_shutdown" "INIT" "{\"active_nodes\":${#PIDS[@]}}"
+    [[ ${#PIDS[@]} -eq 0 ]] && exit 0
+
+    kill -TERM "${PIDS[@]}" 2>/dev/null || true
     
-    # 发送 SIGTERM 信号给所有子进程
-    for pid in $pids; do
-        if kill -0 "$pid" 2>/dev/null; then
-            service_name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "unknown")
-            echo "   关闭进程 $pid ($service_name)..."
-            kill -TERM "$pid" 2>/dev/null
-        fi
+    local timeout=10
+    while [ $timeout -gt 0 ] && [ ${#PIDS[@]} -gt 0 ]; do
+        local alive=()
+        for pid in "${PIDS[@]}"; do
+            kill -0 "$pid" 2>/dev/null && alive+=("$pid")
+        done
+        PIDS=("${alive[@]}")
+        [[ ${#PIDS[@]} -eq 0 ]] && break
+        sleep 1
+        ((timeout--))
     done
-    
-    # 等待所有进程退出（最多等待 5 秒）
-    sleep 1
-    for pid in $pids; do
-        if kill -0 "$pid" 2>/dev/null; then
-            # 如果还在运行，等待最多 4 秒
-            timeout=4
-            while [ $timeout -gt 0 ] && kill -0 "$pid" 2>/dev/null; do
-                sleep 1
-                timeout=$((timeout - 1))
-            done
-            # 如果仍然在运行，强制关闭
-            if kill -0 "$pid" 2>/dev/null; then
-                echo "   强制关闭进程 $pid..."
-                kill -KILL "$pid" 2>/dev/null
-            fi
-        fi
-    done
-    
-    echo "✅ 所有服务已关闭"
+
+    [[ ${#PIDS[@]} -gt 0 ]] && kill -9 "${PIDS[@]}" 2>/dev/null || true
+    genkit_telemetry_emit "nexus_shutdown" "TERMINATED" "{\"force_killed\":${#PIDS[@]}}"
     exit 0
 }
 
-echo "🚀 开始启动所有服务..."
-echo ""
+trap _nexus_shutdown SIGINT SIGTERM
 
-# 切换到构建目录
-cd "$BUILD_DIR" || exit 1
+op_runtime_check() {
+    local deps=("bun" "caddy" "node")
+    for bin in "${deps[@]}"; do
+        command -v "$bin" >/dev/null 2>&1 || {
+            genkit_telemetry_emit "runtime_check" "MISSING_DEP" "{\"bin\":\"$bin\"}"
+            return 1
+        }
+    done
+}
 
-ls -lah
-
-# 初始化数据库（如果存在）
-if [ -d "./next-service-dist/db" ] && [ "$(ls -A ./next-service-dist/db 2>/dev/null)" ] && [ -d "/db" ]; then
-    echo "🗄️  初始化数据库从 ./next-service-dist/db 到 /db..."
-    cp -r ./next-service-dist/db/* /db/ 2>/dev/null || echo "  ⚠️  无法复制到 /db，跳过数据库初始化"
-    echo "✅ 数据库初始化完成"
-fi
-
-# 启动 Next.js 服务器
-if [ -f "./next-service-dist/server.js" ]; then
-    echo "🚀 启动 Next.js 服务器..."
-    cd next-service-dist/ || exit 1
-    
-    # 设置环境变量
-    export NODE_ENV=production
-    export PORT=${PORT:-3000}
-    export HOSTNAME=${HOSTNAME:-0.0.0.0}
-    
-    # 后台启动 Next.js
-    bun server.js &
-    NEXT_PID=$!
-    pids="$NEXT_PID"
-    
-    # 等待一小段时间检查进程是否成功启动
-    sleep 1
-    if ! kill -0 "$NEXT_PID" 2>/dev/null; then
-        echo "❌ Next.js 服务器启动失败"
-        exit 1
-    else
-        echo "✅ Next.js 服务器已启动 (PID: $NEXT_PID, Port: $PORT)"
+op_db_init() {
+    local src="$BUNDLE_PATH/next-service-dist/db"
+    local dest="/db"
+    if [[ -d "$src" && -d "$dest" ]]; then
+        cp -r "$src"/* "$dest/" 2>/dev/null || return 0
     fi
-    
-    cd ../
-else
-    echo "⚠️  未找到 Next.js 服务器文件: ./next-service-dist/server.js"
-fi
+}
 
-# 启动 mini-services
-if [ -f "./mini-services-start.sh" ]; then
-    echo "🚀 启动 mini-services..."
-    
-    # 运行启动脚本（从根目录运行，脚本内部会处理 mini-services-dist 目录）
-    sh ./mini-services-start.sh &
-    MINI_PID=$!
-    pids="$pids $MINI_PID"
-    
-    # 等待一小段时间检查进程是否成功启动
-    sleep 1
-    if ! kill -0 "$MINI_PID" 2>/dev/null; then
-        echo "⚠️  mini-services 可能启动失败，但继续运行..."
-    else
-        echo "✅ mini-services 已启动 (PID: $MINI_PID)"
+op_nexus_orchestrate() {
+    local log_dir="$BUNDLE_PATH/logs"
+    mkdir -p "$log_dir"
+
+    # Next.js Primary Node
+    if [[ -f "$BUNDLE_PATH/next-service-dist/server.js" ]]; then
+        (cd "$BUNDLE_PATH/next-service-dist" && \
+         GENKIT_TRACE_ID="$TRACE_ID" \
+         GENKIT_SERVICE_TYPE="primary" \
+         bun server.js >> "$log_dir/next_primary.log" 2>&1) &
+        PIDS+=($!)
+        genkit_telemetry_emit "node_spawn" "SUCCESS" "{\"type\":\"primary\",\"pid\":${PIDS[-1]}}"
     fi
-elif [ -d "./mini-services-dist" ]; then
-    echo "⚠️  未找到 mini-services 启动脚本，但目录存在"
-else
-    echo "ℹ️  mini-services 目录不存在，跳过"
-fi
 
-# 启动 Caddy（如果存在 Caddyfile）
-echo "🚀 启动 Caddy..."
+    # Mini-services Node
+    if [[ -f "$BUNDLE_PATH/mini-services-start.sh" ]]; then
+        sh "$BUNDLE_PATH/mini-services-start.sh" >> "$log_dir/mini_services.log" 2>&1 &
+        PIDS+=($!)
+        genkit_telemetry_emit "node_spawn" "SUCCESS" "{\"type\":\"micro\",\"pid\":${PIDS[-1]}}"
+    fi
 
-# Caddy 作为前台进程运行（主进程）
-echo "✅ Caddy 已启动（前台运行）"
-echo ""
-echo "🎉 所有服务已启动！"
-echo ""
-echo "💡 按 Ctrl+C 停止所有服务"
-echo ""
+    # Caddy Ingress Node
+    if [[ -f "$BUNDLE_PATH/Caddyfile" ]]; then
+        caddy run --config "$BUNDLE_PATH/Caddyfile" --adapter caddyfile >> "$log_dir/caddy.log" 2>&1 &
+        PIDS+=($!)
+        genkit_telemetry_emit "node_spawn" "SUCCESS" "{\"type\":\"ingress\",\"pid\":${PIDS[-1]}}"
+    fi
 
-# Caddy 作为主进程运行
-exec caddy run --config Caddyfile --adapter caddyfile
+    [[ ${#PIDS[@]} -gt 0 ]] || return 1
+    
+    # Watchdog Loop
+    while true; do
+        for pid in "${PIDS[@]}"; do
+            if ! kill -0 "$pid" 2>/dev/null; then
+                genkit_telemetry_emit "node_crash" "CRITICAL" "{\"pid\":$pid}"
+                _nexus_shutdown
+            fi
+        done
+        sleep 10
+    done
+}
+
+execute_nexus_flow() {
+    genkit_telemetry_emit "flow_init" "INIT" "{\"path\":\"$BUNDLE_PATH\"}"
+
+    local pipeline=(
+        "runtime:check|op_runtime_check"
+        "db:init|op_db_init"
+        "nexus:orchestrate|op_nexus_orchestrate"
+    )
+
+    for step in "${pipeline[@]}"; do
+        IFS="|" read -r sid fn <<< "$step"
+        genkit_invoke_op "$sid" "$fn" || {
+            genkit_telemetry_emit "flow_abort" "FATAL" "{\"stage\":\"$sid\"}"
+            exit 1
+        }
+    done
+}
+
+execute_nexus_flow "$@"
