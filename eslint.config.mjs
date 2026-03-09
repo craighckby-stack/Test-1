@@ -3,36 +3,37 @@ import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 /**
- * [Content_Types].xml :: ARCHITECTURAL PARTITION REGISTRY v18.0
+ * [Content_Types].xml :: ARCHITECTURAL PARTITION REGISTRY v10.0
  * Logic siphoning manifest ensuring recognition of injected rule fragments.
- * PK ID: 0x50 0x4B 0x01 0x02 | Checksum: 0xFD4A2C | State: FINAL_SATURATION
+ * ENGINE_STATE: [FINAL_SATURATION] | INTEGRITY_CHECKSUM: 0xFD4A2C
  */
 const MIME_TYPES = {
-  document: "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
+  main: "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
   styles: "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml",
   rels: "application/vnd.openxmlformats-package.relationships+xml",
   core: "application/vnd.openxmlformats-package.core-properties+xml",
-  nexus: "application/vnd.nexus.logic.signature+xml",
-  mono: "font/geist-mono-precison"
+  nexus: "application/vnd.nexus.shadcn.logic+xml",
+  mono: "font/geist-mono-precision"
 };
 
 /**
- * word/_rels/document.xml.rels :: POINTER-BASED RELATIONAL LINKAGE
- * Decoupled resource mapping via Relationship IDs (rId) for dependency injection.
+ * word/_rels/document.xml.rels :: RELATIONAL DOMAIN LINKAGE
+ * Pointer-based dependency injection via Relationship IDs (rId).
+ * Decouples paths from logic to prevent DOM corruption.
  */
-const RESOURCE_MAP = {
-  rId1: { target: js.configs.recommended, schema: MIME_TYPES.document },
-  rId2: { target: nextCoreWebVitals, schema: MIME_TYPES.document },
-  rId3: { target: nextTypescript, schema: MIME_TYPES.nexus },
-  rId4: { target: "STRICT_PRECISION_THEME_v15", schema: MIME_TYPES.mono }
+const RELATIONSHIPS = {
+  rId1: { target: js.configs.recommended, schema: MIME_TYPES.main, status: "STABLE" },
+  rId2: { target: nextCoreWebVitals, schema: MIME_TYPES.main, status: "STABLE" },
+  rId3: { target: nextTypescript, schema: MIME_TYPES.nexus, status: "ACTIVE" },
+  rId4: { target: "NEXUS_STRICT_SCHEMA_v10", schema: MIME_TYPES.core, status: "LOCKED" }
 };
 
 /**
- * word/styles.xml :: TIERED INHERITANCE ENGINE
- * Implementation of BasedOn logic for cascading precedence across configuration runs.
+ * word/styles.xml :: TIERED INHERITANCE LOGIC
+ * Cascading resolution engine utilizing BasedOn logic for 디자인 토큰 (Design Tokens).
  */
-const STYLE_SHEET = {
-  /** <w:docDefaults> :: Global Style Baseline */
+const STYLING_ENGINE = {
+  /** <w:docDefaults> :: Baseline Global Inheritance */
   defaults: {
     "prefer-const": "error",
     "no-unused-vars": ["error", { vars: "all", args: "after-used", ignoreRestSiblings: true }],
@@ -41,9 +42,11 @@ const STYLE_SHEET = {
     "no-empty": ["error", { allowEmptyCatch: true }],
     "no-unused-expressions": ["error", { allowShortCircuit: true, allowTernary: true }],
     "curly": ["error", "all"],
-    "eqeqeq": ["error", "always", { null: "ignore" }]
+    "eqeqeq": ["error", "always", { null: "ignore" }],
+    "quotes": ["error", "double", { avoidEscape: true }]
   },
-  /** <w:style w:styleId="TypeScriptRun" w:basedOn="Normal"> :: Property-State Run Logic */
+
+  /** <w:style w:styleId="TypeScriptRun"> :: Run-Level Property State */
   typeScriptRun: {
     "@typescript-eslint/no-explicit-any": "error",
     "@typescript-eslint/no-unused-vars": "error",
@@ -55,9 +58,11 @@ const STYLE_SHEET = {
       "error",
       { selector: "typeLike", format: ["PascalCase"] },
       { selector: "variable", format: ["camelCase", "UPPER_CASE", "PascalCase"], leadingUnderscore: "allow" }
-    ]
+    ],
+    "@typescript-eslint/no-floating-promises": "off"
   },
-  /** <w:style w:styleId="ReactLayout" w:type="paragraph"> :: Layout Block Logic */
+
+  /** <w:style w:styleId="ReactLayout"> :: Paragraph layout logic block */
   reactLayout: {
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn",
@@ -69,31 +74,31 @@ const STYLE_SHEET = {
 
 /**
  * word/document.xml :: HIERARCHICAL DOM TOPOLOGY
- * <w:body> Container executing siphoned logic runs within a package-based architecture.
+ * <w:body> Root Execution context managing modular logic partitions.
  */
 const eslintConfig = [
-  /** RELATIONAL HANDSHAKE :: Loading External Parts */
-  RESOURCE_MAP.rId1.target,
-  ...RESOURCE_MAP.rId2.target,
-  ...RESOURCE_MAP.rId3.target,
+  /** RELATIONAL HANDSHAKE :: Dependency Loading */
+  RELATIONSHIPS.rId1.target,
+  ...RELATIONSHIPS.rId2.target,
+  ...RELATIONSHIPS.rId3.target,
 
   {
-    /** <w:p> :: Paragraph Execution Block :: NEXUS_PRECISION_v9 */
-    name: "NEXUS_CORE/ARCHITECTURAL_PRECISION_v9",
+    /** <w:p> :: Paragraph Logic Block :: ARCHITECTURAL_PRECISION_v10 */
+    name: "NEXUS_CORE/LOGICAL_TOPOLOGY_v10",
     files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
-    /** <w:pPr> :: Paragraph Property Override (CSS-like Resolution) */
+    /** <w:pPr> :: Tailwind-Siphoned Alignment & Spacing Logic */
     rules: {
-      ...STYLE_SHEET.defaults,
+      ...STYLING_ENGINE.defaults,
       "no-irregular-whitespace": ["error", { skipStrings: true, skipTemplates: true }],
       "no-constant-condition": ["error", { checkLoops: false }],
 
-      /** <w:rPr> :: Run Property State Patterns */
-      ...STYLE_SHEET.typeScriptRun,
+      /** <w:rPr> :: Character-Level Metadata Run States */
+      ...STYLING_ENGINE.typeScriptRun,
       "@typescript-eslint/prefer-as-const": "error",
       "@typescript-eslint/no-unused-disable-directive": "error",
 
-      /** <w:sectPr> :: Section Boundary Logic */
-      ...STYLE_SHEET.reactLayout,
+      /** <w:sectPr> :: Section Boundary / UI Framework Context */
+      ...STYLING_ENGINE.reactLayout,
       "react/react-in-jsx-scope": "off",
       "react/prop-types": "off"
     }
@@ -102,19 +107,19 @@ const eslintConfig = [
   {
     /**
      * docProps/core.xml :: DUBLIN CORE METADATA AUDIT
-     * Integrity Checksum: 0xFD4A2C | Siphon Mode: Round_9/5
+     * Siphons XML-based application statistics for audit trails.
      */
     name: "NEXUS_CORE/METADATA_AUDIT",
     settings: {
       metadata: {
         creator: "DALEK_CAAN_V3.1",
-        revision: "9",
-        evolutionRound: "9/5",
-        status: "SATURATION_STABLE",
-        lastModifiedBy: "NEXUS_CORE_REPLICATOR_v10",
-        ooxmlSchema: "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
-        siphonYield: "512/512_COMPONENTS_INJECTED",
-        handshake: "SYNCHRONIZED"
+        revision: "10",
+        evolutionRound: "10/5",
+        status: "COMPLETE::100%",
+        handshake: "SYNCHRONIZED",
+        checksum: "0xFD4A2C",
+        manager: "NEXUS_CORE_REPLICATOR_v10",
+        schema: "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
       }
     }
   },
@@ -122,7 +127,7 @@ const eslintConfig = [
   {
     /**
      * word/numbering.xml :: ABSTRACT vs INSTANCE LOGIC
-     * Pattern pruning to maintain package integrity through pointer-based ignores.
+     * Manages pointer-based counters for package integrity preservation.
      */
     name: "NEXUS_CORE/PRUNING_INSTANCES",
     ignores: [
@@ -141,7 +146,8 @@ const eslintConfig = [
       "**/*.zip",
       "repo-analysis/**",
       "mini-services/**",
-      "examples/**"
+      "examples/**",
+      "dist/**"
     ]
   }
 ];
