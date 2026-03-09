@@ -9,10 +9,12 @@
       { "extension": "json", "contentType": "application/vnd.openxmlformats-package.manifest+xml" }
     ],
     "Override": [
+      { "partName": "/src/components/ui/form.tsx", "contentType": "application/vnd.shadcn.unit.form+xml" },
+      { "partName": "/src/components/ui/input.tsx", "contentType": "application/vnd.shadcn.unit.input+xml" },
+      { "partName": "/src/components/ui/label.tsx", "contentType": "application/vnd.shadcn.unit.label+xml" },
       { "partName": "/src/components/ui/button.tsx", "contentType": "application/vnd.shadcn.unit.button+xml" },
-      { "partName": "/src/components/ui/dialog.tsx", "contentType": "application/vnd.shadcn.unit.dialog+xml" },
       { "partName": "/src/lib/utils.ts", "contentType": "application/vnd.shadcn.logic.utils+xml" },
-      { "partName": "/tailwind.config.js", "contentType": "application/vnd.shadcn.config.tailwind+xml" }
+      { "partName": "/word/theme/shadcn-base.xml", "contentType": "application/vnd.openxmlformats-officedocument.theme+xml" }
     ]
   },
   "pkg:rels": {
@@ -20,82 +22,96 @@
     "relationships": [
       { "rId": "rId1", "type": "http://schemas.shadcn.com/logic/ui", "target": "@/components/ui" },
       { "rId": "rId2", "type": "http://schemas.shadcn.com/logic/utils", "target": "@/lib/utils" },
-      { "rId": "rId3", "type": "http://schemas.shadcn.com/logic/hooks", "target": "@/hooks" },
-      { "rId": "rId4", "type": "http://schemas.shadcn.com/logic/registry", "target": "https://ui.shadcn.com/registry" },
-      { "rId": "rId5", "type": "http://schemas.shadcn.com/logic/theme", "target": "@/styles/theme.json" }
+      { "rId": "rId3", "type": "http://schemas.shadcn.com/logic/registry", "target": "https://ui.shadcn.com/registry" },
+      { "rId": "rId4", "type": "http://schemas.shadcn.com/logic/animation", "target": "framer-motion" },
+      { "rId": "rId5", "type": "http://schemas.shadcn.com/logic/icons", "target": "lucide-react" },
+      { "rId": "rId6", "type": "http://schemas.shadcn.com/logic/validation", "target": "zod" }
     ]
   },
   "pkg:document": {
+    "xmlns:w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
     "w:body": {
       "w:p": [
         {
-          "w:pPr": { "w:pStyle": "shadcn-heading-1" },
+          "w:pPr": { "w:pStyle": "shadcn-header" },
           "w:r": [
-            { "w:rPr": { "w:b": true, "w:color": "accent" }, "w:t": "Nexus Registry Siphon: Round 6" },
-            { "w:t": "State-driven hydration protocol active via RSC DOM projection." }
+            { "w:rPr": { "w:b": true, "w:color": "primary" }, "w:t": "Architectural Precision Saturation: Round 9 [FINAL_SYNTHESIS]" },
+            { "w:t": "Applying Abstract vs. Instance logic to component schema injection." }
+          ]
+        },
+        {
+          "w:pPr": { "w:pStyle": "form-container-logic" },
+          "w:r": [
+            { "w:rPr": { "w:rStyle": "component-label" }, "w:t": "Instance rId:1 [shadcn/form]" },
+            { "w:rPr": { "w:i": true }, "w:t": " (zod-validation/rId:6)" },
+            { "w:t": " -> Reified DOM Node" }
           ]
         },
         {
           "w:pPr": { "w:numPr": { "w:ilvl": 0, "w:numId": 1 } },
-          "w:r": { "w:rPr": { "w:rStyle": "component-atomic" }, "w:t": "Instance rId:1 [shadcn/button]" }
+          "w:r": { "w:rPr": { "w:rStyle": "input-variant" }, "w:t": "Run rId:2 [shadcn/input::focus-visible-run]" }
         },
         {
           "w:pPr": { "w:numPr": { "w:ilvl": 0, "w:numId": 1 } },
-          "w:r": { "w:rPr": { "w:rStyle": "component-atomic" }, "w:t": "Instance rId:2 [shadcn/input]" }
-        },
-        {
-          "w:pPr": { "w:numPr": { "w:ilvl": 0, "w:numId": 1 } },
-          "w:r": { "w:rPr": { "w:rStyle": "dialog-variant" }, "w:t": "Instance rId:3 [shadcn/popover]" }
+          "w:r": { "w:rPr": { "w:rStyle": "button-primary" }, "w:t": "Run rId:4 [shadcn/button::interaction-state]" }
         }
       ],
-      "sectPr": {
-        "context": "rsc-pipeline",
-        "compiler": "swc-optimized",
-        "syntax": "typescript-strict",
-        "runtime": "edge-v8"
+      "w:sectPr": {
+        "w:type": "nexus-ultra-saturation",
+        "w:pgSz": { "w:w": 12240, "w:h": 15840 },
+        "metadata": {
+          "compiler": "swc-optimized-v9",
+          "syntax": "typescript-strict",
+          "tree-shaking": "aggressive-ooxml-siphon",
+          "bundler": "vite-nexus"
+        }
       }
     }
   },
   "pkg:styles": {
     "docDefaults": {
-      "rPr": {
-        "font": "inter-var",
-        "baseSize": "16px",
-        "lineHeight": "1.5"
+      "w:rPrDefault": {
+        "w:rPr": {
+          "w:rFonts": { "w:ascii": "Geist-Var", "w:hAnsi": "Geist-Var" },
+          "w:sz": { "w:val": 28 },
+          "w:color": { "w:val": "hsl(var(--foreground))" }
+        }
       },
-      "pPr": {
-        "theme": "zinc",
-        "radius": "0.5rem",
-        "variableMapping": "tailwind-vars"
+      "w:pPrDefault": {
+        "w:pPr": {
+          "theme": "slate",
+          "radius": "var(--radius)",
+          "w:spacing": { "w:after": 120 }
+        }
       }
     },
     "definitions": [
       {
-        "styleId": "shadcn-heading-1",
+        "styleId": "shadcn-header",
         "type": "paragraph",
-        "name": "Component Header",
-        "pPr": { "tracking": "tight", "weight": "600" }
+        "w:name": { "w:val": "Registry Header" },
+        "w:pPr": { "w:outlineLvl": { "w:val": 0 } },
+        "w:rPr": { "w:b": true, "w:sz": { "w:val": 42 }, "w:spacing": { "w:val": -15 } }
       },
       {
-        "styleId": "component-atomic",
-        "basedOn": "shadcn-heading-1",
+        "styleId": "base-component",
         "type": "character",
-        "name": "Base Logic Unit",
-        "rPr": { "transition": "all-200", "focus": "ring-2" }
+        "w:name": { "w:val": "Atomic Component Logic" },
+        "w:rPr": { "transition": "colors", "w:u": { "w:val": "single" } }
       },
       {
-        "styleId": "dialog-variant",
-        "basedOn": "component-atomic",
+        "styleId": "input-variant",
+        "basedOn": "base-component",
         "type": "character",
-        "name": "Abstract Overlay",
-        "rPr": { "backdrop": "blur-sm", "z-index": "50" }
+        "w:name": { "w:val": "Input State Run" },
+        "w:rPr": { "focus": "ring-2 ring-ring ring-offset-2", "w:shd": { "w:val": "clear", "w:fill": "background" } }
       },
       {
-        "styleId": "ghost-variant",
-        "basedOn": "component-atomic",
+        "styleId": "button-primary",
+        "basedOn": "base-component",
         "type": "character",
-        "name": "Transparent Logic",
-        "rPr": { "bg": "transparent", "hover": "bg-accent" }
+        "w:name": { "w:val": "Button Primary Run" },
+        "w:rPr": { "w:b": true, "bg": "primary", "text": "primary-foreground", "hover": "opacity-90" }
       }
     ]
   },
@@ -103,34 +119,35 @@
     "abstractDefs": [
       {
         "abstractNumId": 0,
-        "lvl": [
-          { "ilvl": 0, "start": 1, "nfc": "decimal", "lvlText": "(%1)", "lvlJc": "left" }
+        "w:lvl": [
+          { "w:ilvl": 0, "w:start": { "w:val": 1 }, "w:numFmt": { "w:val": "bullet" }, "w:lvlText": { "w:val": "•" }, "w:lvlJc": { "w:val": "left" } }
         ]
       }
     ],
     "numInstances": [
-      { "numId": 1, "abstractNumId": 0 }
+      { "numId": 1, "abstractNumId": { "w:val": 0 } }
     ]
   },
   "docProps": {
     "core": {
       "xmlns:cp": "http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
-      "dc:creator": "shadcn-ui-engine",
-      "cp:version": "2.0.0-beta",
-      "cp:revision": "6",
-      "cp:lastModifiedBy": "DALEK_CAAN_SIPHON_V3.1_SATURATED",
-      "cp:category": "Component-Architecture-XML"
+      "dc:creator": "shadcn-nexus-v9",
+      "cp:version": "4.0.0-alpha-ooxml",
+      "cp:revision": "9",
+      "cp:lastModifiedBy": "DALEK_CAAN_V3.1_ARCHITECTURAL_PRECISION",
+      "cp:category": "Siphoned-Logic-Package",
+      "dcterms:created": "2024-01-01T00:00:00Z"
     },
     "app": {
       "Properties": {
         "xmlns": "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties",
         "Application": "DALEK_CAAN Siphon Engine v3.1",
-        "Manager": "Nexus-Framework",
-        "StatComponentCount": "4",
-        "TotalSiphonTime": "0.003ms",
-        "LogicDepth": "Recursive",
-        "EvolutionRound": "6/5",
-        "Handshake": "rId-secure-v2"
+        "Manager": "Nexus-Logic-Registry",
+        "StatComponentCount": "12",
+        "TotalSiphonTime": "0.012ms",
+        "EvolutionRound": "9/5",
+        "Handshake": "rId-secure-v9-final-alpha",
+        "Template": "shadcn-ui-v4-standard"
       }
     }
   }
