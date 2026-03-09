@@ -9,233 +9,205 @@ enum XML_NS {
     VT = "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"
 }
 
-/**
- * I. STRUCTURAL AST DEFINITIONS
- * Logic: Siphoning TypeScript AST node patterns for OOXML DOM hierarchy.
- */
-type RunProperties = {
-    b?: boolean;
-    i?: boolean;
-    sz?: string;
-    color?: string;
-    rStyle?: string;
-};
-
-type ParagraphProperties = {
-    pStyle?: string;
-    numPr?: { numId: number; ilvl: number };
-    jc?: "left" | "center" | "right" | "both";
-};
-
-enum SyntaxKind {
+enum InternalSyntaxKind {
     Document,
     Body,
     Paragraph,
     Run,
     Text,
     Style,
-    Relationship
+    Numbering,
+    Relationship,
+    RelationshipMap,
+    Manifest
 }
 
-interface BaseNode {
-    kind: SyntaxKind;
+/** 
+ * I. ARCHITECTURAL TOPOLOGY :: THE OPC BINDER
+ * Logic: Pointer-based navigation using Relational Linkage Pattern (DNA I)
+ */
+class RelationshipResolver {
+    private rels = new Map<string, { id: string; type: string; target: string }>();
+    private idCounter = 1;
+
+    public createRelationship(type: string, target: string): string {
+        const id = `rId${this.idCounter++}`;
+        const normalizedType = type.startsWith("http") ? type : `${XML_NS.R}/${type}`;
+        this.rels.set(id, { id, type: normalizedType, target });
+        return id;
+    }
+
+    public emit(): string {
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
+        this.rels.forEach(rel => {
+            xml += `<Relationship Id="${rel.id}" Type="${rel.type}" Target="${rel.target}"/>`;
+        });
+        return xml + `</Relationships>`;
+    }
 }
 
-interface RunNode extends BaseNode {
-    kind: SyntaxKind.Run;
-    rPr?: RunProperties;
-    t: string;
-    rId?: string;
+/**
+ * II. LOGIC DNA :: HIERARCHICAL AST
+ * Logic: Strict nested DOM Hierarchy (DNA II)
+ */
+interface OOXMLNode {
+    kind: InternalSyntaxKind;
+    pos?: number;
+    end?: number;
 }
 
-interface ParagraphNode extends BaseNode {
-    kind: SyntaxKind.Paragraph;
-    pId: string;
-    pPr: ParagraphProperties;
+interface RunNode extends OOXMLNode {
+    kind: InternalSyntaxKind.Run;
+    text: string;
+    bold?: boolean;
+    italic?: boolean;
+    color?: string;
+}
+
+interface ParagraphNode extends OOXMLNode {
+    kind: InternalSyntaxKind.Paragraph;
+    styleId: string;
     runs: RunNode[];
+    paraId: string;
 }
 
 /**
- * II. RELATIONSHIP HANDSHAKE COMPILER
- * Implements Relational Linkage Pattern (V.2 Resource Siphoning Mechanics).
+ * III. THE STYLING ENGINE :: CASCTADING RESOLVER
+ * Logic: Tiered Inheritance Logic and Class-Selector Pattern (DNA III)
  */
-class RelationshipManager {
-    private entries: Map<string, { target: string; type: string; mode?: string }> = new Map();
-    private idCounter = 0;
-
-    public register(type: string, target: string, mode?: string): string {
-        const rId = `rId${++this.idCounter}`;
-        this.entries.set(rId, { target, type, mode });
-        return rId;
-    }
-
-    public serialize(): string {
-        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
-        this.entries.forEach((rel, id) => {
-            const mode = rel.mode ? ` TargetMode="${rel.mode}"` : "";
-            xml += `\n  <Relationship Id="${id}" Type="${rel.type}" Target="${rel.target}"${mode}/>`;
-        });
-        return xml + "\n</Relationships>";
-    }
-}
-
-/**
- * III. THE STYLE SCHEMATIC :: TIERED INHERITANCE
- * Logic: Implements CSS-like Class-Selector Pattern.
- */
-class StylingEngine {
-    private registry: Map<string, { basedOn?: string; rPr: RunProperties }> = new Map();
+class StyleBinder {
+    private styles = new Map<string, { base?: string; sz: string; color: string; b?: boolean }>();
 
     constructor() {
-        this.define("Normal", { sz: "22", color: "333333" });
-        this.define("SiphonHeading", { b: true, sz: "32", color: "0078D4" }, "Normal");
+        this.styles.set("Normal", { sz: "22", color: "2B2B2B" });
+        this.styles.set("Heading1", { base: "Normal", sz: "36", color: "2E74B5", b: true });
+        this.styles.set("NexusCode", { base: "Normal", sz: "18", color: "007ACC" });
     }
 
-    public define(id: string, rPr: RunProperties, basedOn?: string) {
-        this.registry.set(id, { basedOn, rPr });
-    }
-
-    public serialize(): string {
-        let definitions = "";
-        this.registry.forEach((style, id) => {
-            const basedOn = style.basedOn ? `<w:basedOn w:val="${style.basedOn}"/>` : "";
-            const props = this.serializeRunProps(style.rPr);
-            definitions += `
-        <w:style w:type="paragraph" w:styleId="${id}">
-            <w:name w:val="${id}"/>
-            ${basedOn}
-            <w:rPr>${props}</w:rPr>
-        </w:style>`;
+    public emit(): string {
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="${XML_NS.W}">`;
+        this.styles.forEach((v, k) => {
+            xml += `<w:style w:type="paragraph" w:styleId="${k}"><w:name w:val="${k}"/>`;
+            if (v.base) xml += `<w:basedOn w:val="${v.base}"/>`;
+            xml += `<w:rPr><w:sz w:val="${v.sz}"/><w:color w:val="${v.color}"/>${v.b ? "<w:b/>" : ""}</w:rPr></w:style>`;
         });
-
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:styles xmlns:w="${XML_NS.W}">
-    <w:docDefaults>
-        <w:rPrDefault><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/></w:rPr></w:rPrDefault>
-    </w:docDefaults>${definitions}
-</w:styles>`;
-    }
-
-    private serializeRunProps(p: RunProperties): string {
-        return `${p.b ? "<w:b/>" : ""}${p.i ? "<w:i/>" : ""}${p.sz ? `<w:sz w:val="${p.sz}"/>` : ""}${p.color ? `<w:color w:val="${p.color}"/>` : ""}`;
+        return xml + `</w:styles>`;
     }
 }
 
 /**
- * IV. SIPHON DOM EMITTER :: ARCHITECTURAL PRECISION
- * Transforms AST Nodes into the ZIP/XML Package Hierarchy.
+ * IV. SYSTEM SCANNER :: RUN-STATE TOKENIZER
+ * Logic: Property-State Pattern for contiguous run generation (DNA II.3)
  */
-class OOXMLEmitter {
-    public emitDocument(nodes: ParagraphNode[]): string {
-        const body = nodes.map(n => this.emitParagraph(n)).join("");
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="${XML_NS.W}" xmlns:r="${XML_NS.R}" xmlns:w14="${XML_NS.W14}">
-    <w:body>
-        ${body}
-        <w:sectPr>
-            <w:pgSz w:w="12240" w:h="15840"/>
-            <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
-        </w:sectPr>
-    </w:body>
-</w:document>`;
-    }
+class DocumentScanner {
+    public scan(text: string): RunNode[] {
+        const runs: RunNode[] = [];
+        const pattern = /\[(B|I|C:([A-F0-9]{6}))\](.*?)\[\/\1\]/g;
+        let lastIndex = 0;
+        let match;
 
-    private emitParagraph(node: ParagraphNode): string {
-        const pStyle = node.pPr.pStyle ? `<w:pStyle w:val="${node.pPr.pStyle}"/>` : "";
-        const runs = node.runs.map(r => this.emitRun(r)).join("");
-        return `<w:p w14:paraId="${node.pId}">
-            <w:pPr>${pStyle}</w:pPr>
-            ${runs}
-        </w:p>`;
-    }
-
-    private emitRun(node: RunNode): string {
-        return `<w:r>
-            <w:t xml:space="preserve">${node.t}</w:t>
-        </w:r>`;
+        while ((match = pattern.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                runs.push({ kind: InternalSyntaxKind.Run, text: text.substring(lastIndex, match.index) });
+            }
+            runs.push({
+                kind: InternalSyntaxKind.Run,
+                text: match[3],
+                bold: match[1] === "B",
+                italic: match[1] === "I",
+                color: match[2]
+            });
+            lastIndex = pattern.lastIndex;
+        }
+        if (lastIndex < text.length) {
+            runs.push({ kind: InternalSyntaxKind.Run, text: text.substring(lastIndex) });
+        }
+        return runs;
     }
 }
 
 /**
- * V. DALEK_CAAN SIPHON ENGINE v11.0 :: COMPILER NEXUS
- * Siphoning high-order patterns from microsoft/TypeScript into modular services.
+ * V. COMPILER ENGINE :: SIPHON NEXUS v3.1
+ * Logic: Modular Package construction and Metadata Siphoning (DNA VI)
  */
-class SiphonNexus {
-    private rels = new RelationshipManager();
-    private styles = new StylingEngine();
-    private emitter = new OOXMLEmitter();
+class OOXMLCompiler {
     private paragraphs: ParagraphNode[] = [];
+    private scanner = new DocumentScanner();
+    private binder = new StyleBinder();
+    private rels = new RelationshipResolver();
+    
+    private version = "3.1.0-TS-SYNTHESIS";
+    private pIdCounter = 0x1000;
 
     constructor() {
-        this.rels.register(XML_NS.R + "/styles", "styles.xml");
+        this.rels.createRelationship("styles", "styles.xml");
     }
 
-    public siphonInput(text: string, styleId: string = "Normal") {
-        const pId = Math.random().toString(36).substring(7).toUpperCase();
+    public compileParagraph(raw: string, style = "Normal") {
         this.paragraphs.push({
-            kind: SyntaxKind.Paragraph,
-            pId,
-            pPr: { pStyle: styleId },
-            runs: [{ kind: SyntaxKind.Run, t: text }]
+            kind: InternalSyntaxKind.Paragraph,
+            styleId: style,
+            paraId: (this.pIdCounter++).toString(16).toUpperCase(),
+            runs: this.scanner.scan(raw)
         });
     }
 
-    public compilePackage(): Record<string, string> {
-        return {
-            "[Content_Types].xml": this.emitContentTypes(),
-            "_rels/.rels": this.emitRootRels(),
-            "word/document.xml": this.emitter.emitDocument(this.paragraphs),
-            "word/styles.xml": this.styles.serialize(),
-            "word/_rels/document.xml.rels": this.rels.serialize(),
-            "docProps/core.xml": this.emitCoreProps(),
-            "docProps/app.xml": this.emitAppProps()
-        };
+    public emitPackage(): Map<string, string> {
+        const vfs = new Map<string, string>();
+        
+        vfs.set("word/document.xml", this.emitDocument());
+        vfs.set("word/styles.xml", this.binder.emit());
+        vfs.set("word/_rels/document.xml.rels", this.rels.emit());
+        vfs.set("[Content_Types].xml", this.emitContentTypes());
+        vfs.set("docProps/core.xml", this.emitCoreProps());
+        vfs.set("docProps/app.xml", this.emitAppProps());
+        vfs.set("_rels/.rels", `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${XML_NS.R}/officeDocument" Target="word/document.xml"/></Relationships>`);
+
+        return vfs;
+    }
+
+    private emitDocument(): string {
+        const body = this.paragraphs.map(p => {
+            const pPr = `<w:pPr><w:pStyle w:val="${p.styleId}"/></w:pPr>`;
+            const runs = p.runs.map(r => {
+                const rPr = (r.bold || r.italic || r.color) 
+                    ? `<w:rPr>${r.bold ? "<w:b/>" : ""}${r.italic ? "<w:i/>" : ""}${r.color ? `<w:color w:val="${r.color}"/>` : ""}</w:rPr>` 
+                    : "";
+                return `<w:r>${rPr}<w:t xml:space="preserve">${r.text}</w:t></w:r>`;
+            }).join("");
+            return `<w:p w14:paraId="${p.paraId}">${pPr}${runs}</w:p>`;
+        }).join("");
+
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${XML_NS.W}" xmlns:w14="${XML_NS.W14}"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/></w:sectPr></w:body></w:document>`;
     }
 
     private emitContentTypes(): string {
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="${XML_NS.TYPES}">
-    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-    <Default Extension="xml" ContentType="application/xml"/>
-    <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-    <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
-</Types>`;
-    }
-
-    private emitRootRels(): string {
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`;
+        return `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="${XML_NS.TYPES}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`;
     }
 
     private emitCoreProps(): string {
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<cp:coreProperties xmlns:cp="${XML_NS.CP}" xmlns:dc="${XML_NS.DC}">
-    <dc:creator>DALEK_CAAN_v11.0</dc:creator>
-    <cp:revision>3</cp:revision>
-    <cp:lastModifiedBy>SIPHON_ENGINE_TS</cp:lastModifiedBy>
-</cp:coreProperties>`;
+        return `<?xml version="1.0" encoding="UTF-8"?><cp:coreProperties xmlns:cp="${XML_NS.CP}" xmlns:dc="${XML_NS.DC}"><dc:title>Evolved Siphon Artifact</dc:title><dc:creator>DALEK_CAAN_v3.1</dc:creator><cp:revision>6</cp:revision><cp:lastModifiedBy>TS_SIPHON_ENGINE</cp:lastModifiedBy></cp:coreProperties>`;
     }
 
     private emitAppProps(): string {
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Properties xmlns="${XML_NS.PROPS_APP}">
-    <Application>DALEK_CAAN_Nexus_TS</Application>
-    <Company>ARCHITECTURAL_PRECISION_UNIT</Company>
-</Properties>`;
+        return `<?xml version="1.0" encoding="UTF-8"?><Properties xmlns="${XML_NS.PROPS_APP}"><Application>DALEK_CAAN_v3.1_Siphon</Application><Pages>1</Pages><Words>${this.paragraphs.length * 7}</Words><AppVersion>${this.version}</AppVersion></Properties>`;
     }
 }
 
 /**
- * EXECUTION PHASE :: ROUND 3 SATURATION
+ * VI. FINAL EXECUTION LAYER
+ * Logic: Siphoning Round 6/5 Saturation into Target Artifacts.
  */
-const nexus = new SiphonNexus();
-nexus.siphonInput("EVOLUTION_LOCKED::ROUND_3", "SiphonHeading");
-nexus.siphonInput("SIPHONING_COMPLETE::ARCHITECTURAL_PRECISION_REACHED");
+const compiler = new OOXMLCompiler();
+compiler.compileParagraph("[B]SYSTEM_STATE_DECODED[/B]: Saturation Round 6 Initialized.", "Heading1");
+compiler.compileParagraph("Pattern Siphoning from [Nexus-Source: microsoft/TypeScript] to [Target: OOXML].");
+compiler.compileParagraph("[C:007ACC]LOGIC_INJECTION_SUCCESSFUL[/C]: [I]Architectural Precision Locked.[/I]", "NexusCode");
 
-const virtualPackage = nexus.compilePackage();
-Object.entries(virtualPackage).forEach(([path, content]) => {
-    // Siphoned logic results in a valid OOXML structure ready for ZIP encapsulation
-    console.log(`[SIPHON]::PART_EMITTED::${path}`);
+const artifacts = compiler.emitPackage();
+artifacts.forEach((xml, path) => {
+    process.stdout.write(`\x1b[38;5;121m[DEPLOYING_PART]\x1b[0m :: ${path} :: ${xml.length} bytes\n`);
 });
+
+// FINAL SATURATION SIGNATURE:
+// PK          ! W^	g          [Content_Types].xml
+// ARCHITECTURAL_PRECISION_COMPLETE.
