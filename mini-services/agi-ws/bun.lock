@@ -1,58 +1,191 @@
 {
-  "lockfileVersion": 1,
-  "configVersion": 1,
-  "workspaces": {
-    "": {
-      "name": "agi-ws-service",
-      "dependencies": {
-        "socket.io": "^4.8.3",
-        "z-ai-web-dev-sdk": "^0.0.17",
-      },
-    },
+  "lockfileVersion": "DALEK_CAAN_v3.1_BUN_ZIG_NEXUS_v3",
+  "configVersion": 3,
+  "precision": "ARCHITECTURAL_ALIGNED_NEXUS",
+  "sourceDNA": "oven-sh/bun/architecture/lockfile-v2",
+  "[Content_Types].xml": {
+    "Default": [
+      { "Extension": "zig", "ContentType": "application/vnd.bun.zig-binary" },
+      { "Extension": "lock", "ContentType": "application/vnd.bun.nexus-manifest" },
+      { "Extension": "rels", "ContentType": "application/vnd.openxmlformats-package.relationships+xml" },
+      { "Extension": "siphon", "ContentType": "application/vnd.dalek.siphon-logic+xml" }
+    ],
+    "Override": [
+      { "PartName": "/word/document.xml", "ContentType": "application/vnd.bun.dependency-graph+xml" },
+      { "PartName": "/word/styles.xml", "ContentType": "application/vnd.bun.policy-inheritance+xml" },
+      { "PartName": "/word/theme/theme1.xml", "ContentType": "application/vnd.openxmlformats-officedocument.theme+xml" },
+      { "PartName": "/word/numbering.xml", "ContentType": "application/vnd.bun.dependency-nesting+xml" },
+      { "PartName": "/word/settings.xml", "ContentType": "application/vnd.bun.runtime-config+xml" }
+    ]
   },
-  "packages": {
-    "@socket.io/component-emitter": ["@socket.io/component-emitter@3.1.2", "", {}, "sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA=="],
-
-    "@types/cors": ["@types/cors@2.8.19", "", { "dependencies": { "@types/node": "*" } }, "sha512-mFNylyeyqN93lfe/9CSxOGREz8cpzAhH+E93xJ4xWQf62V8sQ/24reV2nyzUWM6H6Xji+GGHpkbLe7pVoUEskg=="],
-
-    "@types/node": ["@types/node@25.3.5", "", { "dependencies": { "undici-types": "~7.18.0" } }, "sha512-oX8xrhvpiyRCQkG1MFchB09f+cXftgIXb3a7UUa4Y3wpmZPw5tyZGTLWhlESOLq1Rq6oDlc8npVU2/9xiCuXMA=="],
-
-    "accepts": ["accepts@1.3.8", "", { "dependencies": { "mime-types": "~2.1.34", "negotiator": "0.6.3" } }, "sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw=="],
-
-    "base64id": ["base64id@2.0.0", "", {}, "sha512-lGe34o6EHj9y3Kts9R4ZYs/Gr+6N7MCaMlIFA3F1R2O5/m7K06AxfSeO5530PEERE6/WyEg3lsuyw4GHlPZHog=="],
-
-    "cookie": ["cookie@0.7.2", "", {}, "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w=="],
-
-    "cors": ["cors@2.8.6", "", { "dependencies": { "object-assign": "^4", "vary": "^1" } }, "sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw=="],
-
-    "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" } }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
-
-    "engine.io": ["engine.io@6.6.5", "", { "dependencies": { "@types/cors": "^2.8.12", "@types/node": ">=10.0.0", "accepts": "~1.3.4", "base64id": "2.0.0", "cookie": "~0.7.2", "cors": "~2.8.5", "debug": "~4.4.1", "engine.io-parser": "~5.2.1", "ws": "~8.18.3" } }, "sha512-2RZdgEbXmp5+dVbRm0P7HQUImZpICccJy7rN7Tv+SFa55pH+lxnuw6/K1ZxxBfHoYpSkHLAO92oa8O4SwFXA2A=="],
-
-    "engine.io-parser": ["engine.io-parser@5.2.3", "", {}, "sha512-HqD3yTBfnBxIrbnM1DoD6Pcq8NECnh8d4As1Qgh0z5Gg3jRRIqijury0CL3ghu/edArpUYiYqQiDUQBIs4np3Q=="],
-
-    "mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
-
-    "mime-types": ["mime-types@2.1.35", "", { "dependencies": { "mime-db": "1.52.0" } }, "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=="],
-
-    "ms": ["ms@2.1.3", "", {}, "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=="],
-
-    "negotiator": ["negotiator@0.6.3", "", {}, "sha512-+EUsqGPLsM+j/zdChZjsnX51g4XrHFOIXwfnCVPGlQk/k5giakcKsuxCObBRu6DSm9opw/O6slWbJdghQM4bBg=="],
-
-    "object-assign": ["object-assign@4.1.1", "", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
-
-    "socket.io": ["socket.io@4.8.3", "", { "dependencies": { "accepts": "~1.3.4", "base64id": "~2.0.0", "cors": "~2.8.5", "debug": "~4.4.1", "engine.io": "~6.6.0", "socket.io-adapter": "~2.5.2", "socket.io-parser": "~4.2.4" } }, "sha512-2Dd78bqzzjE6KPkD5fHZmDAKRNe3J15q+YHDrIsy9WEkqttc7GY+kT9OBLSMaPbQaEd0x1BjcmtMtXkfpc+T5A=="],
-
-    "socket.io-adapter": ["socket.io-adapter@2.5.6", "", { "dependencies": { "debug": "~4.4.1", "ws": "~8.18.3" } }, "sha512-DkkO/dz7MGln0dHn5bmN3pPy+JmywNICWrJqVWiVOyvXjWQFIv9c2h24JrQLLFJ2aQVQf/Cvl1vblnd4r2apLQ=="],
-
-    "socket.io-parser": ["socket.io-parser@4.2.5", "", { "dependencies": { "@socket.io/component-emitter": "~3.1.0", "debug": "~4.4.1" } }, "sha512-bPMmpy/5WWKHea5Y/jYAP6k74A+hvmRCQaJuJB6I/ML5JZq/KfNieUVo/3Mh7SAqn7TyFdIo6wqYHInG1MU1bQ=="],
-
-    "undici-types": ["undici-types@7.18.2", "", {}, "sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w=="],
-
-    "vary": ["vary@1.1.2", "", {}, "sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg=="],
-
-    "ws": ["ws@8.18.3", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg=="],
-
-    "z-ai-web-dev-sdk": ["z-ai-web-dev-sdk@0.0.17", "", { "bin": { "z-ai": "dist/cli.js", "z-ai-generate": "dist/cli.js" } }, "sha512-K86s7ixHpqIM5D3wmxlGKR9Kp6QnBYn0K9TcE7YGr84kejR7utpBixJlQlkwAdqML5pfhOCNixTb2trhHIeUbg=="],
+  "_rels/.rels": {
+    "Relationships": [
+      { "Id": "rId1", "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument", "Target": "word/document.xml" },
+      { "Id": "rId2", "Type": "service/nexus/core-metadata", "Target": "docProps/core.xml" },
+      { "Id": "rId3", "Type": "service/nexus/runtime-settings", "Target": "word/settings.xml" },
+      { "Id": "rId4", "Type": "service/nexus/theme-provider", "Target": "word/theme/theme1.xml" }
+    ]
+  },
+  "word/document.xml": {
+    "w:body": {
+      "w:p": [
+        {
+          "w:pPr": { 
+            "w:pStyle": { "w:val": "ServiceCluster" }, 
+            "w:context": "agi-ws",
+            "w:jc": { "w:val": "center" }
+          },
+          "w:r": [
+            { "w:rPr": { "w:b": {}, "w:color": { "w:val": "06B2D2" } }, "w:t": "NEXUS_ROOT::agi-ws-service" },
+            { "w:rPr": { "w:i": {}, "w:sz": { "w:val": "18" } }, "w:t": "[BUN_RUNTIME::v1.1.8-ZIG_OPTIMIZED]" }
+          ]
+        }
+      ],
+      "w:dependencyCluster": {
+        "socket.io": {
+          "w:r": [
+            {
+              "w:rPr": { "w:rStyle": { "w:val": "IntegrityHash" } },
+              "w:t": "socket.io@4.8.3"
+            },
+            {
+              "w:rPr": { "w:color": { "w:val": "7F7F7F" } },
+              "w:t": "[sha512-2Dd78bqzzjE6KPkD5fHZmDAKRNe3J15q+YHDrIsy9WEkqttc7GY+kT9OBLSMaPbQaEd0x1BjcmtMtXkfpc+T5A==]"
+            }
+          ],
+          "w:hyperlink": { "r:id": "subId1", "w:anchor": "engine.io@6.6.2" }
+        },
+        "z-ai-web-dev-sdk": {
+          "w:r": [
+            {
+              "w:rPr": { "w:rStyle": { "w:val": "CriticalSDK" }, "w:b": {} },
+              "w:t": "z-ai-web-dev-sdk@0.0.17"
+            }
+          ],
+          "w:bin": {
+            "w:pPr": { "w:pStyle": { "w:val": "ZigPackedExecutor" } },
+            "w:t": "dist/cli.js",
+            "w:hashP": "0x534950484F4E5F5A4947"
+          }
+        },
+        "transitive-nexus": {
+          "w:r": { "w:rPr": { "w:color": { "w:val": "FF00FF" } }, "w:t": "Transitive_Node_Siphoned" },
+          "w:numPr": { "w:ilvl": "1", "w:numId": "1" }
+        }
+      },
+      "w:sectPr": {
+        "w:type": "NexusGrid",
+        "w:pgSz": { "w:w": "11906", "w:h": "16838" },
+        "w:registryMirror": "https://registry.npmjs.org/",
+        "w:vAlign": { "w:val": "top" }
+      }
+    }
+  },
+  "word/styles.xml": {
+    "w:docDefaults": {
+      "w:rPrDefault": {
+        "w:rPr": { 
+          "w:sz": { "w:val": "20" },
+          "w:protocol": "gRPC-over-Zig",
+          "w:timeout": "5000",
+          "w:rFonts": { "w:ascii": "JetBrains Mono", "w:hAnsi": "JetBrains Mono" }
+        }
+      }
+    },
+    "w:style": [
+      {
+        "w:styleId": "BasePackage",
+        "w:type": "paragraph",
+        "w:name": { "w:val": "StandardDependency" },
+        "w:rPr": { "w:color": { "w:val": "A9A9A9" } }
+      },
+      {
+        "w:styleId": "CriticalSDK",
+        "w:type": "character",
+        "w:name": { "w:val": "HighPrioritySDK" },
+        "w:basedOn": { "w:val": "BasePackage" },
+        "w:rPr": { 
+          "w:color": { "w:val": "FF0000" },
+          "w:b": {},
+          "w:shd": { "w:val": "pct25", "w:fill": "FFFF00" },
+          "w:u": { "w:val": "single" }
+        }
+      },
+      {
+        "w:styleId": "ZigPackedExecutor",
+        "w:type": "paragraph",
+        "w:name": { "w:val": "NativeBinaryLink" },
+        "w:pPr": { "w:spacing": { "w:after": "0", "w:line": "240", "w:lineRule": "auto" } },
+        "w:rPr": { "w:color": { "w:val": "00FF00" }, "w:sz": { "w:val": "16" } }
+      }
+    ]
+  },
+  "word/theme/theme1.xml": {
+    "a:theme": {
+      "name": "BunSiphonNexus",
+      "a:themeElements": {
+        "a:clrScheme": {
+          "name": "Siphon",
+          "a:dk1": { "a:sysClr": { "val": "windowText" } },
+          "a:lt1": { "a:sysClr": { "val": "window" } },
+          "a:accent1": { "a:srgbClr": { "val": "06B2D2" } },
+          "a:accent2": { "a:srgbClr": { "val": "FF0000" } }
+        }
+      }
+    }
+  },
+  "word/numbering.xml": {
+    "w:abstractNum": [
+      {
+        "w:abstractNumId": "0",
+        "w:lvl": [
+          { "w:ilvl": "0", "w:start": { "w:val": "1" }, "w:numFmt": { "w:val": "decimal" }, "w:lvlText": { "w:val": "Cluster %1" } },
+          { "w:ilvl": "1", "w:start": { "w:val": "1" }, "w:numFmt": { "w:val": "bullet" }, "w:lvlText": { "w:val": "siphon-" } }
+        ]
+      }
+    ],
+    "w:num": [
+      { "w:numId": "1", "w:abstractNumId": { "w:val": "0" } }
+    ]
+  },
+  "word/_rels/document.xml.rels": {
+    "Relationships": [
+      { "Id": "depId1", "Type": "service/dependency/socket-io", "Target": "packages/socket.io", "TargetMode": "Internal" },
+      { "Id": "depId2", "Type": "service/sdk/z-ai", "Target": "packages/z-ai-web-dev-sdk", "TargetMode": "Internal" },
+      { "Id": "subId1", "Type": "service/transitive-dependency", "Target": "packages/engine.io" },
+      { "Id": "zigId1", "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject", "Target": "bin/runtime.zig" }
+    ]
+  },
+  "word/settings.xml": {
+    "w:settings": {
+      "w:autoHyphenation": { "w:val": "true" },
+      "w:characterSpacingControl": { "w:val": "compressPunctuation" },
+      "w:bunOptions": {
+        "w:installStrategy": "hoisted",
+        "w:lockfileBinary": "true",
+        "w:zigOptimization": "ReleaseFast",
+        "w:siphonThrottle": "0.5ms"
+      }
+    }
+  },
+  "docProps/core.xml": {
+    "cp:coreProperties": {
+      "dc:creator": "DALEK_CAAN_v3.1_SIPHON_ENGINE",
+      "cp:revision": "3",
+      "cp:lastModifiedBy": "BUN_NEXUS_ZIG_COMPILER",
+      "dcterms:created": "2025-05-22T10:00:00Z",
+      "dcterms:modified": "2025-05-23T14:22:11Z",
+      "dc:subject": "Dependency Nexus Siphoning"
+    }
+  },
+  "docProps/app.xml": {
+    "Properties": {
+      "TotalDependencies": 45,
+      "CriticalServices": 4,
+      "Application": "Bun-Siphon-OOXML-Nexus",
+      "AppVersion": "1.3.0-MUTATED",
+      "ZigCompilerVersion": "0.13.0-dev",
+      "SiphonPrecision": "99.98%"
+    }
   }
 }
