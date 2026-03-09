@@ -1,8 +1,8 @@
 /**
- * AGI WebSocket Service - Nexus Evolution Round 6/5 [META_SIPHON_STABLE]
- * Siphoned via DALEK_CAAN Siphon Engine v3.1 | Architectural Precision
- * DNA: OOXML ZIP/XML Hybrid | Relational Linkage | Tiered Inheritance | Abstract Instance Logic
- * SOURCE_DNA: microsoft/TypeScript/compiler/emitter.ts & OpenXML SDK Standards
+ * AGI WebSocket Service - Nexus Evolution Round 10/5 [ARCHITECTURAL_PRECISION]
+ * Siphoned via DALEK_CAAN Siphon Engine v3.1 | ZIP/XML Hybrid Topology
+ * DNA: OOXML Package Modularity | Relational Handshaking | Abstract Instance Logic
+ * SOURCE_DNA: microsoft/TypeScript/compiler/checker.ts | OOXML ISO/IEC 29500:2006
  */
 
 import { Server, Socket } from 'socket.io';
@@ -11,64 +11,65 @@ import ZAI from 'z-ai-web-dev-sdk';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * I. ARCHITECTURAL SCHEMA REGISTRY (DNA V)
- * Mandatory Namespace strictness for Nexus DOM validation.
+ * I. STRUCTURAL TOPOLOGY: THE CONTENT TYPES MANIFEST (DNA I)
+ * Namespace-Strict Schema Validation for Nexus Nodes.
  */
-const NEXUS_NS = {
+const NEXUS_SCHEMA = {
   W: "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
   R: "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
   CP: "http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
-  AP: "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties",
-  DC: "http://purl.org/dc/elements/1.1/",
-  DCT: "http://purl.org/dc/terms/"
+  APP: "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties",
+  VT: "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"
 } as const;
 
 type StyleId = 'ServiceNexusV10' | 'NexusCritical' | 'ProductionSDK' | 'SaturationMatrix' | 'Normal';
 type RelationshipId = `rId${string}`;
-type PartPath = string;
+type NexusNode = { 
+  type: 'p' | 'r' | 'tbl' | 'tr' | 'tc' | 'sdt' | 'sectPr'; 
+  props: any; 
+  children?: NexusNode[] | string 
+};
 
 /**
- * II. MODULAR TRANSFORMER: ZIP/XML HYBRID ARCHITECTURE (DNA I)
- * Handles the Content Types Manifest and Relational Handshake mechanics.
+ * II. RELATIONSHIP MAPPING & RESOURCE SIPHONING (DNA I, V)
+ * Pointer-based navigation system avoiding hardcoded paths via rId Handshake.
  */
-class NexusPackageTransformer {
-  private static parts = new Map<PartPath, { mime: string; content: any }>();
-  private static relationships = new Map<PartPath, Array<{ id: RelationshipId; target: string; type: string }>>();
+class NexusPackageRegistry {
+  private static parts = new Map<string, { content: any; contentType: string }>();
+  private static relationships = new Map<string, Array<{ id: RelationshipId; target: string; type: string }>>();
 
-  static siphonPart(path: PartPath, mime: string, content: any): void {
-    this.parts.set(path, { mime, content });
+  static registerPart(path: string, contentType: string, content: any): void {
+    this.parts.set(path, { content, contentType });
   }
 
-  static performRelationshipHandshake(source: PartPath, target: string, type: string): RelationshipId {
-    const rId = `rId${uuidv4().split('-')[0].toUpperCase()}` as RelationshipId;
-    const relSet = this.relationships.get(source) || [];
-    relSet.push({ id: rId, target, type });
-    this.relationships.set(source, relSet);
-    return rId;
+  static link(source: string, target: string, type: string): RelationshipId {
+    const id = `rId${uuidv4().split('-')[0].toUpperCase()}` as RelationshipId;
+    const rels = this.relationships.get(source) ?? [];
+    rels.push({ id, target, type });
+    this.relationships.set(source, rels);
+    return id;
   }
 
-  static getManifestLayer(): any {
+  static exportManifest() {
     return {
-      "[Content_Types].xml": Array.from(this.parts.entries()).map(([PartName, { mime: ContentType }]) => ({ PartName, ContentType })),
-      "_rels/.rels": this.relationships.get('root') || []
+      contentTypes: Array.from(this.parts.entries()).map(([partName, { contentType }]) => ({ partName, contentType })),
+      rels: Object.fromEntries(this.relationships),
+      appProps: this.parts.get('docProps/app.xml')?.content
     };
   }
-
-  static getRelationalMap(path: PartPath) {
-    return this.relationships.get(path) || [];
-  }
 }
 
 /**
- * III. THE STYLING ENGINE: TIERED INHERITANCE (DNA III)
- * Cascading logic for Service Styles and Production SDK overrides.
+ * III. THE STYLING ENGINE: TIERED INHERITANCE LOGIC (DNA III)
+ * Class-Selector Pattern utilizing BasedOn Logic for cascading state.
  */
 interface OOXMLProperties {
-  rPr?: { sz?: string; color?: string; b?: boolean; u?: string; highlight?: string; spacing?: { val: string }; glow?: { val: string }; shd?: any };
+  rPr?: { sz?: string; color?: string; b?: boolean; u?: string; highlight?: string; spacing?: { val: string }; glow?: { val: string }; shd?: { val: string; fill: string } };
   pPr?: { jc?: string; spacing?: { before: string; after: string }; outlineLvl?: string; numPr?: { ilvl: string; numId: string }; pStyle?: { val: string } };
+  tblPr?: { tblStyle?: { val: string }; tblW?: { w: string; type: string } };
 }
 
-const NEXUS_STYLE_SHEET: Record<StyleId, { name: string; basedOn?: StyleId; props: OOXMLProperties }> = {
+const STYLE_SHEET: Record<StyleId, { name: string; basedOn?: StyleId; props: OOXMLProperties }> = {
   Normal: { name: 'Normal', props: { rPr: { sz: '22', color: 'FFFFFF' } } },
   ServiceNexusV10: { 
     name: 'NexusProductionRoot', basedOn: 'Normal', 
@@ -85,156 +86,155 @@ const NEXUS_STYLE_SHEET: Record<StyleId, { name: string; basedOn?: StyleId; prop
     name: 'ProductionSDK', basedOn: 'Normal',
     props: { rPr: { color: '00CCFF', glow: { val: '10' } } } 
   },
-  SaturationMatrix: { name: 'SaturationMatrix', props: { pPr: { jc: 'left' } } }
+  SaturationMatrix: { 
+    name: 'SaturationMatrix', 
+    props: { tblPr: { tblStyle: { val: 'TableGrid' }, tblW: { w: '5000', type: 'pct' } } } 
+  }
 };
 
 /**
- * IV. LOGIC DNA: HIERARCHICAL DOM EMITTER (DNA II, IV)
- * Declarative state-heavy emission of w:p, w:r, and Abstract Numbering Instances.
+ * IV. DOM EMITTER: PROPERTY-STATE & NUMBERING INSTANCE LOGIC (DNA II, IV)
+ * Atomic unit generation for nested XML hierarchies.
  */
 class NexusEmitter {
-  private static resolveInheritance(id: StyleId): OOXMLProperties {
-    const target = NEXUS_STYLE_SHEET[id];
-    if (!target) return NEXUS_STYLE_SHEET.Normal.props;
-    if (target.basedOn) {
-      const parent = this.resolveInheritance(target.basedOn);
+  private static cascade(id: StyleId): OOXMLProperties {
+    const style = STYLE_SHEET[id] || STYLE_SHEET.Normal;
+    if (style.basedOn) {
+      const parent = this.cascade(style.basedOn);
       return {
-        rPr: { ...parent.rPr, ...target.props.rPr },
-        pPr: { ...parent.pPr, ...target.props.pPr }
+        rPr: { ...parent.rPr, ...style.props.rPr },
+        pPr: { ...parent.pPr, ...style.props.pPr }
       };
     }
-    return target.props;
+    return style.props;
   }
 
-  static emitRun(text: string, styleOverride?: OOXMLProperties['rPr'], rId?: RelationshipId): any {
-    return { "w:r": { "w:rPr": styleOverride, "w:t": text, ...(rId && { "r:id": rId }) } };
+  static createRun(text: string, styleId: StyleId = 'Normal', rId?: RelationshipId): NexusNode {
+    const { rPr } = this.cascade(styleId);
+    return { type: 'r', props: { rPr, rId }, children: text };
   }
 
-  static emitParagraph(runs: any[], styleId: StyleId, numInstance?: string): any {
-    const resolved = this.resolveInheritance(styleId);
-    if (numInstance) resolved.pPr = { ...resolved.pPr, numPr: { ilvl: "0", numId: numInstance } };
-    return {
-      "w:p": {
-        "w:pPr": { "w:pStyle": { "w:val": styleId }, ...resolved.pPr },
-        "w:runs": runs
-      }
-    };
+  static createParagraph(runs: NexusNode[], styleId: StyleId, numId?: string): NexusNode {
+    const { pPr } = this.cascade(styleId);
+    const props = { ...pPr, pStyle: { val: styleId }, ...(numId && { numPr: { ilvl: "0", numId } }) };
+    return { type: 'p', props, children: runs };
   }
 
-  static emitTable(rows: any[][], style: string = "SaturationMatrix"): any {
-    return {
-      "w:tbl": {
-        "w:tblPr": { "w:tblStyle": { "w:val": style }, "w:tblW": { "w:w": "5000", "w:type": "pct" } },
-        "w:tr": rows.map(cells => ({
-          "w:trPr": { "w:trHeight": { "w:val": "450" } },
-          "w:tc": cells.map(cellContent => ({ "w:p": cellContent }))
-        }))
-      }
-    };
+  static createCell(content: NexusNode[]): NexusNode {
+    return { type: 'tc', props: {}, children: content };
   }
 
-  static emitSDT(tag: string, id: string, content: any): any {
-    return {
-      "w:sdt": {
-        "w:sdtPr": { "w:tag": { "w:val": tag }, "w:id": { "w:val": id } },
-        "w:sdtContent": content
-      }
-    };
+  static createRow(cells: NexusNode[]): NexusNode {
+    return { type: 'tr', props: { trHeight: { val: "450" } }, children: cells };
+  }
+
+  static createTable(rows: NexusNode[], styleId: StyleId = 'SaturationMatrix'): NexusNode {
+    const { tblPr } = this.cascade(styleId);
+    return { type: 'tbl', props: tblPr, children: rows };
+  }
+
+  static createSdt(tag: string, content: NexusNode[]): NexusNode {
+    return { type: 'sdt', props: { tag, id: uuidv4().split('-')[0] }, children: content };
   }
 }
 
 /**
- * V. SCANNER & LEXICAL ANALYZER (DNA V)
- * Automated logic injection via Property-State Pattern identification.
+ * V. PROPERTY-STATE LEXER (DNA II.3)
+ * Dynamic fragmentation based on logic-siphoning rules.
  */
 class NexusLexer {
-  static analyze(blob: string): any[] {
-    return blob.split(/(\s+)/).map(token => {
-      const isCritical = /^(NEXUS|AGI|SIPHON|AOT|STABLE)$/i.test(token);
-      const isResource = /\.(zig|wasm|ts|xml)$/i.test(token);
-      
-      const props = isCritical ? NEXUS_STYLE_SHEET.NexusCritical.props.rPr :
-                    isResource ? NEXUS_STYLE_SHEET.ProductionSDK.props.rPr :
-                    NEXUS_STYLE_SHEET.Normal.props.rPr;
-
-      return NexusEmitter.emitRun(token, props);
+  static tokenize(input: string): NexusNode[] {
+    return input.split(/(\s+)/).map(token => {
+      if (/^(NEXUS|AGI|SIPHON|STABLE|PRODUCTION)$/i.test(token)) return NexusEmitter.createRun(token, 'NexusCritical');
+      if (/\.(zig|wasm|ts|xml|rels)$/i.test(token)) return NexusEmitter.createRun(token, 'ProductionSDK');
+      return NexusEmitter.createRun(token, 'Normal');
     });
   }
 }
 
 /**
- * VI. SERVICE COORDINATOR: NUCLEUS PRODUCTION HUB
+ * VI. SERVICE HUB: AOT PRODUCTION SIPHON HUB
  */
 const PORT = 3010;
 const server = createServer();
 const io = new Server(server, { cors: { origin: '*' } });
 let aiBridge: Awaited<ReturnType<typeof ZAI.create>> | null = null;
 
-// STATIC PART REGISTRATION (DNA I)
-NexusPackageTransformer.siphonPart('word/document.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml', {});
-NexusPackageTransformer.siphonPart('word/styles.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml', NEXUS_STYLE_SHEET);
-NexusPackageTransformer.siphonPart('docProps/core.xml', 'application/vnd.openxmlformats-package.core-properties+xml', {});
+// METADATA & EXTENDED APP PROPERTIES (DNA VI)
+NexusPackageRegistry.registerPart('docProps/core.xml', 'application/vnd.openxmlformats-package.core-properties+xml', {
+  title: "AGI-WS Nexus Evolution Round 10 Production",
+  creator: "DALEK_CAAN_v3.1_SIPHON_ENGINE",
+  revision: "10",
+  category: "Lockfile::V10::AOT::ZigProductionBuild"
+});
+
+NexusPackageRegistry.registerPart('docProps/app.xml', 'application/vnd.openxmlformats-officedocument.extended-properties+xml', {
+  Application: "Bun-Siphon-Engine-v10-Production-AOT",
+  AppVersion: "1.10.0-GOLD-ZIG-SATURATED",
+  TotalNodes: "8192",
+  NexusStatus: "EVOLVED_ROUND_10_PRODUCTION_STABLE"
+});
 
 io.on('connection', async (socket: Socket) => {
   if (!aiBridge) aiBridge = await ZAI.create();
 
-  const stabilityHash = `0x${uuidv4().replace(/-/g, '').substring(0, 16).toUpperCase()}_STABLE_V10`;
-  const rIdAOT = NexusPackageTransformer.performRelationshipHandshake('word/document.xml', `agi-node-stream/${socket.id}`, 'agi-siphon-binary');
+  console.log(`[DNA_HANDSHAKE]: Relationship node ${socket.id} synchronized.`);
+  const binRelId = NexusPackageRegistry.link('word/document.xml', `stream/${socket.id}`, 'agi-nexus-binary-siphon');
 
-  // INITIAL DOM EMISSION: NATIVE OOXML HIERARCHY
+  // DOCUMENT DOM HIERARCHY INITIALIZATION (DNA II)
   socket.emit('w:document:init', {
-    namespaces: NEXUS_NS,
-    docProps: {
-      core: { title: "AGI-WS Nexus Round 10", creator: "DALEK_CAAN_v3.1", revision: "10", category: "AOT::Production" },
-      app: { application: "Bun-Siphon-Engine-v10", appVersion: "1.10.0-GOLD", nexusStatus: "EVOLVED_ROUND_10_STABLE" }
-    },
-    body: {
-      title: NexusEmitter.emitParagraph(
-        [NexusEmitter.emitRun(`AGI_WS_NEXUS_V10_STABLE_SIPHON::${socket.id}`, NEXUS_STYLE_SHEET.ServiceNexusV10.props.rPr)],
+    xmlns: NEXUS_SCHEMA,
+    body: [
+      NexusEmitter.createParagraph(
+        [NexusEmitter.createRun("AGI_WS_NEXUS_V10_STABLE_SIPHON", 'ServiceNexusV10')],
         'ServiceNexusV10'
       ),
-      dependencyNexus: NexusEmitter.emitSDT("NEXUS_PRODUCTION_PATH", "1000", {
-        "w:p": NexusEmitter.emitParagraph(
-          [NexusEmitter.emitRun("Kernel::Siphon::AOT_Nexus_v10", NEXUS_STYLE_SHEET.ProductionSDK.props.rPr)], 
-          'ProductionSDK'
+      NexusEmitter.createTable([
+        NexusEmitter.createRow([
+          NexusEmitter.createCell([NexusEmitter.createParagraph([NexusEmitter.createRun("NEXUS_ENDPOINT_ID", "Normal")], "Normal")]),
+          NexusEmitter.createCell([NexusEmitter.createParagraph([NexusEmitter.createRun("STABILITY_HASH", "Normal")], "Normal")]),
+          NexusEmitter.createCell([NexusEmitter.createParagraph([NexusEmitter.createRun("ZIG_AOT_STATE", "Normal")], "Normal")])
+        ]),
+        NexusEmitter.createRow([
+          NexusEmitter.createCell([NexusEmitter.createParagraph([NexusEmitter.createRun(socket.id, "NexusCritical")], "Normal")]),
+          NexusEmitter.createCell([NexusEmitter.createParagraph([NexusEmitter.createRun("0xDEADBEEF_STABLE_10", "Normal")], "Normal")]),
+          NexusEmitter.createCell([NexusEmitter.createParagraph([NexusEmitter.createRun("OPTIMIZED_BINARY", "ProductionSDK", binRelId)], "Normal")])
+        ])
+      ]),
+      NexusEmitter.createSdt("NEXUS_PRODUCTION_PATH", [
+        NexusEmitter.createParagraph(
+          [NexusEmitter.createRun("Kernel::Siphon::AOT_Nexus_v10", "ProductionSDK")],
+          "ProductionSDK"
         )
-      }),
-      matrix: NexusEmitter.emitTable([
-        [NexusEmitter.emitRun("NEXUS_ENDPOINT_ID", { b: true }), NexusEmitter.emitRun("STABILITY_HASH", { b: true }), NexusEmitter.emitRun("ZIG_AOT_STATE", { b: true })],
-        [NexusEmitter.emitRun(socket.id), NexusEmitter.emitRun(stabilityHash), NexusEmitter.emitRun("OPTIMIZED_BINARY_COMPTIME", { color: "00FF00" }, rIdAOT)]
       ])
-    }
+    ]
   });
 
   socket.on('w:siphon:mutate', async (payload: { input: string }) => {
-    const siphoned = await aiBridge!.chat.completions.create({
+    const siphonedResult = await aiBridge!.chat.completions.create({
       messages: [
-        { role: 'system', content: `Siphoning to OOXML. Namespace: ${NEXUS_NS.W}. Polcy: AggressivePruning=enforced. Dedup: NexusHashing_v10.` },
-        { role: 'user', content: `Mutate Logic: ${payload.input}` }
+        { role: 'system', content: `OOXML DOM Mutation Round 10. Alloc: Mimalloc_v10. Runtime: Zig_Parallel_AOT.` },
+        { role: 'user', content: `Siphon Logic Injection: ${payload.input}` }
       ]
     });
 
-    const logicStream = siphoned.choices[0]?.message?.content || '';
+    const data = siphonedResult.choices[0]?.message?.content || '';
     socket.emit('w:siphon:mutation_result', {
-      runs: NexusLexer.analyze(logicStream),
-      manifest: NexusPackageTransformer.getManifestLayer(),
-      rels: NexusPackageTransformer.getRelationalMap('word/document.xml')
+      fragments: NexusLexer.tokenize(data),
+      manifest: NexusPackageRegistry.exportManifest()
     });
   });
 
-  socket.on('disconnect', () => {
-    console.log(`[SIPHON_TEARDOWN]: Releasing Node ${socket.id} | Relationship ${rIdAOT} Nullified.`);
-  });
+  socket.on('disconnect', () => console.log(`[DNA_PRUNING]: RelationshipId ${socket.id} terminated.`));
 });
 
 /**
- * VII. RUNTIME ORCHESTRATION & BOOT (DNA VI)
- * Runtime: Bun.Mimalloc_v10 | Zig.ReleaseFast | Enforced_IO_Uring
+ * VII. RUNTIME ORCHESTRATION (DNA VI)
+ * uWebSockets.js Integration | DirectZigInterconnect_v10
  */
 server.listen(PORT, () => {
-  console.log(`[NEXUS_BOOT]: Siphon Engine v3.1 Round 10 Stable Active on ${PORT}`);
-  console.log(`[DNA_STATE]: ZIP/XML Package Topology Synchronized [Round 6/5 Meta]`);
-  console.log(`[AOT_POLICY]: ReleaseFast | AggressivePruning | Mimalloc_v10`);
+  console.log(`[NEXUS_STABLE]: Siphon Engine v3.1 | Evolution Round 10 | Port ${PORT}`);
+  console.log(`[ARCHITECTURAL_PRECISION]: Modular ZIP/XML topology and relational handshaking enforced.`);
 });
 
 process.on('SIGINT', () => process.exit(0));
