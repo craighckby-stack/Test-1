@@ -11,363 +11,386 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { 
   Terminal, ShieldCheck, Activity, FileJson, 
-  Layers, Cpu, Hash, Info, Database, Workflow, Zap, Binary
+  Layers, Cpu, Hash, Info, Database, Workflow, Zap, Binary,
+  Link2, Box, FileCode, GitBranch, Share2, FileStack, HardDrive,
+  Package, Scissors, Microscope, Network, Settings
 } from 'lucide-react';
 
 /**
- * [Content_Types].xml :: NFP (NEXUS FABRICATION PROTOCOL) v6.0
- * Strict MIME-type registration for document shard siphoning.
+ * [Content_Types].xml :: MIME TYPE REGISTRY
+ * Maps the package topology to strict schema definitions.
  */
-const SCHEMA_REGISTRY = {
-  DOCUMENT: 'application/vnd.nexus.shard.document+xml',
-  STLYES: 'application/vnd.nexus.shard.styles+xml',
-  RELATIONSHIPS: 'application/vnd.nexus.shard.relationships+xml',
-  METADATA: 'application/vnd.nexus.shard.app-props+xml',
-  SCHEMA: 'http://schemas.nexus.org/logic/2024/main'
-} as const;
+const SCHEMA_MAP = {
+  main: "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
+  styles: "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml",
+  rels: "application/vnd.openxmlformats-package.relationships+xml",
+  app: "application/vnd.openxmlformats-officedocument.extended-properties+xml",
+  nexus: "application/vnd.nexus.logic.shard+json"
+};
 
 /**
- * word/styles.xml :: CASCADING INHERITANCE ENGINE
- * Implementation of the "Property-State Pattern" for Run-level text logic.
+ * word/styles.xml :: TIERED INHERITANCE ENGINE
+ * Implementation of the "BasedOn" logic pattern using Tailwind cascades.
  */
-const DOCUMENT_THEME = {
-  body: "container mx-auto p-4 md:p-10 max-w-7xl font-sans antialiased min-h-screen flex items-center justify-center bg-[#020203] text-white selection:bg-blue-500/40",
+const DOC_STYLES = {
+  /** <w:docDefaults> */
+  root: "min-h-screen bg-[#050505] text-slate-50 font-sans selection:bg-cyan-500/30 selection:text-white antialiased overflow-hidden p-6",
   
-  /** <w:pPr> Paragraph Properties */
-  paragraph: {
-    container: "relative flex flex-col space-y-4 p-8 rounded-[2.5rem] transition-all border-l-[10px] mb-8 group backdrop-blur-3xl overflow-hidden",
-    user: "bg-slate-900/30 border-blue-500 shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:bg-slate-900/50",
-    system: "bg-emerald-950/10 border-emerald-500/40 border-l-0 border-y py-10 items-center text-center",
+  /** <w:style w:styleId="ParagraphBlock"> */
+  p: {
+    container: "relative group mb-6 transition-all duration-700",
+    pPr: "absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 rounded-3xl -z-10 transition-opacity",
+    user: "border border-white/5 bg-zinc-900/40 p-8 rounded-[2rem] shadow-xl hover:border-cyan-500/20",
+    system: "border-y border-dashed border-zinc-800 bg-zinc-950/50 py-12 flex flex-col items-center justify-center text-center px-12"
   },
 
-  /** <w:rPr> Run Properties */
-  run: {
-    id: "text-[10px] font-black bg-white text-black px-4 py-1.5 rounded-full tracking-[0.2em] uppercase flex items-center gap-2 shadow-[0_5px_20px_rgba(255,255,255,0.1)]",
-    timestamp: "text-[9px] font-mono text-slate-600 absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-4 group-hover:translate-x-0",
-    text: "text-lg text-slate-100 leading-relaxed font-light tracking-wide",
-    indicator: "text-[14px] font-black text-emerald-400 uppercase tracking-[0.5em] flex items-center gap-6",
+  /** <w:style w:styleId="RunLogic"> */
+  r: {
+    rId: "text-[10px] font-black bg-cyan-500 text-black px-3 py-1 rounded-full flex items-center gap-1.5 uppercase shadow-[0_0_15px_rgba(6,182,212,0.3)]",
+    t: "text-lg text-zinc-400 leading-relaxed font-medium tracking-tight group-hover:text-zinc-100 transition-colors",
+    abstract: "text-xs font-bold text-cyan-500/60 uppercase tracking-[0.5em] flex items-center gap-3",
+    meta: "text-[8px] font-mono text-zinc-700 absolute top-4 right-8 select-none"
   }
 };
 
-interface RelationShard {
-  rId: string;
-  target: string;
-  handshake: 'PENDING' | 'SYNCHRONIZED' | 'VOID';
+interface WordRun {
+  rId: string;      // Relationship Reference
+  t: string;        // Text Content (Literal)
+  rPr: string;      // Run Properties (Metadata)
+  type: 'user' | 'system';
 }
 
-interface RunShard {
-  wId: string;
-  rId: string;
-  literal: string; // <w:t>
-  created: string; // docProps/core.xml :: created
-  style: 'user' | 'system';
+interface WordParagraph {
+  pId: string;
+  runs: WordRun[];
+  created: string;
 }
 
 /**
- * Nexus_Architectural_Siphon_v6 :: THE DOM REPLICATOR
- * Siphons high-order patterns from vercel/next.js into a ZIP/XML modular hybrid.
+ * Nexus_Siphon_v9.5 :: ARCHITECTURAL PRECISION ENGINE
+ * Siphoning high-order patterns from vercel/next.js into an OOXML-structured DOM.
  */
-export default function DocumentAssembler() {
-  const [docModel, setDocModel] = useState<{
-    body: RunShard[];
-    abstracts: Map<string, string>;
-    rels: RelationShard;
+export default function NexusPackageEngine() {
+  /** word/document.xml :: BODY CONTENT STORE */
+  const [packageBody, setPackageBody] = useState<WordParagraph[]>([]);
+  
+  /** _rels/.rels :: RELATIONSHIP MAP */
+  const [rels, setRels] = useState<{
+    activeRId: string | null;
+    status: 'DISCONNECTED' | 'SYNCHRONIZING' | 'ACTIVE';
   }>({
-    body: [],
-    abstracts: new Map(),
-    rels: { rId: '', target: 'NEXUS_ALPHA_STREAM', handshake: 'PENDING' },
+    activeRId: null,
+    status: 'DISCONNECTED'
   });
 
-  const [buffer, setBuffer] = useState({ literal: '', rId: '' });
-  const socket = useRef<Socket | null>(null);
+  const [inputBuffer, setInputBuffer] = useState('');
+  const [pendingRId, setPendingRId] = useState('');
+  const socketRef = useRef<Socket | null>(null);
 
-  /** word/_rels/document.xml.rels :: DYNAMIC LINKAGE HANDSHAKE */
+  /** RELATIONSHIP HANDSHAKE :: WebSocket Initialization */
   useEffect(() => {
-    const connection = io('/?NexusSchema=v6', {
+    const socket = io('/?v=9.5&schema=OOXML', {
       transports: ['websocket'],
-      upgrade: true,
+      reconnectionAttempts: 5
     });
 
-    socket.current = connection;
+    socketRef.current = socket;
 
-    connection.on('connect', () => 
-      setDocModel(prev => ({ ...prev, rels: { ...prev.rels, handshake: 'SYNCHRONIZED' } })));
-    
-    connection.on('disconnect', () => 
-      setDocModel(prev => ({ ...prev, rels: { ...prev.rels, handshake: 'VOID' } })));
-
-    connection.on('message', (frag: any) => 
-      setDocModel(prev => ({ 
-        ...prev, 
-        body: [...prev.body, { 
-          wId: frag.id, 
-          rId: frag.username, 
-          literal: frag.content, 
-          created: frag.timestamp, 
-          style: frag.type 
-        }] 
-      })));
-
-    connection.on('user-joined', (frag: any) => {
-      setDocModel(prev => {
-        const newAbstracts = new Map(prev.abstracts);
-        newAbstracts.set(frag.user.id, frag.user.username);
-        
-        return {
-          ...prev,
-          body: [...prev.body, { 
-            wId: frag.message.id, 
-            rId: 'SYS_ABSTRACT', 
-            literal: frag.message.content, 
-            created: frag.message.timestamp, 
-            style: 'system' 
-          }],
-          abstracts: newAbstracts
-        };
-      });
+    socket.on('connect', () => {
+      setRels(prev => ({ ...prev, status: 'ACTIVE' }));
     });
 
-    return () => { connection.disconnect(); };
+    socket.on('message', (payload: any) => {
+      setPackageBody(prev => [
+        ...prev,
+        {
+          pId: payload.id || crypto.randomUUID(),
+          created: payload.timestamp || new Date().toISOString(),
+          runs: [{
+            rId: payload.username,
+            t: payload.content,
+            rPr: payload.type || 'user',
+            type: payload.type || 'user'
+          }]
+        }
+      ]);
+    });
+
+    socket.on('user-joined', (data: any) => {
+      setPackageBody(prev => [
+        ...prev,
+        {
+          pId: data.message.id,
+          created: data.message.timestamp,
+          runs: [{
+            rId: 'SYS_REL_INIT',
+            t: data.message.content,
+            rPr: 'system_log',
+            type: 'system'
+          }]
+        }
+      ]);
+    });
+
+    return () => { socket.disconnect(); };
   }, []);
 
-  /** Resource Siphoning Mechanics :: rId Anchor */
-  const anchorRelationship = useCallback(() => {
-    const id = buffer.rId.trim();
-    if (socket.current && id && docModel.rels.handshake === 'SYNCHRONIZED') {
-      socket.current.emit('join', { username: id });
-      setDocModel(prev => ({ ...prev, rels: { ...prev.rels, rId: id } }));
+  /** Resource Siphoning Mechanics :: w:r Alignment */
+  const commitRelationship = useCallback(() => {
+    const cleanId = pendingRId.trim();
+    if (socketRef.current && cleanId) {
+      socketRef.current.emit('join', { username: cleanId });
+      setRels(prev => ({ ...prev, activeRId: cleanId }));
     }
-  }, [buffer.rId, docModel.rels.handshake]);
+  }, [pendingRId]);
 
-  /** word/document.xml :: Literal Shard Injection */
-  const injectLiteralRun = useCallback(() => {
-    const val = buffer.literal.trim();
-    if (socket.current && val && docModel.rels.rId) {
-      socket.current.emit('message', {
-        content: val,
-        username: docModel.rels.rId
+  /** <w:t> :: Literal Data Injection */
+  const siphonRun = useCallback(() => {
+    const content = inputBuffer.trim();
+    if (socketRef.current && content && rels.activeRId) {
+      socketRef.current.emit('message', {
+        content,
+        username: rels.activeRId
       });
-      setBuffer(prev => ({ ...prev, literal: '' }));
+      setInputBuffer('');
     }
-  }, [buffer.literal, docModel.rels.rId]);
+  }, [inputBuffer, rels.activeRId]);
 
-  /** docProps/app.xml :: EXTENDED PROPERTY AUDIT */
+  /** docProps/app.xml :: EXTENDED PROPERTY STATISTICS */
   const appProps = useMemo(() => ({
-    pCount: docModel.body.length,
-    rCount: docModel.body.filter(s => s.style === 'user').length,
-    abstracts: docModel.abstracts.size,
-    checksum: "CRC32_" + (docModel.body.length * 99).toString(16).padEnd(6, 'F').toUpperCase(),
-    revision: "6.0.4"
-  }), [docModel.body, docModel.abstracts]);
+    paragraphs: packageBody.length,
+    runs: packageBody.flatMap(p => p.runs).length,
+    revision: 9,
+    fingerprint: `0x${(packageBody.length * 777).toString(16).toUpperCase()}`
+  }), [packageBody]);
 
   return (
-    <main className={DOCUMENT_THEME.body}>
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.08),transparent_50%)] pointer-events-none" />
-      
-      <Card className="w-full border-none bg-[#0a0a0c]/80 backdrop-blur-3xl rounded-[5rem] overflow-hidden border-t border-white/5 shadow-[0_0_150px_rgba(0,0,0,0.8)]">
-        <CardHeader className="bg-black/40 p-16 space-y-10 border-b border-white/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-10">
-              <div className="relative">
-                <div className="absolute -inset-4 bg-blue-600 rounded-full blur-2xl opacity-20" />
-                <div className="relative p-7 bg-gradient-to-br from-blue-500 to-blue-700 rounded-[2.5rem] shadow-2xl">
-                  <Binary className="h-12 w-12 text-white" />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <CardTitle className="text-5xl font-black tracking-[-0.05em] flex items-center gap-6">
-                  NEXUS_v6_SIPHON
-                  <Badge variant="secondary" className="bg-white/5 text-slate-400 border-white/10 px-6 py-2 text-[11px] font-black tracking-widest uppercase rounded-full">Package: Shard_DOM</Badge>
-                </CardTitle>
-                <div className="flex items-center gap-6">
-                   <p className="text-[12px] font-black uppercase tracking-[0.5em] text-blue-500/80">Round 6/5 :: Architectural Precision</p>
-                   <div className="h-1 w-24 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ x: "-100%" }}
-                        animate={{ x: "0%" }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                        className="h-full w-full bg-blue-500"
-                      />
-                   </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col items-end gap-4">
-              <div className="flex items-center gap-4 bg-white/5 px-8 py-4 rounded-full border border-white/10">
-                <span className={cn("h-3 w-3 rounded-full animate-pulse", 
-                  docModel.rels.handshake === 'SYNCHRONIZED' ? "bg-emerald-400" : "bg-rose-500"
-                )} />
-                <span className="text-[13px] font-black tracking-[0.3em] uppercase">{docModel.rels.handshake}</span>
-              </div>
-              <p className="text-[10px] font-mono text-slate-500 uppercase tracking-tighter">Checksum: {appProps.checksum}</p>
-            </div>
-          </div>
+    <main className={DOC_STYLES.root}>
+      {/* Background Schema Overlay */}
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
+      <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(6,182,212,0.05),transparent_50%)] pointer-events-none" />
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-             {[
-               { label: 'w:abstractNum', val: appProps.abstracts, icon: Hash, sub: 'Instance Count' },
-               { label: 'w:body_shards', val: appProps.pCount, icon: Database, sub: 'Total Nodes' },
-               { label: 'w:r_sequences', val: appProps.rCount, icon: Zap, sub: 'Active Runs' },
-               { label: 'app:Revision', val: appProps.revision, icon: Info, sub: 'Protocol Build' }
-             ].map((stat, i) => (
-               <div key={i} className="bg-white/[0.02] p-8 rounded-[3rem] border border-white/5 hover:border-blue-500/30 transition-all group">
-                  <div className="flex items-center justify-between mb-4">
-                    <stat.icon className="h-5 w-5 text-blue-500/50 group-hover:text-blue-500 transition-colors" />
-                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{stat.label}</span>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-3xl font-mono font-black text-white">{stat.val}</p>
-                    <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tight">{stat.sub}</p>
-                  </div>
-               </div>
-             ))}
-          </div>
-        </CardHeader>
+      <div className="relative grid grid-cols-12 gap-8 max-w-[1800px] mx-auto h-[calc(100vh-8rem)]">
         
-        <CardContent className="p-16">
-          <AnimatePresence mode="wait">
-            {!docModel.rels.rId ? (
-              <motion.div 
-                key="handshake"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, y: -40 }}
-                className="max-w-2xl mx-auto py-20 space-y-16"
-              >
-                <div className="text-center space-y-8">
-                  <div className="inline-flex p-10 rounded-[3.5rem] bg-blue-500/5 text-blue-500 border border-blue-500/10 shadow-2xl relative group">
-                     <div className="absolute inset-0 bg-blue-500 rounded-[3.5rem] blur-3xl opacity-0 group-hover:opacity-10 transition-opacity" />
-                     <ShieldCheck className="h-24 w-24 relative" />
-                  </div>
-                  <div className="space-y-4">
-                    <h3 className="text-4xl font-black text-white tracking-tight uppercase">Namespace Handshake Required</h3>
-                    <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-md mx-auto">Commit a unique Relationship ID (rId) to authorize logic siphoning from the Nexus host.</p>
-                  </div>
+        {/* [Content_Types].xml :: MANIFEST EXPLORER */}
+        <aside className="col-span-3 space-y-6">
+          <Card className="bg-zinc-900/20 border-white/[0.03] backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border-t-white/[0.05]">
+            <CardHeader className="p-8 border-b border-white/[0.03]">
+              <div className="flex items-center gap-3">
+                <div className="bg-cyan-500/20 p-2.5 rounded-2xl">
+                  <Package className="h-5 w-5 text-cyan-500" />
                 </div>
-                
-                <div className="space-y-10">
-                  <div className="space-y-4">
-                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] px-6">w:relationship :: Target_rId</label>
-                    <Input
-                      value={buffer.rId}
-                      onChange={(e) => setBuffer(prev => ({ ...prev, rId: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && anchorRelationship()}
-                      placeholder="e.g. RID_NEXUS_RUN_99"
-                      className="h-28 bg-white/[0.03] border-2 border-white/5 rounded-[3rem] focus:border-blue-500 focus:ring-0 text-3xl font-black text-center transition-all text-white placeholder:text-slate-800"
-                    />
+                <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500">Package Manifest</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-2">
+              {[
+                { label: '[Content_Types].xml', icon: FileJson, color: 'text-zinc-600' },
+                { label: '_rels/.rels', icon: Link2, color: 'text-zinc-600' },
+                { label: 'word/document.xml', icon: FileCode, color: 'text-cyan-400' },
+                { label: 'word/styles.xml', icon: Layers, color: 'text-zinc-600' },
+                { label: 'word/numbering.xml', icon: Hash, color: 'text-zinc-600' },
+                { label: 'docProps/app.xml', icon: Activity, color: 'text-zinc-600' }
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4 rounded-2xl hover:bg-white/[0.03] group cursor-pointer transition-all">
+                  <div className="flex items-center gap-4">
+                    <item.icon className={cn("h-4 w-4 transition-transform group-hover:scale-110", item.color)} />
+                    <span className="text-[11px] font-mono text-zinc-500 group-hover:text-zinc-200 transition-colors">{item.label}</span>
                   </div>
-                  <Button
-                    onClick={anchorRelationship}
-                    disabled={docModel.rels.handshake !== 'SYNCHRONIZED' || !buffer.rId.trim()}
-                    className="w-full h-28 bg-blue-600 hover:bg-blue-500 text-white rounded-[3rem] font-black text-xl tracking-[0.5em] uppercase transition-all shadow-blue-900/40 shadow-2xl"
-                  >
-                    Initiate DOM Siphon
-                  </Button>
+                  <div className="h-1 w-1 rounded-full bg-zinc-800 group-hover:bg-cyan-500 transition-colors" />
                 </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="document"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-12"
-              >
-                <ScrollArea className="h-[650px] w-full rounded-[4rem] border border-white/5 bg-black/20 shadow-inner p-12">
-                  <div className="space-y-4">
-                    {docModel.body.length === 0 ? (
-                      <div className="h-[550px] flex flex-col items-center justify-center space-y-10">
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* extended-properties :: APP.XML */}
+          <Card className="bg-gradient-to-br from-cyan-950/20 to-black/40 border-cyan-500/10 backdrop-blur-2xl rounded-[2.5rem]">
+            <CardContent className="p-8 space-y-8">
+              <div className="flex items-center justify-between">
+                <Microscope className="h-6 w-6 text-cyan-500/50" />
+                <Badge className="bg-cyan-500/10 text-cyan-400 text-[9px] border-none font-black tracking-widest px-3">APP_STATS_V9</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Rev_ID</p>
+                  <p className="text-xl font-mono text-cyan-200 font-bold tracking-tighter">00{appProps.revision}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Checksum</p>
+                  <p className="text-xl font-mono text-zinc-300 font-bold tracking-tighter">{appProps.fingerprint}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+
+        {/* word/document.xml :: CORE DOM BODY */}
+        <section className="col-span-9 flex flex-col gap-6">
+          <Card className="flex-1 bg-zinc-900/10 border-white/[0.03] backdrop-blur-3xl rounded-[3.5rem] overflow-hidden flex flex-col border-t-white/[0.05]">
+            <CardHeader className="bg-white/[0.01] p-10 border-b border-white/[0.03]">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-4xl font-black tracking-tighter italic text-white flex items-baseline gap-4">
+                    DOCUMENT.XML
+                    <span className="text-[10px] font-black text-cyan-500/40 uppercase tracking-[0.4em] italic leading-none">v9.5 Build</span>
+                  </CardTitle>
+                  <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Schema: {SCHEMA_MAP.main.split('/').pop()}</p>
+                </div>
+
+                <div className="flex items-center gap-8">
+                  <div className="text-right">
+                    <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Relational_Handshake</p>
+                    <p className={cn("text-xs font-black tracking-widest uppercase", 
+                      rels.status === 'ACTIVE' ? "text-cyan-400" : "text-amber-500")}>
+                      {rels.status}
+                    </p>
+                  </div>
+                  <div className={cn("h-14 w-1 rounded-full", 
+                    rels.status === 'ACTIVE' ? "bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.5)]" : "bg-zinc-800")} />
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex-1 p-0 relative overflow-hidden">
+              <ScrollArea className="h-full w-full">
+                <div className="p-12">
+                  <AnimatePresence mode="popLayout">
+                    {!rels.activeRId ? (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="h-[500px] flex flex-col items-center justify-center max-w-lg mx-auto text-center space-y-10"
+                      >
                         <div className="relative">
-                          <Cpu className="h-32 w-32 animate-spin-slow text-blue-500/20" />
-                          <Layers className="h-12 w-12 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                          <div className="absolute inset-0 bg-cyan-500/20 blur-[50px] rounded-full" />
+                          <div className="relative bg-zinc-950 border border-white/5 p-10 rounded-[3rem]">
+                            <ShieldCheck className="h-16 w-16 text-cyan-500 animate-pulse" />
+                          </div>
                         </div>
-                        <p className="text-[12px] font-black uppercase tracking-[2em] text-blue-500/40 translate-x-[1em]">Establishing Shard Context</p>
-                      </div>
+                        <div className="space-y-4">
+                          <h3 className="text-2xl font-black uppercase tracking-tight text-white">Relationship Required</h3>
+                          <p className="text-zinc-500 text-sm leading-relaxed italic px-8">Establish a Relational ID (rId) mapping to authorized the ingestion of logic shards into the primary document body.</p>
+                        </div>
+                        <div className="w-full flex gap-3 p-2 bg-white/[0.02] border border-white/5 rounded-3xl backdrop-blur-xl">
+                          <Input 
+                            value={pendingRId}
+                            onChange={(e) => setPendingRId(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && commitRelationship()}
+                            placeholder="Input target rId..."
+                            className="h-14 bg-transparent border-none focus-visible:ring-0 text-center font-mono text-lg tracking-widest placeholder:text-zinc-700"
+                          />
+                          <Button onClick={commitRelationship} className="h-14 w-14 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg">
+                            <Link2 className="h-6 w-6" />
+                          </Button>
+                        </div>
+                      </motion.div>
                     ) : (
-                      docModel.body.map((shard) => (
-                        <div 
-                          key={shard.wId} 
-                          className={cn(DOCUMENT_THEME.paragraph.container, shard.style === 'system' ? DOCUMENT_THEME.paragraph.system : DOCUMENT_THEME.paragraph.user)}
-                        >
-                          {shard.style === 'system' ? (
-                            <span className={DOCUMENT_THEME.run.indicator}>
-                              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
-                              <FileJson className="h-6 w-6 text-emerald-500" />
-                              {shard.literal}
-                              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
-                            </span>
-                          ) : (
-                            <>
-                              <div className="flex items-center gap-6 mb-6">
-                                <span className={DOCUMENT_THEME.run.id}>
-                                  <Hash className="h-3 w-3" />
-                                  {shard.rId}
-                                </span>
-                                <span className="text-[11px] font-bold text-slate-500 tracking-tighter uppercase italic opacity-50">#Shard_{shard.wId.slice(-8)}</span>
-                                <time className={DOCUMENT_THEME.run.timestamp}>
-                                  {new Date(shard.created).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                </time>
+                      <div className="space-y-6">
+                        {packageBody.map((paragraph) => (
+                          <motion.div
+                            key={paragraph.pId}
+                            layout
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className={cn(
+                              DOC_STYLES.p.container,
+                              paragraph.runs[0].type === 'system' ? DOC_STYLES.p.system : DOC_STYLES.p.user
+                            )}
+                          >
+                            <div className={DOC_STYLES.p.pPr} />
+                            <span className={DOC_STYLES.r.meta}>{new Date(paragraph.created).toLocaleTimeString()}</span>
+                            
+                            {paragraph.runs.map((run, rIdx) => (
+                              <div key={rIdx} className="space-y-6">
+                                {run.type === 'system' ? (
+                                  <div className={DOC_STYLES.r.abstract}>
+                                    <Workflow className="h-4 w-4" />
+                                    {run.t}
+                                    <div className="h-px flex-1 bg-cyan-500/10" />
+                                  </div>
+                                ) : (
+                                  <div className="space-y-5">
+                                    <div className="flex items-center gap-4">
+                                      <div className={DOC_STYLES.r.rId}>
+                                        <Hash className="h-3 w-3" />
+                                        {run.rId}
+                                      </div>
+                                      <div className="h-px flex-1 bg-white/[0.03]" />
+                                      <Badge variant="outline" className="text-[8px] font-mono border-zinc-800 text-zinc-600 uppercase px-2">
+                                        pId_{paragraph.pId.slice(0, 4)}
+                                      </Badge>
+                                    </div>
+                                    <p className={DOC_STYLES.r.t}>{run.t}</p>
+                                  </div>
+                                )}
                               </div>
-                              <p className={DOCUMENT_THEME.run.text}>{shard.literal}</p>
-                            </>
-                          )}
-                        </div>
-                      ))
+                            ))}
+                          </motion.div>
+                        ))}
+                      </div>
                     )}
-                  </div>
-                </ScrollArea>
+                  </AnimatePresence>
+                </div>
+              </ScrollArea>
 
-                <div className="flex gap-8 p-8 bg-white/[0.02] rounded-[3.5rem] shadow-2xl border border-white/5 items-center backdrop-blur-xl">
-                  <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                    <Terminal className="h-8 w-8 text-blue-500" />
-                  </div>
-                  <Input
-                    value={buffer.literal}
-                    onChange={(e) => setBuffer(prev => ({ ...prev, literal: e.target.value }))}
-                    onKeyDown={(e) => e.key === 'Enter' && injectLiteralRun()}
-                    placeholder="Siphon <w:t> literal data into Document.xml..."
-                    className="flex-1 h-16 bg-transparent border-none text-white focus-visible:ring-0 px-4 placeholder:text-slate-800 text-2xl font-light italic"
-                  />
-                  <Button
-                    onClick={injectLiteralRun}
-                    disabled={docModel.rels.handshake !== 'SYNCHRONIZED' || !buffer.literal.trim()}
-                    className="h-20 w-48 rounded-[2.5rem] bg-white text-black hover:bg-slate-200 transition-all font-black text-sm uppercase tracking-[0.3em] shadow-2xl"
-                  >
-                    COMMIT_RUN
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </CardContent>
+              {/* Watermark/DNA Branding */}
+              <div className="absolute bottom-12 right-12 opacity-5 pointer-events-none select-none">
+                <Binary className="h-64 w-64 text-cyan-500" />
+              </div>
+            </CardContent>
 
-        <CardFooter className="bg-white/[0.01] border-t border-white/5 flex justify-between px-20 py-12 items-center">
-            <div className="flex gap-20">
-                <div className="space-y-3">
-                    <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Shard_Namespace</p>
-                    <p className="text-xs font-bold text-blue-400 font-mono italic">{SCHEMA_REGISTRY.DOCUMENT}</p>
+            <CardFooter className="p-10 border-t border-white/[0.03] bg-zinc-950/20">
+              <div className="flex w-full gap-4 items-center bg-black/40 p-3 rounded-[2.5rem] border border-white/5 focus-within:border-cyan-500/30 transition-all group shadow-inner">
+                <div className="p-4 rounded-[1.5rem] bg-zinc-900 group-focus-within:bg-cyan-500/10 group-focus-within:text-cyan-400 transition-colors">
+                  <Terminal className="h-6 w-6 text-zinc-700 transition-colors" />
                 </div>
-                <div className="space-y-3 border-l border-white/10 pl-20">
-                    <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Active_rId_Pointer</p>
-                    <p className="text-xs font-black text-white font-mono bg-blue-500/20 px-4 py-1 rounded-md border border-blue-500/20">{docModel.rels.rId || 'NULL_REFERENCE'}</p>
-                </div>
-            </div>
-            <div className="text-right space-y-3">
-                <p className="text-lg font-black text-white uppercase tracking-tighter">NEXUS_DOMAIN_RESOLVER_v6</p>
-                <div className="flex items-center justify-end gap-4 text-[10px] font-black text-slate-500">
-                  <Activity className="h-4 w-4 text-emerald-500" />
-                  <p className="tracking-[0.4em] uppercase">SCHEMA_VALIDATION: 100%_PASS</p>
-                </div>
-            </div>
-        </CardFooter>
-      </Card>
-
-      {/* Structural Topology Overlay */}
-      <div className="fixed inset-0 flex flex-col items-center justify-center pointer-events-none opacity-[0.02] select-none">
-         <h1 className="text-[22vh] font-black text-white leading-none tracking-[-0.1em]">NEXUS_MODULAR</h1>
-         <h1 className="text-[22vh] font-black text-white leading-none tracking-[-0.1em]">ARCHITECTURE</h1>
+                <Input 
+                  value={inputBuffer}
+                  onChange={(e) => setInputBuffer(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && siphonRun()}
+                  disabled={!rels.activeRId}
+                  placeholder={rels.activeRId ? "Inject run-level literal data into <w:t>..." : "Awaiting relationship mapping..."}
+                  className="bg-transparent border-none focus-visible:ring-0 text-xl font-light italic placeholder:text-zinc-800"
+                />
+                <Button 
+                  onClick={siphonRun}
+                  disabled={!inputBuffer.trim() || !rels.activeRId}
+                  className="rounded-full h-16 w-16 bg-zinc-50 text-black hover:bg-white shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                >
+                  <Zap className="h-7 w-7" />
+                </Button>
+              </div>
+            </CardFooter>
+          </Card>
+        </section>
       </div>
+
+      {/* CORE PROPERTIES AUDIT BAR */}
+      <footer className="fixed bottom-0 left-0 right-0 h-12 bg-black border-t border-white/[0.03] flex items-center px-10 justify-between">
+        <div className="flex items-center gap-12 text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600">
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-800 font-mono italic tracking-normal">cp:creator :</span>
+            <span className="text-zinc-400">DALEK_CAAN_V9.5</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-800 font-mono italic tracking-normal">cp:revision :</span>
+            <span className="text-cyan-500">ENGINE_ROUND_09</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-10 text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500">
+           <span className="flex items-center gap-2.5">
+             <div className="h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
+             Paragraphs: {appProps.paragraphs}
+           </span>
+           <span className="flex items-center gap-2.5 text-zinc-700">
+             <div className="h-1.5 w-1.5 rounded-full bg-zinc-800" />
+             Runs: {appProps.runs}
+           </span>
+           <div className="h-4 w-px bg-zinc-900 mx-2" />
+           <span className="text-zinc-800 font-mono">NS: WPROCESSING_ML_MAIN</span>
+        </div>
+      </footer>
     </main>
   );
 }
