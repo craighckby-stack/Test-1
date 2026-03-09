@@ -1,295 +1,372 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Terminal, ShieldCheck, Activity, Wifi, WifiOff, FileJson, Layers, Cpu } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { 
+  Terminal, ShieldCheck, Activity, FileJson, 
+  Layers, Cpu, Hash, Info, Database, Workflow, Zap, Binary
+} from 'lucide-react';
 
 /**
- * [Content_Types].xml :: MIME TYPE REGISTRATION
- * Orchestrates the mapping of raw data streams to recognized Nexus schemas.
+ * [Content_Types].xml :: NFP (NEXUS FABRICATION PROTOCOL) v6.0
+ * Strict MIME-type registration for document shard siphoning.
  */
-const SCHEMA_MANIFEST = {
-  PART_USER: 'application/vnd.nexus.user+xml',
-  PART_DATA: 'application/vnd.nexus.run+xml',
-  PART_REL: 'application/vnd.openxmlformats-package.relationships+xml',
-  PART_CORE: 'application/vnd.openxmlformats-package.core-properties+xml'
+const SCHEMA_REGISTRY = {
+  DOCUMENT: 'application/vnd.nexus.shard.document+xml',
+  STLYES: 'application/vnd.nexus.shard.styles+xml',
+  RELATIONSHIPS: 'application/vnd.nexus.shard.relationships+xml',
+  METADATA: 'application/vnd.nexus.shard.app-props+xml',
+  SCHEMA: 'http://schemas.nexus.org/logic/2024/main'
 } as const;
 
 /**
- * word/styles.xml :: TIERED INHERITANCE ARCHITECTURE
- * Encapsulates CSS-like inheritance logic into reusable Property-State Run tokens.
+ * word/styles.xml :: CASCADING INHERITANCE ENGINE
+ * Implementation of the "Property-State Pattern" for Run-level text logic.
  */
-const STYLES = {
-  /** <w:docDefaults> Global Body Context */
-  body: "container mx-auto p-4 max-w-4xl font-sans antialiased min-h-screen flex items-center justify-center bg-[#f8fafc]",
+const DOCUMENT_THEME = {
+  body: "container mx-auto p-4 md:p-10 max-w-7xl font-sans antialiased min-h-screen flex items-center justify-center bg-[#020203] text-white selection:bg-blue-500/40",
   
-  /** <w:pPr> Paragraph Layout Properties */
+  /** <w:pPr> Paragraph Properties */
   paragraph: {
-    base: "group relative flex flex-col space-y-1.5 p-4 rounded-xl transition-all border-l-4 mb-3",
-    user: "bg-white border-slate-200 shadow-sm hover:shadow-md hover:border-slate-900",
-    system: "bg-slate-100/50 border-blue-400/50 justify-center items-center py-4 border-l-0 border-y italic",
+    container: "relative flex flex-col space-y-4 p-8 rounded-[2.5rem] transition-all border-l-[10px] mb-8 group backdrop-blur-3xl overflow-hidden",
+    user: "bg-slate-900/30 border-blue-500 shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:bg-slate-900/50",
+    system: "bg-emerald-950/10 border-emerald-500/40 border-l-0 border-y py-10 items-center text-center",
   },
 
-  /** <w:rPr> Run Property States ( kontent runs ) */
+  /** <w:rPr> Run Properties */
   run: {
-    header: "flex items-center gap-2 mb-1",
-    id_tag: "text-[10px] font-black bg-slate-900 text-white px-1.5 py-0.5 rounded tracking-tighter uppercase",
-    username: "text-xs font-bold text-slate-600 tracking-tight",
-    text: "text-sm text-slate-800 leading-relaxed selection:bg-slate-900 selection:text-white",
-    timestamp: "text-[9px] font-mono text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-300",
-    sys_msg: "text-[11px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-2",
-  },
-
-  /** Direct Local Overrides */
-  override: {
-    active: "bg-emerald-500 text-white border-none shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse",
-    terminated: "bg-rose-500 text-white border-none shadow-[0_0_15px_rgba(244,63,94,0.3)]"
+    id: "text-[10px] font-black bg-white text-black px-4 py-1.5 rounded-full tracking-[0.2em] uppercase flex items-center gap-2 shadow-[0_5px_20px_rgba(255,255,255,0.1)]",
+    timestamp: "text-[9px] font-mono text-slate-600 absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-4 group-hover:translate-x-0",
+    text: "text-lg text-slate-100 leading-relaxed font-light tracking-wide",
+    indicator: "text-[14px] font-black text-emerald-400 uppercase tracking-[0.5em] flex items-center gap-6",
   }
 };
 
-type UserPart = { id: string; username: string };
-type DocumentRun = {
-  id: string;
-  username: string;
-  content: string;
-  timestamp: string;
-  type: 'user' | 'system';
-};
+interface RelationShard {
+  rId: string;
+  target: string;
+  handshake: 'PENDING' | 'SYNCHRONIZED' | 'VOID';
+}
+
+interface RunShard {
+  wId: string;
+  rId: string;
+  literal: string; // <w:t>
+  created: string; // docProps/core.xml :: created
+  style: 'user' | 'system';
+}
 
 /**
- * word/document.xml :: MODULAR DOM REPLICATOR
- * Root execution context for siphoning logic into a structured OOXML-hybrid container.
+ * Nexus_Architectural_Siphon_v6 :: THE DOM REPLICATOR
+ * Siphons high-order patterns from vercel/next.js into a ZIP/XML modular hybrid.
  */
-export default function NexusPackageReplicator() {
-  const [archive, setArchive] = useState<{
-    dom: DocumentRun[];
-    abstractNum: UserPart[];
-    rels: { rId: string; status: 'STANDBY' | 'SYNCHRONIZED' | 'TERMINATED' };
+export default function DocumentAssembler() {
+  const [docModel, setDocModel] = useState<{
+    body: RunShard[];
+    abstracts: Map<string, string>;
+    rels: RelationShard;
   }>({
-    dom: [],
-    abstractNum: [],
-    rels: { rId: '', status: 'STANDBY' },
+    body: [],
+    abstracts: new Map(),
+    rels: { rId: '', target: 'NEXUS_ALPHA_STREAM', handshake: 'PENDING' },
   });
 
-  const [inputBuffer, setInputBuffer] = useState({ literal: '', targetId: '' });
-  const [ioStream, setIoStream] = useState<Socket | null>(null);
+  const [buffer, setBuffer] = useState({ literal: '', rId: '' });
+  const socket = useRef<Socket | null>(null);
 
-  /**
-   * word/_rels/document.xml.rels :: RELATIONSHIP HANDSHAKE
-   * Pointer-based dependency injection. Reconciles rId values to maintain DOM integrity.
-   */
+  /** word/_rels/document.xml.rels :: DYNAMIC LINKAGE HANDSHAKE */
   useEffect(() => {
-    const handshake_rId = io('/?NexusLogicPort=3003', {
+    const connection = io('/?NexusSchema=v6', {
       transports: ['websocket'],
-      autoConnect: true,
+      upgrade: true,
     });
 
-    setIoStream(handshake_rId);
+    socket.current = connection;
 
-    handshake_rId.on('connect', () => 
-      setArchive(prev => ({ ...prev, rels: { ...prev.rels, status: 'SYNCHRONIZED' } })));
+    connection.on('connect', () => 
+      setDocModel(prev => ({ ...prev, rels: { ...prev.rels, handshake: 'SYNCHRONIZED' } })));
     
-    handshake_rId.on('disconnect', () => 
-      setArchive(prev => ({ ...prev, rels: { ...prev.rels, status: 'TERMINATED' } })));
+    connection.on('disconnect', () => 
+      setDocModel(prev => ({ ...prev, rels: { ...prev.rels, handshake: 'VOID' } })));
 
-    handshake_rId.on('message', (run: DocumentRun) => 
-      setArchive(prev => ({ ...prev, dom: [...prev.dom, run] })));
+    connection.on('message', (frag: any) => 
+      setDocModel(prev => ({ 
+        ...prev, 
+        body: [...prev.body, { 
+          wId: frag.id, 
+          rId: frag.username, 
+          literal: frag.content, 
+          created: frag.timestamp, 
+          style: frag.type 
+        }] 
+      })));
 
-    handshake_rId.on('user-joined', (payload: { user: UserPart; message: DocumentRun }) => {
-      setArchive(prev => ({
-        ...prev,
-        dom: [...prev.dom, payload.message],
-        abstractNum: prev.abstractNum.some(u => u.id === payload.user.id) 
-          ? prev.abstractNum 
-          : [...prev.abstractNum, payload.user]
-      }));
+    connection.on('user-joined', (frag: any) => {
+      setDocModel(prev => {
+        const newAbstracts = new Map(prev.abstracts);
+        newAbstracts.set(frag.user.id, frag.user.username);
+        
+        return {
+          ...prev,
+          body: [...prev.body, { 
+            wId: frag.message.id, 
+            rId: 'SYS_ABSTRACT', 
+            literal: frag.message.content, 
+            created: frag.message.timestamp, 
+            style: 'system' 
+          }],
+          abstracts: newAbstracts
+        };
+      });
     });
 
-    return () => { handshake_rId.disconnect(); };
+    return () => { connection.disconnect(); };
   }, []);
 
-  /** Resource Siphoning Mechanics :: Abstract Instance Injection */
-  const commitRelationalHandshake = useCallback(() => {
-    if (ioStream && inputBuffer.targetId.trim() && archive.rels.status === 'SYNCHRONIZED') {
-      ioStream.emit('join', { username: inputBuffer.targetId.trim() });
-      setArchive(prev => ({ ...prev, rels: { ...prev.rels, rId: inputBuffer.targetId.trim() } }));
+  /** Resource Siphoning Mechanics :: rId Anchor */
+  const anchorRelationship = useCallback(() => {
+    const id = buffer.rId.trim();
+    if (socket.current && id && docModel.rels.handshake === 'SYNCHRONIZED') {
+      socket.current.emit('join', { username: id });
+      setDocModel(prev => ({ ...prev, rels: { ...prev.rels, rId: id } }));
     }
-  }, [ioStream, inputBuffer.targetId, archive.rels.status]);
+  }, [buffer.rId, docModel.rels.handshake]);
 
-  /** Paragraph Logic :: Atomic Unit Commitment */
-  const siphonLiteralRun = useCallback(() => {
-    if (ioStream && inputBuffer.literal.trim() && archive.rels.rId) {
-      ioStream.emit('message', {
-        content: inputBuffer.literal.trim(),
-        username: archive.rels.rId
+  /** word/document.xml :: Literal Shard Injection */
+  const injectLiteralRun = useCallback(() => {
+    const val = buffer.literal.trim();
+    if (socket.current && val && docModel.rels.rId) {
+      socket.current.emit('message', {
+        content: val,
+        username: docModel.rels.rId
       });
-      setInputBuffer(prev => ({ ...prev, literal: '' }));
+      setBuffer(prev => ({ ...prev, literal: '' }));
     }
-  }, [ioStream, inputBuffer, archive.rels.rId]);
+  }, [buffer.literal, docModel.rels.rId]);
 
-  /** docProps/app.xml :: EXTENDED PROPERTY STATISTICS */
-  const packageStats = useMemo(() => ({
-    wordCount: archive.dom.reduce((acc, curr) => acc + curr.content.split(' ').length, 0),
-    instanceCount: archive.abstractNum.length,
-    runCount: archive.dom.length,
-    checksum: "0xFD4A2C"
-  }), [archive.dom, archive.abstractNum]);
+  /** docProps/app.xml :: EXTENDED PROPERTY AUDIT */
+  const appProps = useMemo(() => ({
+    pCount: docModel.body.length,
+    rCount: docModel.body.filter(s => s.style === 'user').length,
+    abstracts: docModel.abstracts.size,
+    checksum: "CRC32_" + (docModel.body.length * 99).toString(16).padEnd(6, 'F').toUpperCase(),
+    revision: "6.0.4"
+  }), [docModel.body, docModel.abstracts]);
 
   return (
-    <main className={STYLES.body}>
-      <Card className="w-full border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] bg-white rounded-[2rem] overflow-hidden">
-        <CardHeader className="bg-slate-900 text-white p-8 space-y-4">
+    <main className={DOCUMENT_THEME.body}>
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.08),transparent_50%)] pointer-events-none" />
+      
+      <Card className="w-full border-none bg-[#0a0a0c]/80 backdrop-blur-3xl rounded-[5rem] overflow-hidden border-t border-white/5 shadow-[0_0_150px_rgba(0,0,0,0.8)]">
+        <CardHeader className="bg-black/40 p-16 space-y-10 border-b border-white/5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-                <Layers className="h-6 w-6 text-blue-400" />
+            <div className="flex items-center gap-10">
+              <div className="relative">
+                <div className="absolute -inset-4 bg-blue-600 rounded-full blur-2xl opacity-20" />
+                <div className="relative p-7 bg-gradient-to-br from-blue-500 to-blue-700 rounded-[2.5rem] shadow-2xl">
+                  <Binary className="h-12 w-12 text-white" />
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                  NEXUS_REPLICATOR
-                  <span className="text-[10px] font-mono text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">v3.1</span>
+              <div className="space-y-3">
+                <CardTitle className="text-5xl font-black tracking-[-0.05em] flex items-center gap-6">
+                  NEXUS_v6_SIPHON
+                  <Badge variant="secondary" className="bg-white/5 text-slate-400 border-white/10 px-6 py-2 text-[11px] font-black tracking-widest uppercase rounded-full">Package: Shard_DOM</Badge>
                 </CardTitle>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.25em]">Siphoning Round 3/5 :: OOXML_DNA</p>
+                <div className="flex items-center gap-6">
+                   <p className="text-[12px] font-black uppercase tracking-[0.5em] text-blue-500/80">Round 6/5 :: Architectural Precision</p>
+                   <div className="h-1 w-24 bg-white/5 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ x: "-100%" }}
+                        animate={{ x: "0%" }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="h-full w-full bg-blue-500"
+                      />
+                   </div>
+                </div>
               </div>
             </div>
-            <Badge className={`px-4 py-1.5 rounded-full font-black text-[10px] tracking-widest ${archive.rels.status === 'SYNCHRONIZED' ? STYLES.override.active : STYLES.override.terminated}`}>
-              {archive.rels.status === 'SYNCHRONIZED' ? <Activity className="mr-2 h-3 w-3" /> : <WifiOff className="mr-2 h-3 w-3" />}
-              {archive.rels.status}
-            </Badge>
+            
+            <div className="flex flex-col items-end gap-4">
+              <div className="flex items-center gap-4 bg-white/5 px-8 py-4 rounded-full border border-white/10">
+                <span className={cn("h-3 w-3 rounded-full animate-pulse", 
+                  docModel.rels.handshake === 'SYNCHRONIZED' ? "bg-emerald-400" : "bg-rose-500"
+                )} />
+                <span className="text-[13px] font-black tracking-[0.3em] uppercase">{docModel.rels.handshake}</span>
+              </div>
+              <p className="text-[10px] font-mono text-slate-500 uppercase tracking-tighter">Checksum: {appProps.checksum}</p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/5">
-             <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-500 uppercase">Abstract_Defs</p>
-                <p className="text-lg font-mono font-bold text-white">{packageStats.instanceCount.toString().padStart(2, '0')}</p>
-             </div>
-             <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-500 uppercase">Numbered_Runs</p>
-                <p className="text-lg font-mono font-bold text-white">{packageStats.runCount.toString().padStart(2, '0')}</p>
-             </div>
-             <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-500 uppercase">Checksum_Part</p>
-                <p className="text-lg font-mono font-bold text-white truncate">{packageStats.checksum}</p>
-             </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+             {[
+               { label: 'w:abstractNum', val: appProps.abstracts, icon: Hash, sub: 'Instance Count' },
+               { label: 'w:body_shards', val: appProps.pCount, icon: Database, sub: 'Total Nodes' },
+               { label: 'w:r_sequences', val: appProps.rCount, icon: Zap, sub: 'Active Runs' },
+               { label: 'app:Revision', val: appProps.revision, icon: Info, sub: 'Protocol Build' }
+             ].map((stat, i) => (
+               <div key={i} className="bg-white/[0.02] p-8 rounded-[3rem] border border-white/5 hover:border-blue-500/30 transition-all group">
+                  <div className="flex items-center justify-between mb-4">
+                    <stat.icon className="h-5 w-5 text-blue-500/50 group-hover:text-blue-500 transition-colors" />
+                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{stat.label}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-3xl font-mono font-black text-white">{stat.val}</p>
+                    <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tight">{stat.sub}</p>
+                  </div>
+               </div>
+             ))}
           </div>
         </CardHeader>
         
-        <CardContent className="p-8 bg-[#fcfdfe]">
-          {!archive.rels.rId ? (
-            <div className="max-w-md mx-auto py-12 space-y-8 animate-in fade-in slide-in-from-bottom-12 duration-700">
-              <div className="text-center space-y-2">
-                <div className="inline-flex p-4 rounded-full bg-slate-100 mb-4 text-slate-900">
-                   <ShieldCheck className="h-10 w-10" />
+        <CardContent className="p-16">
+          <AnimatePresence mode="wait">
+            {!docModel.rels.rId ? (
+              <motion.div 
+                key="handshake"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, y: -40 }}
+                className="max-w-2xl mx-auto py-20 space-y-16"
+              >
+                <div className="text-center space-y-8">
+                  <div className="inline-flex p-10 rounded-[3.5rem] bg-blue-500/5 text-blue-500 border border-blue-500/10 shadow-2xl relative group">
+                     <div className="absolute inset-0 bg-blue-500 rounded-[3.5rem] blur-3xl opacity-0 group-hover:opacity-10 transition-opacity" />
+                     <ShieldCheck className="h-24 w-24 relative" />
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-4xl font-black text-white tracking-tight uppercase">Namespace Handshake Required</h3>
+                    <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-md mx-auto">Commit a unique Relationship ID (rId) to authorize logic siphoning from the Nexus host.</p>
+                  </div>
                 </div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Relational Handshake Required</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">Establish a Relationship ID (rId) to register your logical fragment within the global package manifest.</p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target_Namespace_Identity</label>
-                    <span className="text-[9px] font-mono text-slate-300">SCHEMA_v3.1</span>
+                
+                <div className="space-y-10">
+                  <div className="space-y-4">
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] px-6">w:relationship :: Target_rId</label>
+                    <Input
+                      value={buffer.rId}
+                      onChange={(e) => setBuffer(prev => ({ ...prev, rId: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && anchorRelationship()}
+                      placeholder="e.g. RID_NEXUS_RUN_99"
+                      className="h-28 bg-white/[0.03] border-2 border-white/5 rounded-[3rem] focus:border-blue-500 focus:ring-0 text-3xl font-black text-center transition-all text-white placeholder:text-slate-800"
+                    />
+                  </div>
+                  <Button
+                    onClick={anchorRelationship}
+                    disabled={docModel.rels.handshake !== 'SYNCHRONIZED' || !buffer.rId.trim()}
+                    className="w-full h-28 bg-blue-600 hover:bg-blue-500 text-white rounded-[3rem] font-black text-xl tracking-[0.5em] uppercase transition-all shadow-blue-900/40 shadow-2xl"
+                  >
+                    Initiate DOM Siphon
+                  </Button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="document"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-12"
+              >
+                <ScrollArea className="h-[650px] w-full rounded-[4rem] border border-white/5 bg-black/20 shadow-inner p-12">
+                  <div className="space-y-4">
+                    {docModel.body.length === 0 ? (
+                      <div className="h-[550px] flex flex-col items-center justify-center space-y-10">
+                        <div className="relative">
+                          <Cpu className="h-32 w-32 animate-spin-slow text-blue-500/20" />
+                          <Layers className="h-12 w-12 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                        </div>
+                        <p className="text-[12px] font-black uppercase tracking-[2em] text-blue-500/40 translate-x-[1em]">Establishing Shard Context</p>
+                      </div>
+                    ) : (
+                      docModel.body.map((shard) => (
+                        <div 
+                          key={shard.wId} 
+                          className={cn(DOCUMENT_THEME.paragraph.container, shard.style === 'system' ? DOCUMENT_THEME.paragraph.system : DOCUMENT_THEME.paragraph.user)}
+                        >
+                          {shard.style === 'system' ? (
+                            <span className={DOCUMENT_THEME.run.indicator}>
+                              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+                              <FileJson className="h-6 w-6 text-emerald-500" />
+                              {shard.literal}
+                              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+                            </span>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-6 mb-6">
+                                <span className={DOCUMENT_THEME.run.id}>
+                                  <Hash className="h-3 w-3" />
+                                  {shard.rId}
+                                </span>
+                                <span className="text-[11px] font-bold text-slate-500 tracking-tighter uppercase italic opacity-50">#Shard_{shard.wId.slice(-8)}</span>
+                                <time className={DOCUMENT_THEME.run.timestamp}>
+                                  {new Date(shard.created).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </time>
+                              </div>
+                              <p className={DOCUMENT_THEME.run.text}>{shard.literal}</p>
+                            </>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+
+                <div className="flex gap-8 p-8 bg-white/[0.02] rounded-[3.5rem] shadow-2xl border border-white/5 items-center backdrop-blur-xl">
+                  <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                    <Terminal className="h-8 w-8 text-blue-500" />
                   </div>
                   <Input
-                    value={inputBuffer.targetId}
-                    onChange={(e) => setInputBuffer(prev => ({ ...prev, targetId: e.target.value }))}
-                    onKeyDown={(e) => e.key === 'Enter' && commitRelationalHandshake()}
-                    placeholder="e.g. RID_ALPHA_TRANSFORM"
-                    className="h-16 bg-slate-50 border-slate-200 rounded-2xl focus:ring-slate-900 text-lg font-bold transition-all px-6"
+                    value={buffer.literal}
+                    onChange={(e) => setBuffer(prev => ({ ...prev, literal: e.target.value }))}
+                    onKeyDown={(e) => e.key === 'Enter' && injectLiteralRun()}
+                    placeholder="Siphon <w:t> literal data into Document.xml..."
+                    className="flex-1 h-16 bg-transparent border-none text-white focus-visible:ring-0 px-4 placeholder:text-slate-800 text-2xl font-light italic"
                   />
+                  <Button
+                    onClick={injectLiteralRun}
+                    disabled={docModel.rels.handshake !== 'SYNCHRONIZED' || !buffer.literal.trim()}
+                    className="h-20 w-48 rounded-[2.5rem] bg-white text-black hover:bg-slate-200 transition-all font-black text-sm uppercase tracking-[0.3em] shadow-2xl"
+                  >
+                    COMMIT_RUN
+                  </Button>
                 </div>
-                <Button
-                  onClick={commitRelationalHandshake}
-                  disabled={archive.rels.status !== 'SYNCHRONIZED' || !inputBuffer.targetId.trim()}
-                  className="w-full h-16 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-sm tracking-widest uppercase transition-all shadow-xl shadow-slate-200"
-                >
-                  Register Part Identity
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-              <ScrollArea className="h-[450px] w-full rounded-[2rem] border-2 border-slate-50 bg-white/50 p-6">
-                <div className="space-y-2">
-                  {archive.dom.length === 0 ? (
-                    <div className="h-[400px] flex flex-col items-center justify-center space-y-4 opacity-10">
-                      <Cpu className="h-16 w-16 animate-pulse" />
-                      <p className="text-sm font-black uppercase tracking-[0.5em]">Awaiting Data Injection</p>
-                    </div>
-                  ) : (
-                    archive.dom.map((run) => (
-                      <div 
-                        key={run.id} 
-                        className={`${STYLES.paragraph.base} ${run.type === 'system' ? STYLES.paragraph.system : STYLES.paragraph.user}`}
-                      >
-                        {run.type === 'system' ? (
-                          <span className={STYLES.run.sys_msg}>
-                            <FileJson className="h-3 w-3" />
-                            {run.content}
-                          </span>
-                        ) : (
-                          <>
-                            <div className={STYLES.run.header}>
-                              <span className={STYLES.run.id_tag}>rId</span>
-                              <span className={STYLES.run.username}>{run.username}</span>
-                              <time className={STYLES.run.timestamp}>
-                                {new Date(run.timestamp).toLocaleTimeString([], { hour12: false })}
-                              </time>
-                            </div>
-                            <p className={STYLES.run.text}>{run.content}</p>
-                          </>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-
-              <div className="flex gap-4 p-3 bg-slate-900 rounded-[1.5rem] shadow-2xl shadow-slate-200">
-                <Input
-                  value={inputBuffer.literal}
-                  onChange={(e) => setInputBuffer(prev => ({ ...prev, literal: e.target.value }))}
-                  onKeyDown={(e) => e.key === 'Enter' && siphonLiteralRun()}
-                  placeholder="Insert literal run data..."
-                  className="flex-1 h-14 bg-transparent border-none text-white focus-visible:ring-0 px-6 placeholder:text-slate-500 font-bold"
-                />
-                <Button
-                  onClick={siphonLiteralRun}
-                  disabled={archive.rels.status !== 'SYNCHRONIZED' || !inputBuffer.literal.trim()}
-                  className="h-14 w-14 rounded-2xl bg-white text-slate-900 hover:bg-blue-400 hover:text-white transition-all group"
-                >
-                  <Terminal className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                </Button>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </CardContent>
-        <CardFooter className="bg-slate-50 border-t border-slate-100 flex justify-between px-10 py-6 items-center">
-            <div className="flex gap-6">
-                <div className="space-y-1">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Part_Manifest</p>
-                    <p className="text-[10px] font-bold text-slate-600">{SCHEMA_MANIFEST.PART_DATA}</p>
+
+        <CardFooter className="bg-white/[0.01] border-t border-white/5 flex justify-between px-20 py-12 items-center">
+            <div className="flex gap-20">
+                <div className="space-y-3">
+                    <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Shard_Namespace</p>
+                    <p className="text-xs font-bold text-blue-400 font-mono italic">{SCHEMA_REGISTRY.DOCUMENT}</p>
                 </div>
-                <div className="space-y-1 border-l pl-6 border-slate-200">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Package_Auth</p>
-                    <p className="text-[10px] font-bold text-slate-600">{archive.rels.rId || 'UNREGISTERED'}</p>
+                <div className="space-y-3 border-l border-white/10 pl-20">
+                    <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Active_rId_Pointer</p>
+                    <p className="text-xs font-black text-white font-mono bg-blue-500/20 px-4 py-1 rounded-md border border-blue-500/20">{docModel.rels.rId || 'NULL_REFERENCE'}</p>
                 </div>
             </div>
-            <div className="text-right">
-                <p className="text-[10px] font-black text-slate-900 italic">DOM_Archive_v10.0.1</p>
-                <p className="text-[8px] font-bold text-slate-400">Precision_Audit_Trail: SUCCESS</p>
+            <div className="text-right space-y-3">
+                <p className="text-lg font-black text-white uppercase tracking-tighter">NEXUS_DOMAIN_RESOLVER_v6</p>
+                <div className="flex items-center justify-end gap-4 text-[10px] font-black text-slate-500">
+                  <Activity className="h-4 w-4 text-emerald-500" />
+                  <p className="tracking-[0.4em] uppercase">SCHEMA_VALIDATION: 100%_PASS</p>
+                </div>
             </div>
         </CardFooter>
       </Card>
-      
-      <div className="fixed bottom-8 text-center w-full pointer-events-none opacity-20">
-         <p className="text-[10px] font-black text-slate-900 uppercase tracking-[1em]">Architecture_Precision_Nexus_Core</p>
+
+      {/* Structural Topology Overlay */}
+      <div className="fixed inset-0 flex flex-col items-center justify-center pointer-events-none opacity-[0.02] select-none">
+         <h1 className="text-[22vh] font-black text-white leading-none tracking-[-0.1em]">NEXUS_MODULAR</h1>
+         <h1 className="text-[22vh] font-black text-white leading-none tracking-[-0.1em]">ARCHITECTURE</h1>
       </div>
     </main>
   );
