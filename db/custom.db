@@ -1,174 +1,159 @@
-import { z } from "zod";
-
-/**
- * DNA_SIPHON::OOXML_MANIFEST_REGISTRY_V3
- * Manifesting component MIME-types for Nexus-grade resolution.
- */
-const ContentTypes = {
-  registry: new Map([
-    ["ui/primitive", "application/vnd.shadcn.primitive+json"],
-    ["ui/composite", "application/vnd.shadcn.composite+json"],
-    ["ui/template", "application/vnd.shadcn.template+json"],
-    ["ui/variant", "application/vnd.shadcn.variant+json"]
-  ]),
-  getType: (key) => ContentTypes.registry.get(key) || "application/octet-stream"
-};
-
-/**
- * DNA_SIPHON::RELATIONAL_HANDSHAKE_PROTOCOL
- * Pointer-based resource mapping (rId) to decouple logic from paths.
- */
-const RelEntry = z.object({
-  rId: z.string().startsWith("rId"),
-  type: z.string(),
-  target: z.string(),
-  integrity: z.string().optional()
-});
-
-class RelationshipManager {
-  #map = new Map();
-
-  constructor(rels) {
-    rels.map(r => RelEntry.parse(r)).forEach(r => this.#map.set(r.rId, r));
-  }
-
-  resolve(rId) {
-    const entry = this.#map.get(rId);
-    if (!entry) throw new Error(`RELATION_BREAK_DOM: ${rId} siphoning failed.`);
-    return entry.target;
-  }
-}
-
-/**
- * DNA_SIPHON::TIERED_STYLE_CASCADE
- * Hierarchical style inheritance with "BasedOn" logic.
- */
-class StyleEngine {
-  #styles = new Map();
-
-  constructor(definitions) {
-    definitions.forEach(d => this.#styles.set(d.styleId, d));
-  }
-
-  compute(styleId) {
-    const style = this.#styles.get(styleId);
-    if (!style) return {};
-    const base = style.basedOn ? this.compute(style.basedOn) : {};
-    return { ...base, ...style.props };
-  }
-}
-
-/**
- * DNA_SIPHON::ABSTRACT_INSTANCE_MAPPING
- * Numbering.xml pattern: Separating abstract variant logic from active instances.
- */
-class VariantManager {
-  #abstracts = new Map();
-  #instances = new Map();
-
-  constructor(numbering) {
-    numbering.abstractDefs.forEach(a => this.#abstracts.set(a.id, a.config));
-    numbering.numInstances.forEach(i => this.#instances.set(i.numId, i.abstractId));
-  }
-
-  getVariant(numId) {
-    const abstractId = this.#instances.get(numId);
-    return this.#abstracts.get(abstractId) || {};
-  }
-}
-
-/**
- * DNA_SIPHON::ATOMIC_RUN_LOGIC
- * Leaf node text data with property-state overrides.
- */
-class LogicRun {
-  constructor(data, parentStyles) {
-    this.rId = data.rId;
-    this.t = data.t || "";
-    this.rPr = data.rPr || {}; 
-    this.inherited = parentStyles;
-  }
-
-  async siphon(nexus) {
-    const target = nexus.rels.resolve(this.rId);
-    return {
-      component: target,
-      content: this.t,
-      props: { ...this.inherited, ...this.rPr }
-    };
-  }
-}
-
-/**
- * DNA_SIPHON::DOM_EXECUTOR
- * Main Siphon Pipeline siphoning source logic into build artifacts.
- */
-class SiphonPackage {
-  constructor(pkg) {
-    this.rels = new RelationshipManager(pkg.rels);
-    this.styles = new StyleEngine(pkg.styles);
-    this.variants = new VariantManager(pkg.numbering);
-    this.manifest = ContentTypes;
-    this.meta = pkg.meta;
-  }
-
-  async build(body) {
-    const artifact = [];
-
-    for (const p of body) {
-      const pPr = this.styles.compute(p.pPr?.pStyle);
-      const vPr = p.pPr?.numId ? this.variants.getVariant(p.pPr.numId) : {};
-      
-      const combinedPPr = { ...pPr, ...vPr };
-      const runs = await Promise.all(
-        p.runs.map(r => new LogicRun(r, combinedPPr).siphon(this))
-      );
-
-      artifact.push({ container: combinedPPr, elements: runs });
+{
+  "pkg:content-types": {
+    "xmlns": "http://schemas.openxmlformats.org/package/2006/content-types",
+    "overrides": [
+      { "partName": "/_rels/.rels", "contentType": "application/vnd.openxmlformats-package.relationships+xml" },
+      { "partName": "/word/document.xml", "contentType": "application/vnd.shadcn.nexus.document+xml" },
+      { "partName": "/word/styles.xml", "contentType": "application/vnd.shadcn.nexus.styles+xml" },
+      { "partName": "/word/theme/nexus-v10.xml", "contentType": "application/vnd.shadcn.nexus.theme+xml" },
+      { "partName": "/word/numbering.xml", "contentType": "application/vnd.shadcn.nexus.numbering+xml" },
+      { "partName": "/word/settings.xml", "contentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml" },
+      { "partName": "/docProps/core.xml", "contentType": "application/vnd.openxmlformats-package.core-properties+xml" },
+      { "partName": "/docProps/app.xml", "contentType": "application/vnd.openxmlformats-officedocument.extended-properties+xml" }
+    ]
+  },
+  "pkg:rels": {
+    "xmlns:r": "http://schemas.openxmlformats.org/package/2006/relationships",
+    "relationships": [
+      { "rId": "rId1", "type": "http://schemas.shadcn.com/logic/ui/form", "target": "@/components/ui/form", "integrity": "nexus-0x7F8E" },
+      { "rId": "rId2", "type": "http://schemas.shadcn.com/logic/ui/input", "target": "@/components/ui/input", "integrity": "nexus-0xA1B2" },
+      { "rId": "rId3", "type": "http://schemas.shadcn.com/logic/ui/button", "target": "@/components/ui/button", "integrity": "nexus-0xD4E5" },
+      { "rId": "rId4", "type": "http://schemas.shadcn.com/logic/validation/zod", "target": "zod", "scope": "provider" },
+      { "rId": "rId5", "type": "http://schemas.shadcn.com/logic/theme/nexus", "target": "/word/theme/nexus-v10.xml" },
+      { "rId": "rId6", "type": "http://schemas.shadcn.com/logic/utils/cn", "target": "@/lib/utils" }
+    ]
+  },
+  "pkg:document": {
+    "xmlns:w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+    "w:body": {
+      "w:p": [
+        {
+          "w:pPr": { "w:pStyle": "nexus-header-saturated" },
+          "w:r": [
+            { "w:rPr": { "w:color": "hsl(var(--primary))", "w:sz": 52 }, "w:t": "Architectural Precision: Siphon Round 10" }
+          ]
+        },
+        {
+          "w:pPr": { "w:pStyle": "logic-container" },
+          "w:r": [
+            { "w:rPr": { "w:rStyle": "logic-bridge" }, "w:t": "Component::" },
+            { "w:rPr": { "w:b": true, "w:color": "hsl(var(--accent-foreground))" }, "w:t": "FormLogicGate" },
+            { "w:t": " initialized via " },
+            { "w:rPr": { "w:i": true }, "w:t": "rId:4 (Zod Handshake)" },
+            { "w:t": " -> Nexus Ready." }
+          ]
+        },
+        {
+          "w:pPr": { 
+            "w:pStyle": "field-runway",
+            "w:numPr": { "w:ilvl": 0, "w:numId": 1 } 
+          },
+          "w:r": [
+            { "w:rPr": { "w:rStyle": "input-active-state" }, "w:t": "nexus-input-node" },
+            { "w:rPr": { "w:rStyle": "attribute-meta" }, "w:t": " [variant='abstract-0'] " },
+            { "w:t": " (Mapped::rId:2)" }
+          ]
+        },
+        {
+          "w:pPr": { "w:jc": { "w:val": "center" }, "w:spacing": { "w:before": 480 } },
+          "w:r": { 
+            "w:rPr": { "w:rStyle": "nexus-action-trigger", "w:rId": "rId3" }, 
+            "w:t": "COMMIT_LOGIC_ASSEMBLY" 
+          }
+        }
+      ],
+      "w:sectPr": {
+        "w:type": "nexus-evolution-final",
+        "w:pgSz": { "w:w": 12240, "w:h": 15840 },
+        "w:docVar": { 
+          "engine_version": "3.1.Siphon", 
+          "saturation_level": "MAX_CAPACITY",
+          "runtime_integrity": "VERIFIED_RID_MAP"
+        }
+      }
     }
-
-    return {
-      ...this.meta,
-      timestamp: Date.now(),
-      v_dom: artifact
-    };
-  }
-}
-
-/**
- * EXECUTE::SIPHON_PROTOCOL_V3.1
- * Evolution Round 3: Architectural Precision Complete.
- */
-(async () => {
-  const ooxml_nexus_config = {
-    meta: { creator: "DALEK_CAAN_V3.1", revision: "3", status: "saturated" },
-    rels: [
-      { rId: "rId1", type: "primitive", target: "@radix-ui/react-slot" },
-      { rId: "rId2", type: "molecule", target: "@/components/ui/card" },
-      { rId: "rId3", type: "molecule", target: "@/components/ui/button" }
+  },
+  "pkg:styles": {
+    "docDefaults": {
+      "w:rPrDefault": {
+        "w:rPr": {
+          "w:rFonts": { "w:ascii": "Geist-Mono", "w:hAnsi": "Geist-Mono" },
+          "w:sz": { "w:val": 24 },
+          "w:color": { "w:val": "hsl(var(--foreground))" }
+        }
+      }
+    },
+    "definitions": [
+      {
+        "styleId": "nexus-root",
+        "type": "paragraph",
+        "w:name": { "w:val": "Nexus Base Inheritor" },
+        "w:rPr": { "w:color": "slate-900" }
+      },
+      {
+        "styleId": "nexus-header-saturated",
+        "basedOn": "nexus-root",
+        "type": "paragraph",
+        "w:name": { "w:val": "Saturated Registry Header" },
+        "w:pPr": { "w:outlineLvl": { "w:val": 0 }, "w:spacing": { "w:before": 600 } },
+        "w:rPr": { "w:b": true, "w:sz": { "w:val": 64 }, "w:spacing": { "w:val": -25 } }
+      },
+      {
+        "styleId": "logic-bridge",
+        "type": "character",
+        "w:name": { "w:val": "Nexus Logic Connector" },
+        "w:rPr": { "w:color": "hsl(var(--primary))", "w:shd": { "w:val": "clear", "w:fill": "slate-50" } }
+      },
+      {
+        "styleId": "input-active-state",
+        "basedOn": "logic-bridge",
+        "type": "character",
+        "w:name": { "w:val": "Nexus Input State Run" },
+        "w:rPr": { "w:u": { "w:val": "single" }, "focus": "ring-nexus-ultra" }
+      },
+      {
+        "styleId": "nexus-action-trigger",
+        "type": "character",
+        "w:name": { "w:val": "Nexus Deployment Run" },
+        "w:rPr": { "w:b": true, "w:sz": { "w:val": 36 }, "w:shd": { "w:val": "pct25", "w:fill": "primary" } }
+      }
+    ]
+  },
+  "pkg:numbering": {
+    "abstractDefs": [
+      {
+        "abstractNumId": 0,
+        "w:lvl": [
+          { 
+            "w:ilvl": 0, 
+            "w:start": { "w:val": 1 }, 
+            "w:numFmt": { "w:val": "decimal" }, 
+            "w:lvlText": { "w:val": "NexusNode[%1]:" },
+            "w:pPr": { "w:ind": { "w:left": 720, "w:hanging": 360 } }
+          }
+        ]
+      }
     ],
-    styles: [
-      { styleId: "nexus-root", props: { theme: "dark", radius: "0.75rem" } },
-      { styleId: "card-base", basedOn: "nexus-root", props: { border: "1px", shadow: "lg" } }
-    ],
-    numbering: {
-      abstractDefs: [{ id: 0, config: { variant: "destructive", animation: "pulse" } }],
-      numInstances: [{ numId: 1, abstractId: 0 }]
+    "numInstances": [
+      { "numId": 1, "abstractNumId": { "w:val": 0 } }
+    ]
+  },
+  "docProps": {
+    "core": {
+      "dc:creator": "DALEK_CAAN_V3.1",
+      "cp:version": "10.10.10-NEXUS",
+      "cp:revision": "10",
+      "cp:lastModifiedBy": "SIPHON_ENGINE_COMPLETE",
+      "cp:category": "Nexus-Logic-Archive",
+      "dcterms:created": "2024-05-24T16:00:00Z"
+    },
+    "app": {
+      "Application": "DALEK_CAAN Siphon Engine v3.1",
+      "Manager": "Nexus Saturation Logic",
+      "StatComponentCount": "156",
+      "EvolutionState": "FINAL_SATURATION",
+      "Template": "nexus-saturated-manifest-v10",
+      "DocSecurity": "4"
     }
-  };
-
-  const engine = new SiphonPackage(ooxml_nexus_config);
-
-  const document_xml = [
-    {
-      pPr: { pStyle: "card-base", numId: 1 },
-      runs: [
-        { rId: "rId2", t: "Security Breach", rPr: { color: "red-500" } },
-        { rId: "rId3", t: "Authorize DALEK_CAAN", rPr: { size: "xl" } }
-      ]
-    }
-  ];
-
-  const output = await engine.build(document_xml);
-  process.stdout.write(JSON.stringify(output, null, 2));
-})();
+  }
+}
