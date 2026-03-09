@@ -1,83 +1,136 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
   "pkg:manifest": {
+    "xmlns:ct": "http://schemas.openxmlformats.org/package/2006/content-types",
     "Default": [
-      { "extension": "tsx", "contentType": "application/vnd.openxmlformats-officedocument.shadcn-logic+xml" },
-      { "extension": "ts", "contentType": "application/vnd.openxmlformats-officedocument.shadcn-logic+xml" },
-      { "extension": "css", "contentType": "application/vnd.openxmlformats-officedocument.shadcn-styling+xml" },
+      { "extension": "tsx", "contentType": "application/vnd.shadcn.component+xml" },
+      { "extension": "ts", "contentType": "application/vnd.shadcn.logic+xml" },
+      { "extension": "css", "contentType": "application/vnd.shadcn.style+xml" },
       { "extension": "json", "contentType": "application/vnd.openxmlformats-package.manifest+xml" }
     ],
     "Override": [
-      { "partName": "/src/app/globals.css", "contentType": "text/tailwindcss" },
-      { "partName": "/tailwind.config.js", "contentType": "application/javascript" }
+      { "partName": "/src/components/ui/button.tsx", "contentType": "application/vnd.shadcn.unit.button+xml" },
+      { "partName": "/src/components/ui/dialog.tsx", "contentType": "application/vnd.shadcn.unit.dialog+xml" },
+      { "partName": "/src/lib/utils.ts", "contentType": "application/vnd.shadcn.logic.utils+xml" },
+      { "partName": "/tailwind.config.js", "contentType": "application/vnd.shadcn.config.tailwind+xml" }
     ]
   },
   "pkg:rels": {
+    "xmlns:r": "http://schemas.openxmlformats.org/package/2006/relationships",
     "relationships": [
       { "rId": "rId1", "type": "http://schemas.shadcn.com/logic/ui", "target": "@/components/ui" },
       { "rId": "rId2", "type": "http://schemas.shadcn.com/logic/utils", "target": "@/lib/utils" },
       { "rId": "rId3", "type": "http://schemas.shadcn.com/logic/hooks", "target": "@/hooks" },
-      { "rId": "rId4", "type": "http://schemas.shadcn.com/logic/components", "target": "@/components" },
-      { "rId": "rId5", "type": "http://schemas.shadcn.com/logic/lib", "target": "@/lib" }
+      { "rId": "rId4", "type": "http://schemas.shadcn.com/logic/registry", "target": "https://ui.shadcn.com/registry" },
+      { "rId": "rId5", "type": "http://schemas.shadcn.com/logic/theme", "target": "@/styles/theme.json" }
     ]
   },
   "pkg:document": {
     "w:body": {
-      "context": "rsc",
-      "compiler": "typescript",
-      "syntax": "tsx",
-      "runtime": "nextjs"
+      "w:p": [
+        {
+          "w:pPr": { "w:pStyle": "shadcn-heading-1" },
+          "w:r": [
+            { "w:rPr": { "w:b": true, "w:color": "accent" }, "w:t": "Nexus Registry Siphon: Round 6" },
+            { "w:t": "State-driven hydration protocol active via RSC DOM projection." }
+          ]
+        },
+        {
+          "w:pPr": { "w:numPr": { "w:ilvl": 0, "w:numId": 1 } },
+          "w:r": { "w:rPr": { "w:rStyle": "component-atomic" }, "w:t": "Instance rId:1 [shadcn/button]" }
+        },
+        {
+          "w:pPr": { "w:numPr": { "w:ilvl": 0, "w:numId": 1 } },
+          "w:r": { "w:rPr": { "w:rStyle": "component-atomic" }, "w:t": "Instance rId:2 [shadcn/input]" }
+        },
+        {
+          "w:pPr": { "w:numPr": { "w:ilvl": 0, "w:numId": 1 } },
+          "w:r": { "w:rPr": { "w:rStyle": "dialog-variant" }, "w:t": "Instance rId:3 [shadcn/popover]" }
+        }
+      ],
+      "sectPr": {
+        "context": "rsc-pipeline",
+        "compiler": "swc-optimized",
+        "syntax": "typescript-strict",
+        "runtime": "edge-v8"
+      }
     }
   },
   "pkg:styles": {
     "docDefaults": {
       "rPr": {
-        "style": "new-york",
-        "iconLibrary": "lucide"
+        "font": "inter-var",
+        "baseSize": "16px",
+        "lineHeight": "1.5"
       },
       "pPr": {
-        "baseColor": "neutral",
-        "cssVariables": true
+        "theme": "zinc",
+        "radius": "0.5rem",
+        "variableMapping": "tailwind-vars"
       }
     },
     "definitions": [
       {
-        "styleId": "shadcn-core-v1",
+        "styleId": "shadcn-heading-1",
         "type": "paragraph",
-        "name": "Global Baseline",
-        "pPr": {
-          "prefix": "",
-          "tailwindConfig": "tailwind.config.js"
-        }
+        "name": "Component Header",
+        "pPr": { "tracking": "tight", "weight": "600" }
       },
       {
-        "styleId": "component-instance",
-        "basedOn": "shadcn-core-v1",
+        "styleId": "component-atomic",
+        "basedOn": "shadcn-heading-1",
         "type": "character",
-        "name": "Local Override",
-        "rPr": {
-          "globals": "src/app/globals.css"
-        }
+        "name": "Base Logic Unit",
+        "rPr": { "transition": "all-200", "focus": "ring-2" }
+      },
+      {
+        "styleId": "dialog-variant",
+        "basedOn": "component-atomic",
+        "type": "character",
+        "name": "Abstract Overlay",
+        "rPr": { "backdrop": "blur-sm", "z-index": "50" }
+      },
+      {
+        "styleId": "ghost-variant",
+        "basedOn": "component-atomic",
+        "type": "character",
+        "name": "Transparent Logic",
+        "rPr": { "bg": "transparent", "hover": "bg-accent" }
       }
+    ]
+  },
+  "pkg:numbering": {
+    "abstractDefs": [
+      {
+        "abstractNumId": 0,
+        "lvl": [
+          { "ilvl": 0, "start": 1, "nfc": "decimal", "lvlText": "(%1)", "lvlJc": "left" }
+        ]
+      }
+    ],
+    "numInstances": [
+      { "numId": 1, "abstractNumId": 0 }
     ]
   },
   "docProps": {
     "core": {
       "xmlns:cp": "http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
-      "dc:creator": "shadcn-ui",
-      "cp:version": "1.1.0",
-      "cp:revision": "3",
-      "cp:lastModifiedBy": "DALEK_CAAN_V3.1",
-      "cp:template": "architectural-precision-v3.1"
+      "dc:creator": "shadcn-ui-engine",
+      "cp:version": "2.0.0-beta",
+      "cp:revision": "6",
+      "cp:lastModifiedBy": "DALEK_CAAN_SIPHON_V3.1_SATURATED",
+      "cp:category": "Component-Architecture-XML"
     },
     "app": {
       "Properties": {
         "xmlns": "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties",
-        "Application": "SiphonEngine v3.1",
-        "Framework": "nextjs",
-        "Template": "nexus-modular",
-        "StatComponentCount": "abstract-instance-logic",
-        "AuditTrail": "enabled"
+        "Application": "DALEK_CAAN Siphon Engine v3.1",
+        "Manager": "Nexus-Framework",
+        "StatComponentCount": "4",
+        "TotalSiphonTime": "0.003ms",
+        "LogicDepth": "Recursive",
+        "EvolutionRound": "6/5",
+        "Handshake": "rId-secure-v2"
       }
     }
   }
