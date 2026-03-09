@@ -3,239 +3,245 @@ import { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * OOXML ARCHITECTURAL REGISTRY :: SCHEMA MANIFEST v6.0
- * Logic: Strict Namespace Validation & Package Part Registration
+ * OOXML ARCHITECTURAL REGISTRY :: SCHEMA MANIFEST v9.0
+ * DNA: ZIP/XML Hybrid Architecture & TS-Compiler Logic Siphoning
  */
+export const enum SyntaxKind {
+  Document = "w:document",
+  Body = "w:body",
+  Paragraph = "w:p",
+  Run = "w:r",
+  Text = "w:t",
+  Properties = "Pr",
+  Relationship = "Relationship",
+  ContentType = "Override"
+}
+
 const XML_NS = {
   W: "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
   R: "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+  PR: "http://schemas.openxmlformats.org/package/2006/relationships",
   CP: "http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
   TYPES: "http://schemas.openxmlformats.org/package/2006/content-types",
-  VT: "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"
+  DC: "http://purl.org/dc/elements/1.1/",
+  DCTERMS: "http://purl.org/dc/terms/"
 } as const;
 
 /**
- * IV. NUMBERING LOGIC :: ABSTRACT VS INSTANCE PATTERN
+ * I. STRUCTURAL TOPOLOGY :: SYMBOL TABLE & REGISTRY
+ * Pattern: TS SymbolTable for Relational Linkage mapping
  */
-interface AbstractNum {
-  abstractNumId: number;
-  lvl: {
-    ilvl: number;
-    start: ValProp<number>;
-    numFmt: ValProp<'bullet' | 'decimal' | 'upperRoman'>;
-    lvlText: ValProp<string>;
-    lvlJc: ValProp<'left' | 'right'>;
-  }[];
-}
+class OOXMLSymbolTable {
+  private symbols = new Map<string, string>();
+  private rIdCounter = 1;
 
-interface NumInstance {
-  numId: number;
-  abstractNumId: ValProp<number>;
+  public getNextRId(): string {
+    return `rId${this.rIdCounter++}`;
+  }
+
+  public register(key: string, value: string): void {
+    this.symbols.set(key, value);
+  }
+
+  public resolve(key: string): string | undefined {
+    return this.symbols.get(key);
+  }
 }
 
 /**
- * TYPE DEFINITIONS :: DOM TOPOLOGY & PROPERTY-STATE PATTERN
+ * II. LOGIC DNA :: SYNTAX NODES (AST)
+ * Pattern: Immutable AST nodes with Property-State Logic
  */
-interface ValProp<T = string | number | boolean> {
-  val: T;
+interface SyntaxNode {
+  readonly kind: SyntaxKind;
+  readonly pos?: number;
+  readonly end?: number;
 }
 
-interface RunProperties {
-  b?: ValProp<boolean>;
-  i?: ValProp<boolean>;
-  sz?: ValProp<number>;
-  color?: ValProp<string>;
-  rStyle?: ValProp<string>;
-  vertAlign?: ValProp<'superscript' | 'subscript'>;
+interface RunNode extends SyntaxNode {
+  readonly kind: SyntaxKind.Run;
+  readonly rPr?: Record<string, any>;
+  readonly t: string;
 }
 
-interface ParagraphProperties {
-  pStyle?: ValProp<string>;
-  jc?: ValProp<'left' | 'center' | 'right' | 'both'>;
-  spacing?: { before?: number; after?: number; line?: number; lineRule?: string };
-  ind?: { left?: number; hanging?: number; firstLine?: number };
-  numPr?: {
-    ilvl: ValProp<number>;
-    numId: ValProp<number>;
+interface ParagraphNode extends SyntaxNode {
+  readonly kind: SyntaxKind.Paragraph;
+  readonly pId: string;
+  readonly pPr?: Record<string, any>;
+  readonly runs: readonly RunNode[];
+}
+
+/**
+ * III. THE STYLING ENGINE :: TYPE CHECKER & RESOLVER
+ * Logic: Tiered Inheritance Logic with BasedOn resolution
+ */
+class StyleResolver {
+  private styles = new Map<string, any>();
+
+  constructor() {
+    this.register('Normal', { type: 'paragraph', name: 'normal' });
+    this.register('Heading1', { type: 'paragraph', name: 'heading 1', basedOn: 'Normal' });
+  }
+
+  public register(id: string, def: any): void {
+    this.styles.set(id, def);
+  }
+
+  public checkStyle(styleId: string): boolean {
+    return this.styles.has(styleId);
+  }
+}
+
+/**
+ * V. RESOURCE SIPHONING MECHANICS :: THE EMITTER
+ * Pattern: TS Emitter logic for Declarative XML generation
+ */
+class OOXMLEmitter {
+  public emitParagraph(node: ParagraphNode): string {
+    const pPr = node.pPr ? this.emitProperties(SyntaxKind.Paragraph, node.pPr) : '';
+    const runs = node.runs.map(r => this.emitRun(r)).join('');
+    return `<w:p w14:paraId="${node.pId}">${pPr}${runs}</w:p>`;
+  }
+
+  private emitRun(node: RunNode): string {
+    const rPr = node.rPr ? this.emitProperties(SyntaxKind.Run, node.rPr) : '';
+    return `<w:r>${rPr}<w:t xml:space="preserve">${node.t}</w:t></w:r>`;
+  }
+
+  private emitProperties(kind: SyntaxKind, props: Record<string, any>): string {
+    const tag = kind === SyntaxKind.Paragraph ? 'pPr' : 'rPr';
+    let inner = '';
+    if (props.pStyle) inner += `<w:pStyle w:val="${props.pStyle}"/>`;
+    if (props.b) inner += `<w:b/>`;
+    if (props.sz) inner += `<w:sz w:val="${props.sz}"/>`;
+    return `<w:${tag}>${inner}</w:${tag}>`;
+  }
+}
+
+/**
+ * IV. CORE SIPHON ENGINE v9.0 :: THE PROGRAM
+ * Logic: Modular Architecture managing the ZIP/XML Part collection
+ */
+class OOXMLProgram {
+  private paragraphs: ParagraphNode[] = [];
+  private symbols = new OOXMLSymbolTable();
+  private styles = new StyleResolver();
+  private emitter = new OOXMLEmitter();
+
+  public metadata = {
+    creator: 'DALEK_CAAN_V9.0',
+    revision: '9',
+    created: new Date().toISOString(),
+    schema: XML_NS.W
   };
-}
 
-interface RunNode {
-  rPr?: RunProperties;
-  t: string;
-}
+  public diagnostics: string[] = [];
 
-interface ParagraphNode {
-  pId: string;
-  pPr?: ParagraphProperties;
-  runs: RunNode[];
-}
-
-/**
- * V. RESOURCE SIPHONING :: RELATIONAL LINKAGE (rId Handshake)
- */
-class RelationshipRegistry {
-  private rels = new Map<string, { rId: string; type: string; target: string }>();
-  private counter = 1;
-
-  public register(type: string, target: string): string {
-    const rId = `rId${this.counter++}`;
-    this.rels.set(rId, { rId, type: `${XML_NS.R}/${type}`, target });
-    return rId;
+  constructor(public readonly sessionId: string) {
+    this.initializeRels();
   }
 
-  public getMap() { return Array.from(this.rels.values()); }
-}
-
-/**
- * THE PACKAGE MODULAR ARCHITECTURE :: ZIP HYBRID SIMULATION
- */
-class OOXMLPackage {
-  public readonly pNodes: ParagraphNode[] = [];
-  public readonly rels = new RelationshipRegistry();
-  public readonly abstractNumbering: AbstractNum[] = [];
-  public readonly numInstances: NumInstance[] = [];
-  public readonly styles = new Map<string, any>();
-  
-  public appStats = {
-    pCount: 0,
-    rCount: 0,
-    revision: 1,
-    creator: 'DALEK_CAAN_V3.1',
-    created: new Date().toISOString()
-  };
-
-  constructor(public readonly uid: string, creator: string) {
-    this.appStats.creator = creator;
-    this.initDefaultPackage();
+  private initializeRels() {
+    this.symbols.register('main', 'word/document.xml');
+    this.symbols.register('styles', 'word/styles.xml');
   }
 
-  private initDefaultPackage() {
-    this.rels.register('officeDocument', 'word/document.xml');
-    this.rels.register('styles', 'word/styles.xml');
-    this.rels.register('numbering', 'word/numbering.xml');
-    this.rels.register('settings', 'word/settings.xml');
-  }
-}
+  public siphon(payload: { text: string; style?: string }): ParagraphNode {
+    const styleId = payload.style || 'Normal';
+    if (!this.styles.checkStyle(styleId)) {
+      this.diagnostics.push(`Diagnostic::Error: Style ${styleId} not found in word/styles.xml`);
+    }
 
-/**
- * CORE SIPHON ENGINE v6.0 :: ARCHITECTURAL PRECISION
- * Logic: AST-driven commit cycles and diagnostic logging.
- */
-class SiphonEngine {
-  private sessions = new Map<string, OOXMLPackage>();
-
-  public provision(socketId: string, creator: string): OOXMLPackage {
-    const pkg = new OOXMLPackage(socketId, creator);
-    this.sessions.set(socketId, pkg);
-    return pkg;
-  }
-
-  /**
-   * III. STYLING ENGINE :: TIERED INHERITANCE
-   * Logic: Resolves property priority from Styles -> Local Overrides
-   */
-  public commitFragment(socketId: string, payload: { text: string; styleId?: string; numbering?: { ilvl: number; numId: number } }): ParagraphNode | null {
-    const pkg = this.sessions.get(socketId);
-    if (!pkg) return null;
-
-    const node: ParagraphNode = {
-      pId: uuidv4(),
-      pPr: {
-        pStyle: { val: payload.styleId || 'Normal' },
-        ...(payload.numbering && { numPr: { ilvl: { val: payload.numbering.ilvl }, numId: { val: payload.numbering.numId } } })
-      },
-      runs: this.fragmentRuns(payload.text)
+    const newNode: ParagraphNode = {
+      kind: SyntaxKind.Paragraph,
+      pId: uuidv4().substring(0, 8),
+      pPr: { pStyle: styleId },
+      runs: this.tokenizeRuns(payload.text)
     };
 
-    pkg.pNodes.push(node);
-    pkg.appStats.pCount++;
-    pkg.appStats.rCount += node.runs.length;
-    pkg.appStats.revision++;
-
-    return node;
+    this.paragraphs.push(newNode);
+    return newNode;
   }
 
-  /**
-   * PROPERTY-STATE PATTERN :: Run Fragmentation
-   * Logic: Breaking literals into discrete Runs based on metadata markers
-   */
-  private fragmentRuns(text: string): RunNode[] {
-    // Siphoning logic: detect [bold] markup for run state changes
-    const parts = text.split(/(\[b\].*?\[\/b\])/g);
-    return parts.filter(p => p.length > 0).map(part => {
-      if (part.startsWith('[b]') && part.endsWith('[/b]')) {
-        return { t: part.replace(/\[\/?b\]/g, ''), rPr: { b: { val: true } } };
-      }
-      return { t: part };
+  private tokenizeRuns(text: string): RunNode[] {
+    const boldRegex = /(\[b\].*?\[\/b\])/g;
+    return text.split(boldRegex).filter(t => t.length > 0).map(fragment => {
+      const isBold = fragment.startsWith('[b]');
+      return {
+        kind: SyntaxKind.Run,
+        t: isBold ? fragment.replace(/\[\/?b\]/g, '') : fragment,
+        rPr: isBold ? { b: true } : undefined
+      };
     });
   }
 
-  public getSession(id: string) { return this.sessions.get(id); }
-  public dropSession(id: string) { this.sessions.delete(id); }
+  public getSourceFiles() {
+    return {
+      document: this.paragraphs,
+      xml: this.paragraphs.map(p => this.emitter.emitParagraph(p)).join(''),
+      rels: this.symbols
+    };
+  }
 }
 
 /**
- * WEBSOCKET COORDINATOR :: DOM SYNCHRONIZATION
+ * VI. WEBSOCKET NEXUS :: COMPILER SERVICE
+ * Logic: Real-time DOM transformation and Relationship Handshakes
  */
-const engine = new SiphonEngine();
 const httpServer = createServer();
 const io = new Server(httpServer, { cors: { origin: "*" } });
+const activePrograms = new Map<string, OOXMLProgram>();
 
 io.on('connection', (socket: Socket) => {
-  console.log(`[SIPHON] Nexus established with client: ${socket.id}`);
+  console.log(`[SIPHON_v9]::Link_Established::${socket.id}`);
 
-  socket.on('establish_topology', (data: { creator: string }) => {
-    const pkg = engine.provision(socket.id, data.creator);
-    
-    // Initial Handshake Run
-    const handshake = engine.commitFragment(socket.id, { 
-      text: `[b]SYSTEM_STATE[/b]::Siphoning_Initialized for creator: ${data.creator}`,
-      styleId: 'SystemHeading'
+  socket.on('establish_topology', () => {
+    const program = new OOXMLProgram(socket.id);
+    activePrograms.set(socket.id, program);
+
+    const bootNode = program.siphon({ 
+      text: `[b]SYSTEM_READY[/b]::Round_9_Saturation::Namespace::${XML_NS.W}`,
+      style: 'Heading1' 
     });
 
-    socket.emit('manifest_ready', {
-      ns: XML_NS,
-      package: {
-        uid: pkg.uid,
-        rels: pkg.rels.getMap(),
-        stats: pkg.appStats
-      },
-      handshake
+    socket.emit('package_manifest', {
+      version: '9.0.0',
+      metadata: program.metadata,
+      diagnostics: program.diagnostics,
+      nodes: [bootNode]
     });
   });
 
-  socket.on('siphon_literal', (data: { text: string; style?: string; listId?: number }) => {
-    const pNode = engine.commitFragment(socket.id, {
-      text: data.text,
-      styleId: data.style,
-      numbering: data.listId ? { ilvl: 0, numId: data.listId } : undefined
-    });
+  socket.on('siphon_node', (data: { text: string; style?: string }) => {
+    const program = activePrograms.get(socket.id);
+    if (program) {
+      const node = program.siphon(data);
+      const source = program.getSourceFiles();
 
-    if (pNode) {
-      const pkg = engine.getSession(socket.id);
-      io.emit('dom_mutation_sync', {
-        type: 'INJECT_P',
-        node: pNode,
-        audit: pkg?.appStats
+      io.emit('sync_dom_mutation', {
+        action: 'EMIT_W_P',
+        node,
+        xmlFragment: source.xml.split('</w:p>').pop() + '</w:p>', // Last emitted
+        stats: { pCount: source.document.length }
       });
     }
   });
 
   socket.on('disconnect', () => {
-    engine.dropSession(socket.id);
-    console.log(`[PRUNE] Siphoning buffer cleared for: ${socket.id}`);
+    activePrograms.delete(socket.id);
+    console.log(`[SIPHON_v9]::Link_Terminated::${socket.id}`);
   });
 });
 
 const PORT = 3003;
 httpServer.listen(PORT, () => {
-  console.log(`
+  process.stdout.write(`\x1b[36m
   +-------------------------------------------------------+
-  | DALEK_CAAN SIPHON ENGINE v6.0                         |
-  | STATUS: ARCHITECTURAL_PRECISION_REACHED               |
-  | DNA: OFFICE_OPEN_XML_CORE_LOGIC                       |
-  | SOCKET: LISTENING ON PORT ${PORT}                        |
+  | DALEK_CAAN SIPHON ENGINE v9.1                         |
+  | ARCHITECTURE: OOXML COMPILER SERVICE                  |
+  | DNA: MICROSOFT/TYPESCRIPT (Siphoned)                  |
+  | STATE: NEXUS_GRADE_ROBUSTNESS                         |
+  | PORT: ${PORT}                                            |
   +-------------------------------------------------------+
-  `);
+  \x1b[0m\n`);
 });
