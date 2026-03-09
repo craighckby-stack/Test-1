@@ -28,19 +28,19 @@ Dependency injection is managed via the **Relational Linkage Pattern**. Hardcode
 ---
 
 ### **III. LOGICAL TOPOLOGY :: word/document.xml**
-The UI state is mapped through a strictly hierarchical Document Object Model (DOM). React component lifecycles are siphoned into declarative XML state nodes.
+The UI state is mapped through a strictly hierarchical Document Object Model (DOM). React component lifecycles are siphoned into declarative XML state nodes following the **Property-State Pattern**.
 
 1.  **`<w:body>` (Execution Root)**: The primary container for the siphoned `shadcn` layout tree.
 2.  **`<w:p>` (Layout Logic Block)**: Atomic unit of UI layout. Paragraph properties (`<w:pPr>`) encapsulate Tailwind-siphoned alignment, spacing, and indent logic.
-3.  **`<w:r>` (Property-State Run)**: Implements the **Property-State Pattern**. Character-level metadata (`<w:rPr>`) represents discrete UI states: `Active`, `Hover`, `Focus`, and `Disabled`.
+3.  **`<w:r>` (Property-State Run)**: Implements the **Run Logic**. Character-level metadata (`<w:rPr>`) represents discrete UI states: `Active`, `Hover`, `Focus`, and `Disabled`.
 4.  **`<w:t>` (Literal Data Leaf)**: Contains the raw component data, validated via `logic-checksum::rId:5`.
 
 ---
 
 ### **IV. STYLING STACK :: word/styles.xml**
-The **Tiered Inheritance Logic** resolves HSL-based design tokens into OOXML-compliant shading, color, and border nodes.
+The **Tiered Inheritance Logic** resolves HSL-based design tokens into OOXML-compliant shading, color, and border nodes. Styles inherit via the `basedOn` logic, ensuring CSS-like cascading behavior across the document.
 
-*   **Global Defaults**: Global baseline siphoned to `Geist-Mono` (`w:sz:24`, `w:color:foreground`).
+*   **Global Defaults**: Baseline set to `Geist-Mono` (`w:sz:24`, `w:color:foreground`).
 *   **Siphoned Selectors**:
     *   `.nexus-header-stable`: High-priority override for `--foreground` with `w:sz:64` and `w:b` (bold) weighting.
     *   `.logic-bridge`: Direct mapping of `--primary` HSL variables to hexadecimal `<w:color>` definitions.
@@ -48,8 +48,16 @@ The **Tiered Inheritance Logic** resolves HSL-based design tokens into OOXML-com
 
 ---
 
-### **V. METADATA AUDIT :: docProps/core.xml & app.xml**
-The final evolutionary handshake is recorded within the package's extended properties, ensuring a verified audit trail for all siphoned logic.
+### **V. NUMBERING INSTANCES :: word/numbering.xml**
+List logic is siphoned using the **Abstract vs. Instance Logic**. Component iteration (e.g., mapping through array data) is represented as `numId` instances referencing an abstract `nexus-v10` definition.
+
+*   **Abstract Definition (ID:0)**: Defines the decimal format and `nexus-v10[%1]::` prefix logic.
+*   **Numbering Instance (ID:1)**: Manages the independent counters for dynamic UI list injection.
+
+---
+
+### **VI. METADATA AUDIT :: docProps/core.xml & app.xml**
+The final evolutionary handshake is recorded within the package's extended properties, ensuring a verified audit trail for all siphoned logic and statistics.
 
 *   **Siphon Engine**: `DALEK_CAAN_V3.1`
 *   **Registry Manager**: `NEXUS_CORE_REPLICATOR_v10`
