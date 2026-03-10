@@ -7,5 +7,12 @@
     "learning": 1,
     "overall": 1
   },
-  "dnaCount": 2565
+  "dnaCount": 2565,
+  "autonomyStats": {
+    "llmCalls": 0,
+    "systemDecisions": 0,
+    "dnaUsed": 1,
+    "selfEvolved": 2
+  },
+  "saturationGuidelines": ""
 }
