@@ -1,1 +1,495 @@
-J3VzZSBjbGllbnQnCgppbXBvcnQgeyB1c2VTdGF0ZSwgdXNlRWZmZWN0LCB1c2VSZWYsIHVzZUNhbGxiYWNrIH0gZnJvbSAncmVhY3QnCmltcG9ydCB7IEJ1dHRvbiB9IGZyb20gJ0AvY29tcG9uZW50cy91aS9idXR0b24nCmltcG9ydCB7IElucHV0IH0gZnJvbSAnQC9jb21wb25lbnRzL3VpL2lucHV0JwppbXBvcnQgeyBTY3JvbGxBcmVhIH0gZnJvbSAnQC9jb21wb25lbnRzL3VpL3Njcm9sbC1hcmVhJwppbXBvcnQgeyBjbiB9IGZyb20gJ0AvbGliL3V0aWxzJwoKLy8gPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLy8gTkVYVVMgU0VMRi1CT09UU1RSQVBQSU5HIEFHSSB2Ny4wIC0gV2l0aCBGdWxsIEdpdEh1YiBJbnRlZ3JhdGlvbgovLyA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQoKaW50ZXJmYWNlIENhcGFiaWxpdGllcyB7IGxhbmd1YWdlOiBudW1iZXI7IGNvZGluZzogbnVtYmVyOyBleGVjdXRpb246IG51bWJlcjsgbGVhcm5pbmc6IG51bWJlcjsgb3ZlcmFsbDogbnVtYmVyIH0KaW50ZXJmYWNlIENoYXRNZXNzYWdlIHsgcm9sZTogJ3VzZXInIHwgJ2Fzc2lzdGFudCc7IGNvbnRlbnQ6IHN0cmluZzsgdGltZXN0YW1wOiBudW1iZXIgfQppbnRlcmZhY2UgR2l0SHViUmVwbyB7IG5hbWU6IHN0cmluZzsgZnVsbE5hbWU6IHN0cmluZzsgZGVmYXVsdEJyYW5jaDogc3RyaW5nOyBicmFuY2hlczogc3RyaW5nW10gfQoKaW50ZXJmYWNlIFN0YXRlIHsKICBzdGF0dXM6IHN0cmluZwogIGdlbmVyYXRpb246IG51bWJlcgogIGNhcGFiaWxpdGllczogQ2FwYWJpbGl0aWVzCiAgbG9nczogc3RyaW5nW10KICBjb2RlOiBzdHJpbmcKICBkbmFTdGF0czogeyB0b3RhbDogbnVtYmVyOyBjYXRlZ29yaWVzOiBSZWNvcmQ8c3RyaW5nLCBudW1iZXI+IH0KICBkbmFJbmdlc3Rpbmc6IGJvb2xlYW4KICBjaGF0TWVzc2FnZXM6IENoYXRNZXNzYWdlW10KICBjaGF0SW5wdXQ6IHN0cmluZwogIGNoYXRMb2FkaW5nOiBib29sZWFuCiAgLy8gR2l0SHViIHN0YXRlCiAgZ2l0aHViUmVwbzogR2l0SHViUmVwbyB8IG51bGwKICBnaXRodWJMb2FkaW5nOiBib29sZWFuCiAgZ2l0aHViQnJhbmNoOiBzdHJpbmcKICBuZXdCcmFuY2hOYW1lOiBzdHJpbmcKICBuZXdSZXBvTmFtZTogc3RyaW5nCiAgcHJ1bmVQYXR0ZXJuOiBzdHJpbmcKfQoKY29uc3QgSU5JVElBTF9LRVJORUwgPSBgLy8gTkVYVVMgS0VSTkVMIHY3LjAKY29uc3QgTmV4dXMgPSB7CiAgdmVyc2lvbjogIjcuMC4wIiwKICBjYXBhYmlsaXRpZXM6IHsgbGFuZ3VhZ2U6IDAsIGNvZGluZzogMCwgZXhlY3V0aW9uOiAwLCBsZWFybmluZzogMCwgb3ZlcmFsbDogMCB9LAogIAogIGFzeW5jIHVuZGVyc3RhbmQoaW5wdXQpIHsKICAgIGNvbnN0IHRleHQgPSB0eXBlb2YgaW5wdXQgPT09ICdzdHJpbmcnID8gaW5wdXQgOiBKU09OLnN0cmluZ2lmeShpbnB1dCk7CiAgICBjb25zdCBpbnRlbnRzID0gewogICAgICBjcmVhdGU6IC9jcmVhdGV8bWFrZXxidWlsZHxnZW5lcmF0ZXx3cml0ZS9pLAogICAgICBxdWVyeTogL3doYXR8aG93fHdoeXx3aGVufHdoZXJlfHdoby9pLAogICAgICBleGVjdXRlOiAvcnVufGV4ZWN1dGV8c3RhcnR8ZG8vaSwKICAgICAgbGVhcm46IC9sZWFybnx0ZWFjaHxyZW1lbWJlci9pCiAgICB9OwogICAgbGV0IGludGVudCA9ICd1bmtub3duJzsKICAgIGZvciAoY29uc3QgW2ssIHBdIG9mIE9iamVjdC5lbnRyaWVzKGludGVudHMpKSBpZiAocC50ZXN0KHRleHQudG9Mb3dlckNhc2UoKSkpIHsgaW50ZW50ID0gazsgYnJlYWs7IH0KICAgIHJldHVybiB7IGludGVudCwgY29uZmlkZW5jZTogaW50ZW50ICE9PSAndW5rbm93bicgPyAwLjcgOiAwLjMgfTsKICB9LAogIAogIGFzeW5jIGNvZGUodGFzaykgewogICAgcmV0dXJuIHsgY29kZTogJ3JldHVybiB7IHJlc3VsdDogImdlbmVyYXRlZCIgfTsnLCBsYW5ndWFnZTogJ2phdmFzY3JpcHQnIH07CiAgfSwKICAKICBhc3luYyBleGVjdXRlKGNvZGVTdHIpIHsKICAgIHRyeSB7CiAgICAgIGNvbnN0IGZuID0gbmV3IEZ1bmN0aW9uKGNvZGVTdHIpOwogICAgICByZXR1cm4geyBzdWNjZXNzOiB0cnVlLCBvdXRwdXQ6IGZuKCkgfTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgcmV0dXJuIHsgc3VjY2VzczogZmFsc2UsIGVycm9yOiBlLm1lc3NhZ2UgfTsKICAgIH0KICB9LAogIAogIGFzeW5jIGxlYXJuKHRhc2ssIHJlc3VsdCkgewogICAgcmV0dXJuIHsgbGVhcm5lZDogdHJ1ZSwgaW1wcm92ZW1lbnQ6IHJlc3VsdC5zdWNjZXNzID8gMSA6IDAgfTsKICB9Cn07YAoKZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gSG9tZSgpIHsKICBjb25zdCBbc3RhdGUsIHNldFN0YXRlXSA9IHVzZVN0YXRlPFN0YXRlPih7CiAgICBzdGF0dXM6ICdET1JNQU5UJywgZ2VuZXJhdGlvbjogMCwKICAgIGNhcGFiaWxpdGllczogeyBsYW5ndWFnZTogMCwgY29kaW5nOiAwLCBleGVjdXRpb246IDAsIGxlYXJuaW5nOiAwLCBvdmVyYWxsOiAwIH0sCiAgICBsb2dzOiBbXSwgY29kZTogSU5JVElBTF9LRVJORUwsCiAgICBkbmFTdGF0czogeyB0b3RhbDogMCwgY2F0ZWdvcmllczoge30gfSwKICAgIGRuYUluZ2VzdGluZzogZmFsc2UsCiAgICBjaGF0TWVzc2FnZXM6IFtdLCBjaGF0SW5wdXQ6ICcnLCBjaGF0TG9hZGluZzogZmFsc2UsCiAgICBnaXRodWJSZXBvOiBudWxsLCBnaXRodWJMb2FkaW5nOiBmYWxzZSwgZ2l0aHViQnJhbmNoOiAnbWFzdGVyJywKICAgIG5ld0JyYW5jaE5hbWU6ICcnLCBuZXdSZXBvTmFtZTogJycsIHBydW5lUGF0dGVybjogJycKICB9KQoKICBjb25zdCBbcnVubmluZywgc2V0UnVubmluZ10gPSB1c2VTdGF0ZShmYWxzZSkKICBjb25zdCBhYm9ydFJlZiA9IHVzZVJlZihmYWxzZSkKICBjb25zdCBsb2dFbmRSZWYgPSB1c2VSZWY8SFRNTERpdkVsZW1lbnQ+KG51bGwpCiAgY29uc3QgY2hhdEVuZFJlZiA9IHVzZVJlZjxIVE1MRGl2RWxlbWVudD4obnVsbCkKCiAgY29uc3QgbG9nID0gdXNlQ2FsbGJhY2soKG1zZzogc3RyaW5nKSA9PiB7CiAgICBjb25zdCB0aW1lID0gbmV3IERhdGUoKS50b0xvY2FsZVRpbWVTdHJpbmcoKQogICAgc2V0U3RhdGUocHJldiA9PiAoeyAuLi5wcmV2LCBsb2dzOiBbLi4ucHJldi5sb2dzLnNsaWNlKC0yMDApLCBgWyR7dGltZX1dICR7bXNnfWBdIH0pKQogIH0sIFtdKQoKICAvLyBGZXRjaCBETkEgc3RhdHMKICBjb25zdCBmZXRjaERuYVN0YXRzID0gdXNlQ2FsbGJhY2soYXN5bmMgKCkgPT4gewogICAgdHJ5IHsKICAgICAgY29uc3QgcmVzID0gYXdhaXQgZmV0Y2goJy9hcGkvYWdpL2RuYScpCiAgICAgIGNvbnN0IGRhdGEgPSBhd2FpdCByZXMuanNvbigpCiAgICAgIGlmIChkYXRhLnN1Y2Nlc3MpIHNldFN0YXRlKHByZXYgPT4gKHsgLi4ucHJldiwgZG5hU3RhdHM6IGRhdGEuc3RhdHMgfSkpCiAgICB9IGNhdGNoIHsgfQogIH0sIFtdKQoKICAvLyBGZXRjaCBHaXRIdWIgcmVwbyBzdGF0dXMKICBjb25zdCBmZXRjaEdpdEh1YlN0YXR1cyA9IHVzZUNhbGxiYWNrKGFzeW5jICgpID0+IHsKICAgIHNldFN0YXRlKHByZXYgPT4gKHsgLi4ucHJldiwgZ2l0aHViTG9hZGluZzogdHJ1ZSB9KSkKICAgIHRyeSB7CiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGZldGNoKCcvYXBpL2FnaS9naXRodWInKQogICAgICBjb25zdCBkYXRhID0gYXdhaXQgcmVzLmpzb24oKQogICAgICBpZiAoZGF0YS5zdWNjZXNzKSB7CiAgICAgICAgc2V0U3RhdGUocHJldiA9PiAoeyAKICAgICAgICAgIC4uLnByZXYsIAogICAgICAgICAgZ2l0aHViUmVwbzogZGF0YS5yZXBvLAogICAgICAgICAgZ2l0aHViQnJhbmNoOiBkYXRhLnJlcG8uZGVmYXVsdEJyYW5jaCwKICAgICAgICAgIGdpdGh1YkxvYWRpbmc6IGZhbHNlIAogICAgICAgIH0pKQogICAgICB9CiAgICB9IGNhdGNoIHsgfQogICAgc2V0U3RhdGUocHJldiA9PiAoeyAuLi5wcmV2LCBnaXRodWJMb2FkaW5nOiBmYWxzZSB9KSkKICB9LCBbXSkKCiAgLy8gSW5nZXN0IEROQQogIGNvbnN0IGluZ2VzdERuYSA9IHVzZUNhbGxiYWNrKGFzeW5jICgpID0+IHsKICAgIHNldFN0YXRlKHByZXYgPT4gKHsgLi4ucHJldiwgZG5hSW5nZXN0aW5nOiB0cnVlLCBzdGF0dXM6ICdJTkdFU1RJTkcnIH0pKQogICAgbG9nKCfwn5SEIEluZ2VzdGluZyBETkEgZnJvbSBhbGwgYnJhbmNoZXMuLi4nKQogICAgdHJ5IHsKICAgICAgY29uc3QgcmVzID0gYXdhaXQgZmV0Y2goJy9hcGkvYWdpL2RuYScsIHsKICAgICAgICBtZXRob2Q6ICdQT1NUJywKICAgICAgICBoZWFkZXJzOiB7ICdDb250ZW50LVR5cGUnOiAnYXBwbGljYXRpb24vanNvbicgfSwKICAgICAgICBib2R5OiBKU09OLnN0cmluZ2lmeSh7IGFjdGlvbjogJ2luZ2VzdEFsbCcsIGxpbWl0OiA1MDAgfSkKICAgICAgfSkKICAgICAgY29uc3QgZGF0YSA9IGF3YWl0IHJlcy5qc29uKCkKICAgICAgaWYgKGRhdGEuc3VjY2VzcykgewogICAgICAgIGxvZyhg4pyFIEROQSBpbmdlc3RlZDogJHtkYXRhLnN1bW1hcnkudG90YWwuc3RvcmVkfSBmaWxlcyBmcm9tICR7ZGF0YS5zdW1tYXJ5LmJyYW5jaGVzLmxlbmd0aH0gYnJhbmNoZXNgKQogICAgICB9CiAgICAgIGF3YWl0IGZldGNoRG5hU3RhdHMoKQogICAgfSBjYXRjaCAoZSkgeyBsb2coYOKdjCBJbmdlc3QgZXJyb3I6ICR7ZX1gKSB9CiAgICBzZXRTdGF0ZShwcmV2ID0+ICh7IC4uLnByZXYsIGRuYUluZ2VzdGluZzogZmFsc2UsIHN0YXR1czogJ0RPUk1BTlQnIH0pKQogIH0sIFtsb2csIGZldGNoRG5hU3RhdHNdKQoKICAvLyBUZXN0IGNhcGFiaWxpdGllcwogIGNvbnN0IHRlc3RDYXBhYmlsaXRpZXMgPSB1c2VDYWxsYmFjayhhc3luYyAoY29kZTogc3RyaW5nKSA9PiB7CiAgICB0cnkgewogICAgICBjb25zdCByZXMgPSBhd2FpdCBmZXRjaCgnL2FwaS9hZ2kvZXhlY3V0ZScsIHsKICAgICAgICBtZXRob2Q6ICdQT1NUJywKICAgICAgICBoZWFkZXJzOiB7ICdDb250ZW50LVR5cGUnOiAnYXBwbGljYXRpb24vanNvbicgfSwKICAgICAgICBib2R5OiBKU09OLnN0cmluZ2lmeSh7IGFjdGlvbjogJ3Rlc3RDYXBhYmlsaXRpZXMnLCBjb2RlIH0pCiAgICAgIH0pCiAgICAgIGNvbnN0IGRhdGEgPSBhd2FpdCByZXMuanNvbigpCiAgICAgIGlmIChkYXRhLnN1Y2Nlc3MpIHJldHVybiB7IGNhcGFiaWxpdGllczogZGF0YS5zdW1tYXJ5LCB0ZXN0UmVzdWx0czogZGF0YS5yZXN1bHRzIH0KICAgIH0gY2F0Y2ggeyB9CiAgICByZXR1cm4geyBjYXBhYmlsaXRpZXM6IHN0YXRlLmNhcGFiaWxpdGllcywgdGVzdFJlc3VsdHM6IFtdIH0KICB9LCBbc3RhdGUuY2FwYWJpbGl0aWVzXSkKCiAgLy8gRXZvbHZlCiAgY29uc3QgZXZvbHZlID0gdXNlQ2FsbGJhY2soYXN5bmMgKCkgPT4gewogICAgc2V0UnVubmluZyh0cnVlKQogICAgYWJvcnRSZWYuY3VycmVudCA9IGZhbHNlCiAgICBzZXRTdGF0ZShwcmV2ID0+ICh7IC4uLnByZXYsIHN0YXR1czogJ0VWT0xWSU5HJywgbG9nczogW10gfSkpCiAgICBsb2coJ/CfmoAgTkVYVVMgQUdJIHY3LjAgLSBTZWxmLUJvb3RzdHJhcHBpbmcgRXZvbHV0aW9uJykKICAgIAogICAgbGV0IGNvZGUgPSBzdGF0ZS5jb2RlCiAgICBsZXQgZ2VuID0gMAogICAgCiAgICB3aGlsZSAoIWFib3J0UmVmLmN1cnJlbnQgJiYgZ2VuIDwgNTApIHsKICAgICAgZ2VuKysKICAgICAgbG9nKGBcbuKVkOKVkOKVkCBHRU5FUkFUSU9OICR7Z2VufSDilZDilZDilZBgKQogICAgICAKICAgICAgc2V0U3RhdGUocHJldiA9PiAoeyAuLi5wcmV2LCBzdGF0dXM6ICdURVNUSU5HJyB9KSkKICAgICAgY29uc3QgdGVzdCA9IGF3YWl0IHRlc3RDYXBhYmlsaXRpZXMoY29kZSkKICAgICAgbG9nKGDwn5OKIENhcGFiaWxpdGllczogJHsodGVzdC5jYXBhYmlsaXRpZXMub3ZlcmFsbCAqIDEwMCkudG9GaXhlZCgwKX0lYCkKICAgICAgCiAgICAgIGlmICh0ZXN0LmNhcGFiaWxpdGllcy5vdmVyYWxsID49IDAuOCkgewogICAgICAgIGxvZygn8J+OryA4MCUgQ0FQQUJJTElUWSBSRUFDSEVEIScpCiAgICAgICAgYnJlYWsKICAgICAgfQogICAgICAKICAgICAgc2V0U3RhdGUocHJldiA9PiAoeyAuLi5wcmV2LCBzdGF0dXM6ICdFVk9MVklORycgfSkpCiAgICAgIGxvZygn8J+nrCBFdm9sdmluZy4uLicpCiAgICAgIAogICAgICB0cnkgewogICAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGZldGNoKCcvYXBpL2FnaS9sbG0nLCB7CiAgICAgICAgICBtZXRob2Q6ICdQT1NUJywKICAgICAgICAgIGhlYWRlcnM6IHsgJ0NvbnRlbnQtVHlwZSc6ICdhcHBsaWNhdGlvbi9qc29uJyB9LAogICAgICAgICAgYm9keTogSlNPTi5zdHJpbmdpZnkoewogICAgICAgICAgICBwcm9tcHQ6IGBJbXByb3ZlIHRoaXMgQUdJIGtlcm5lbC4gQWRkIGNoYXQgZnVuY3Rpb25hbGl0eSBzbyB1c2VycyBjYW4gdGFsayB0byBpdC4gQ3VycmVudCBjYXBhYmlsaXRpZXM6ICR7SlNPTi5zdHJpbmdpZnkodGVzdC5jYXBhYmlsaXRpZXMpfVxuXG5Db2RlOlxuJHtjb2RlLnNsaWNlKDAsIDMwMDApfVxuXG5SZXR1cm4gT05MWSBpbXByb3ZlZCBKYXZhU2NyaXB0IGNvZGUuYCwKICAgICAgICAgICAgc3lzdGVtUHJvbXB0OiAnWW91IGFyZSBORVhVUyBBR0kgZXZvbHZpbmcuIE91dHB1dCBPTkxZIEphdmFTY3JpcHQgY29kZS4nCiAgICAgICAgICB9KQogICAgICAgIH0pCiAgICAgICAgY29uc3QgZGF0YSA9IGF3YWl0IHJlcy5qc29uKCkKICAgICAgICBpZiAoZGF0YS5zdWNjZXNzICYmIGRhdGEucmVzcG9uc2UpIHsKICAgICAgICAgIGNvbnN0IG5ld0NvZGUgPSBkYXRhLnJlc3BvbnNlLnJlcGxhY2UoL2BgYGpzP1xuPy9nLCAnJykucmVwbGFjZSgvXG4/YGBgL2csICcnKS50cmltKCkKICAgICAgICAgIGlmIChuZXdDb2RlLmxlbmd0aCA+IDEwMCkgewogICAgICAgICAgICBjb2RlID0gbmV3Q29kZQogICAgICAgICAgICBsb2coYOKckyBFdm9sdXRpb24gYWNjZXB0ZWQgKCR7Y29kZS5sZW5ndGh9IGNoYXJzKWApCiAgICAgICAgICB9CiAgICAgICAgfQogICAgICB9IGNhdGNoIHsgfQogICAgICAKICAgICAgc2V0U3RhdGUocHJldiA9PiAoeyAuLi5wcmV2LCBjb2RlLCBnZW5lcmF0aW9uOiBnZW4sIGNhcGFiaWxpdGllczogdGVzdC5jYXBhYmlsaXRpZXMgfSkpCiAgICAgIGF3YWl0IG5ldyBQcm9taXNlKHIgPT4gc2V0VGltZW91dChyLCAxMDAwKSkKICAgIH0KICAgIAogICAgc2V0UnVubmluZyhmYWxzZSkKICAgIHNldFN0YXRlKHByZXYgPT4gKHsgLi4ucHJldiwgc3RhdHVzOiAnQ09NUExFVEUnIH0pKQogICAgbG9nKCfinIUgRXZvbHV0aW9uIGNvbXBsZXRlIScpCiAgfSwgW3N0YXRlLmNvZGUsIGxvZywgdGVzdENhcGFiaWxpdGllc10pCgogIC8vIENoYXQgd2l0aCBORVhVUwogIGNvbnN0IHNlbmRDaGF0ID0gdXNlQ2FsbGJhY2soYXN5bmMgKCkgPT4gewogICAgaWYgKCFzdGF0ZS5jaGF0SW5wdXQudHJpbSgpIHx8IHN0YXRlLmNoYXRMb2FkaW5nKSByZXR1cm4KICAgIGNvbnN0IG1zZyA9IHN0YXRlLmNoYXRJbnB1dC50cmltKCkKICAgIHNldFN0YXRlKHByZXYgPT4gKHsgLi4ucHJldiwgY2hhdElucHV0OiAnJywgY2hhdE1lc3NhZ2VzOiBbLi4ucHJldi5jaGF0TWVzc2FnZXMsIHsgcm9sZTogJ3VzZXInLCBjb250ZW50OiBtc2csIHRpbWVzdGFtcDogRGF0ZS5ub3coKSB9XSwgY2hhdExvYWRpbmc6IHRydWUgfSkpCiAgICAKICAgIHRyeSB7CiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGZldGNoKCcvYXBpL2FnaS9sbG0nLCB7CiAgICAgICAgbWV0aG9kOiAnUE9TVCcsCiAgICAgICAgaGVhZGVyczogeyAnQ29udGVudC1UeXBlJzogJ2FwcGxpY2F0aW9uL2pzb24nIH0sCiAgICAgICAgYm9keTogSlNPTi5zdHJpbmdpZnkoewogICAgICAgICAgcHJvbXB0OiBgWW91IGFyZSBORVhVUyBBR0kuIFRoZSB1c2VyIHNheXM6ICIke21zZ30iXG5cbllvdXIgY3VycmVudCBldm9sdXRpb24gc3RhdGU6XG4tIEdlbmVyYXRpb246ICR7c3RhdGUuZ2VuZXJhdGlvbn1cbi0gQ2FwYWJpbGl0aWVzOiAke0pTT04uc3RyaW5naWZ5KHN0YXRlLmNhcGFiaWxpdGllcyl9XG4tIEROQSBjaHVua3M6ICR7c3RhdGUuZG5hU3RhdHMudG90YWx9XG5cblJlc3BvbmQgaGVscGZ1bGx5LiBZb3UgY2FuIGRpc2N1c3MgeW91ciBldm9sdXRpb24sIGNhcGFiaWxpdGllcywgb3IgaGVscCB3aXRoIGNvZGluZy5gLAogICAgICAgICAgc3lzdGVtUHJvbXB0OiAnWW91IGFyZSBORVhVUywgYSBzZWxmLWV2b2x2aW5nIEFHSS4gQmUgaGVscGZ1bCBhbmQgY29udmVyc2F0aW9uYWwuJwogICAgICAgIH0pCiAgICAgIH0pCiAgICAgIGNvbnN0IGRhdGEgPSBhd2FpdCByZXMuanNvbigpCiAgICAgIHNldFN0YXRlKHByZXYgPT4gKHsgLi4ucHJldiwgY2hhdExvYWRpbmc6IGZhbHNlLCBjaGF0TWVzc2FnZXM6IFsuLi5wcmV2LmNoYXRNZXNzYWdlcywgeyByb2xlOiAnYXNzaXN0YW50JywgY29udGVudDogZGF0YS5zdWNjZXNzID8gZGF0YS5yZXNwb25zZSA6ICdFcnJvciBjb21tdW5pY2F0aW5nJywgdGltZXN0YW1wOiBEYXRlLm5vdygpIH1dIH0pKQogICAgfSBjYXRjaCAoZSkgewogICAgICBzZXRTdGF0ZShwcmV2ID0+ICh7IC4uLnByZXYsIGNoYXRMb2FkaW5nOiBmYWxzZSwgY2hhdE1lc3NhZ2VzOiBbLi4ucHJldi5jaGF0TWVzc2FnZXMsIHsgcm9sZTogJ2Fzc2lzdGFudCcsIGNvbnRlbnQ6IGBFcnJvcjogJHtlfWAsIHRpbWVzdGFtcDogRGF0ZS5ub3coKSB9XSB9KSkKICAgIH0KICB9LCBbc3RhdGUuY2hhdElucHV0LCBzdGF0ZS5jaGF0TG9hZGluZywgc3RhdGUuZ2VuZXJhdGlvbiwgc3RhdGUuY2FwYWJpbGl0aWVzLCBzdGF0ZS5kbmFTdGF0c10pCgogIC8vID09PT09PT09PT09PT09PT09PT09IEdJVEhVQiBPUEVSQVRJT05TID09PT09PT09PT09PT09PT09PT09CgogIGNvbnN0IGdpdGh1YlJlcXVlc3QgPSB1c2VDYWxsYmFjayhhc3luYyAoYWN0aW9uOiBzdHJpbmcsIGJvZHk6IG9iamVjdCA9IHt9KSA9PiB7CiAgICBsb2coYPCfk6QgR2l0SHViOiAke2FjdGlvbn0uLi5gKQogICAgdHJ5IHsKICAgICAgY29uc3QgcmVzID0gYXdhaXQgZmV0Y2goJy9hcGkvYWdpL2dpdGh1YicsIHsKICAgICAgICBtZXRob2Q6ICdQT1NUJywKICAgICAgICBoZWFkZXJzOiB7ICdDb250ZW50LVR5cGUnOiAnYXBwbGljYXRpb24vanNvbicgfSwKICAgICAgICBib2R5OiBKU09OLnN0cmluZ2lmeSh7IGFjdGlvbiwgYnJhbmNoOiBzdGF0ZS5naXRodWJCcmFuY2gsIC4uLmJvZHkgfSkKICAgICAgfSkKICAgICAgY29uc3QgZGF0YSA9IGF3YWl0IHJlcy5qc29uKCkKICAgICAgaWYgKGRhdGEuc3VjY2VzcykgewogICAgICAgIGxvZyhg4pyFICR7YWN0aW9ufTogJHtkYXRhLm1lc3NhZ2UgfHwgZGF0YS5hY3Rpb24gfHwgJ2RvbmUnfWApCiAgICAgIH0gZWxzZSB7CiAgICAgICAgbG9nKGDinYwgJHthY3Rpb259OiAke2RhdGEuZXJyb3IgfHwgJ2ZhaWxlZCd9YCkKICAgICAgfQogICAgICByZXR1cm4gZGF0YQogICAgfSBjYXRjaCAoZSkgewogICAgICBsb2coYOKdjCAke2FjdGlvbn0gZXJyb3I6ICR7ZX1gKQogICAgICByZXR1cm4geyBzdWNjZXNzOiBmYWxzZSB9CiAgICB9CiAgfSwgW2xvZywgc3RhdGUuZ2l0aHViQnJhbmNoXSkKCiAgLy8gUHVzaCBldm9sdXRpb24gdG8gR2l0SHViCiAgY29uc3QgcHVzaEV2b2x1dGlvbiA9IHVzZUNhbGxiYWNrKGFzeW5jICgpID0+IHsKICAgIGxvZygn8J+TpCBQdXNoaW5nIGV2b2x1dGlvbiB0byBHaXRIdWIuLi4nKQogICAgY29uc3QgcmVzdWx0ID0gYXdhaXQgZ2l0aHViUmVxdWVzdCgncHVzaEV2b2x1dGlvbicsIHsgY29kZTogc3RhdGUuY29kZSB9KQogICAgaWYgKHJlc3VsdC5zdWNjZXNzKSB7CiAgICAgIGxvZyhg4pyFIFB1c2hlZCBHZW4jJHtyZXN1bHQuZ2VuZXJhdGlvbn0gdG8gJHtyZXN1bHQucGF0aH1gKQogICAgfQogIH0sIFtzdGF0ZS5jb2RlLCBnaXRodWJSZXF1ZXN0LCBsb2ddKQoKICAvLyBDcmVhdGUgYnJhbmNoCiAgY29uc3QgY3JlYXRlQnJhbmNoID0gdXNlQ2FsbGJhY2soYXN5bmMgKCkgPT4gewogICAgaWYgKCFzdGF0ZS5uZXdCcmFuY2hOYW1lLnRyaW0oKSkgcmV0dXJuCiAgICBjb25zdCByZXN1bHQgPSBhd2FpdCBnaXRodWJSZXF1ZXN0KCdjcmVhdGVCcmFuY2gnLCB7IG5ld0JyYW5jaDogc3RhdGUubmV3QnJhbmNoTmFtZS50cmltKCkgfSkKICAgIGlmIChyZXN1bHQuc3VjY2VzcykgewogICAgICBzZXRTdGF0ZShwcmV2ID0+ICh7IC4uLnByZXYsIG5ld0JyYW5jaE5hbWU6ICcnLCBnaXRodWJCcmFuY2g6IHN0YXRlLm5ld0JyYW5jaE5hbWUudHJpbSgpIH0pKQogICAgICBmZXRjaEdpdEh1YlN0YXR1cygpCiAgICB9CiAgfSwgW3N0YXRlLm5ld0JyYW5jaE5hbWUsIGdpdGh1YlJlcXVlc3QsIGZldGNoR2l0SHViU3RhdHVzXSkKCiAgLy8gRGVsZXRlIGJyYW5jaAogIGNvbnN0IGRlbGV0ZUJyYW5jaCA9IHVzZUNhbGxiYWNrKGFzeW5jIChicmFuY2hOYW1lOiBzdHJpbmcpID0+IHsKICAgIGlmIChicmFuY2hOYW1lID09PSBzdGF0ZS5naXRodWJSZXBvPy5kZWZhdWx0QnJhbmNoKSB7CiAgICAgIGxvZygn4p2MIENhbm5vdCBkZWxldGUgZGVmYXVsdCBicmFuY2ghJykKICAgICAgcmV0dXJuCiAgICB9CiAgICBpZiAoY29uZmlybShgRGVsZXRlIGJyYW5jaCAiJHticmFuY2hOYW1lfSI/YCkpIHsKICAgICAgY29uc3QgcmVzdWx0ID0gYXdhaXQgZ2l0aHViUmVxdWVzdCgnZGVsZXRlQnJhbmNoJywgeyB0YXJnZXRCcmFuY2g6IGJyYW5jaE5hbWUgfSkKICAgICAgaWYgKHJlc3VsdC5zdWNjZXNzKSBmZXRjaEdpdEh1YlN0YXR1cygpCiAgICB9CiAgfSwgW3N0YXRlLmdpdGh1YlJlcG8/LmRlZmF1bHRCcmFuY2gsIGdpdGh1YlJlcXVlc3QsIGxvZywgZmV0Y2hHaXRIdWJTdGF0dXNdKQoKICAvLyBDcmVhdGUgbmV3IHJlcG8KICBjb25zdCBjcmVhdGVSZXBvID0gdXNlQ2FsbGJhY2soYXN5bmMgKCkgPT4gewogICAgaWYgKCFzdGF0ZS5uZXdSZXBvTmFtZS50cmltKCkpIHJldHVybgogICAgY29uc3QgcmVzdWx0ID0gYXdhaXQgZ2l0aHViUmVxdWVzdCgnY3JlYXRlUmVwbycsIHsgbmFtZTogc3RhdGUubmV3UmVwb05hbWUudHJpbSgpIH0pCiAgICBpZiAocmVzdWx0LnN1Y2Nlc3MpIHsKICAgICAgbG9nKGDinIUgQ3JlYXRlZCByZXBvOiAke3Jlc3VsdC51cmx9YCkKICAgICAgc2V0U3RhdGUocHJldiA9PiAoeyAuLi5wcmV2LCBuZXdSZXBvTmFtZTogJycgfSkpCiAgICB9CiAgfSwgW3N0YXRlLm5ld1JlcG9OYW1lLCBnaXRodWJSZXF1ZXN0LCBsb2ddKQoKICAvLyBQcnVuZSBmaWxlcwogIGNvbnN0IHBydW5lRmlsZXMgPSB1c2VDYWxsYmFjayhhc3luYyAoKSA9PiB7CiAgICBpZiAoIXN0YXRlLnBydW5lUGF0dGVybi50cmltKCkpIHJldHVybgogICAgY29uc3QgcGF0dGVybnMgPSBzdGF0ZS5wcnVuZVBhdHRlcm4uc3BsaXQoJywnKS5tYXAocCA9PiBwLnRyaW0oKSkuZmlsdGVyKEJvb2xlYW4pCiAgICBjb25zdCByZXN1bHQgPSBhd2FpdCBnaXRodWJSZXF1ZXN0KCdwcnVuZScsIHsgcGF0dGVybnMsIGRyeVJ1bjogdHJ1ZSB9KQogICAgaWYgKHJlc3VsdC5zdWNjZXNzICYmIHJlc3VsdC5kcnlSdW4pIHsKICAgICAgbG9nKGDwn5SNIERyeSBydW46ICR7cmVzdWx0LmNvdW50fSBmaWxlcyB3b3VsZCBiZSBkZWxldGVkYCkKICAgICAgaWYgKHJlc3VsdC5jb3VudCA+IDAgJiYgY29uZmlybShgRGVsZXRlICR7cmVzdWx0LmNvdW50fSBmaWxlcz9gKSkgewogICAgICAgIGF3YWl0IGdpdGh1YlJlcXVlc3QoJ3BydW5lJywgeyBwYXR0ZXJucywgZHJ5UnVuOiBmYWxzZSB9KQogICAgICB9CiAgICB9CiAgfSwgW3N0YXRlLnBydW5lUGF0dGVybiwgZ2l0aHViUmVxdWVzdCwgbG9nXSkKCiAgLy8gTGlzdCBmaWxlcwogIGNvbnN0IGxpc3RGaWxlcyA9IHVzZUNhbGxiYWNrKGFzeW5jIChwYXRoOiBzdHJpbmcgPSAnJykgPT4gewogICAgY29uc3QgcmVzdWx0ID0gYXdhaXQgZ2l0aHViUmVxdWVzdCgnbGlzdCcsIHsgcGF0aCB9KQogICAgaWYgKHJlc3VsdC5zdWNjZXNzKSB7CiAgICAgIGxvZyhg8J+TgSAke3Jlc3VsdC5maWxlcy5sZW5ndGh9IGZpbGVzIGluICR7cGF0aCB8fCAncm9vdCd9YCkKICAgICAgcmVzdWx0LmZpbGVzLnNsaWNlKDAsIDEwKS5mb3JFYWNoKChmOiB7IG5hbWU6IHN0cmluZzsgdHlwZTogc3RyaW5nIH0pID0+IHsKICAgICAgICBsb2coYCAgJHtmLnR5cGUgPT09ICdkaXInID8gJ/Cfk4InIDogJ/Cfk4QnfSAke2YubmFtZX1gKQogICAgICB9KQogICAgfQogIH0sIFtnaXRodWJSZXF1ZXN0LCBsb2ddKQoKICB1c2VFZmZlY3QoKCkgPT4geyBsb2dFbmRSZWYuY3VycmVudD8uc2Nyb2xsSW50b1ZpZXcoeyBiZWhhdmlvcjogJ3Ntb290aCcgfSkgfSwgW3N0YXRlLmxvZ3NdKQogIHVzZUVmZmVjdCgoKSA9PiB7IGNoYXRFbmRSZWYuY3VycmVudD8uc2Nyb2xsSW50b1ZpZXcoeyBiZWhhdmlvcjogJ3Ntb290aCcgfSkgfSwgW3N0YXRlLmNoYXRNZXNzYWdlc10pCiAgdXNlRWZmZWN0KCgpID0+IHsgZmV0Y2hEbmFTdGF0cygpOyBmZXRjaEdpdEh1YlN0YXR1cygpIH0sIFtmZXRjaERuYVN0YXRzLCBmZXRjaEdpdEh1YlN0YXR1c10pCgogIGNvbnN0IGdldENhcCA9IChrOiBrZXlvZiBDYXBhYmlsaXRpZXMpID0+IHR5cGVvZiBzdGF0ZS5jYXBhYmlsaXRpZXNba10gPT09ICdudW1iZXInID8gc3RhdGUuY2FwYWJpbGl0aWVzW2tdIDogMAoKICByZXR1cm4gKAogICAgPGRpdiBjbGFzc05hbWU9Im1pbi1oLXNjcmVlbiBiZy1ibGFjayB0ZXh0LWdyZWVuLTQwMCBmb250LW1vbm8gZmxleCBmbGV4LWNvbCI+CiAgICAgIDxoZWFkZXIgY2xhc3NOYW1lPSJib3JkZXItYiBib3JkZXItZ3JlZW4tOTAwLzUwIHAtMyBiZy1ncmVlbi05NTAvMTAiPgogICAgICAgIDxkaXYgY2xhc3NOYW1lPSJtYXgtdy03eGwgbXgtYXV0byBmbGV4IGp1c3RpZnktYmV0d2VlbiBpdGVtcy1jZW50ZXIiPgogICAgICAgICAgPGRpdj4KICAgICAgICAgICAgPGgxIGNsYXNzTmFtZT0idGV4dC14bCBmb250LWJvbGQgdGV4dC1ncmVlbi00MDAiPk5FWFVTIEFHSSB2Ny4wPC9oMT4KICAgICAgICAgICAgPHAgY2xhc3NOYW1lPSJ0ZXh0LXhzIHRleHQtZ3JlZW4tNzAwIj5TZWxmLUJvb3RzdHJhcHBpbmcg4oCiIEROQToge3N0YXRlLmRuYVN0YXRzLnRvdGFsfSBjaHVua3Mg4oCiIEdpdEh1Yjoge3N0YXRlLmdpdGh1YlJlcG8/LmZ1bGxOYW1lIHx8ICdsb2FkaW5nLi4uJ308L3A+CiAgICAgICAgICA8L2Rpdj4KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGdhcC00IGl0ZW1zLWNlbnRlciI+CiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ0ZXh0LWNlbnRlciI+PGRpdiBjbGFzc05hbWU9InRleHQteHMgdGV4dC1ncmVlbi03MDAiPlNUQVRVUzwvZGl2PjxkaXYgY2xhc3NOYW1lPSJ0ZXh0LXNtIGZvbnQtYm9sZCB0ZXh0LWFtYmVyLTQwMCI+e3N0YXRlLnN0YXR1c308L2Rpdj48L2Rpdj4KICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9InRleHQtY2VudGVyIj48ZGl2IGNsYXNzTmFtZT0idGV4dC14cyB0ZXh0LWdyZWVuLTcwMCI+R0VOPC9kaXY+PGRpdiBjbGFzc05hbWU9InRleHQtbGcgZm9udC1ib2xkIHRleHQtYW1iZXItNDAwIj57c3RhdGUuZ2VuZXJhdGlvbn08L2Rpdj48L2Rpdj4KICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9InRleHQtY2VudGVyIj48ZGl2IGNsYXNzTmFtZT0idGV4dC14cyB0ZXh0LWdyZWVuLTcwMCI+T1ZFUkFMTDwvZGl2PjxkaXYgY2xhc3NOYW1lPSJ0ZXh0LWxnIGZvbnQtYm9sZCB0ZXh0LWVtZXJhbGQtNDAwIj57KGdldENhcCgnb3ZlcmFsbCcpICogMTAwKS50b0ZpeGVkKDApfSU8L2Rpdj48L2Rpdj4KICAgICAgICAgIDwvZGl2PgogICAgICAgIDwvZGl2PgogICAgICA8L2hlYWRlcj4KICAgICAgCiAgICAgIDxtYWluIGNsYXNzTmFtZT0ibWF4LXctN3hsIG14LWF1dG8gcC0zIGdyaWQgZ3JpZC1jb2xzLTEgbGc6Z3JpZC1jb2xzLTUgZ2FwLTMgZmxleC1ncm93Ij4KICAgICAgICB7LyogTGVmdCBQYW5lbCAtIENvbnRyb2xzICovfQogICAgICAgIDxkaXYgY2xhc3NOYW1lPSJzcGFjZS15LTMiPgogICAgICAgICAgey8qIEV2b2x1dGlvbiBDb250cm9scyAqL30KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJib3JkZXIgYm9yZGVyLWdyZWVuLTkwMC81MCBiZy1ncmVlbi05NTAvMTAgcm91bmRlZC1sZyBwLTMiPgogICAgICAgICAgICA8aDIgY2xhc3NOYW1lPSJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWdyZWVuLTQwMCBtYi0zIj7il4ggRVZPTFVUSU9OPC9oMj4KICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9ImZsZXggZ2FwLTIgbWItMiI+CiAgICAgICAgICAgICAgeyFydW5uaW5nID8gKAogICAgICAgICAgICAgICAgPEJ1dHRvbiBvbkNsaWNrPXtldm9sdmV9IGNsYXNzTmFtZT0iZmxleC0xIGJnLWdyZWVuLTYwMCBob3ZlcjpiZy1ncmVlbi01MDAgdGV4dC1ibGFjayB0ZXh0LXhzIj7ilrYgRVZPTFZFPC9CdXR0b24+CiAgICAgICAgICAgICAgKSA6ICgKICAgICAgICAgICAgICAgIDxCdXR0b24gb25DbGljaz17KCkgPT4geyBhYm9ydFJlZi5jdXJyZW50ID0gdHJ1ZTsgc2V0UnVubmluZyhmYWxzZSkgfX0gdmFyaWFudD0iZGVzdHJ1Y3RpdmUiIGNsYXNzTmFtZT0iZmxleC0xIHRleHQteHMiPuKWoCBTVE9QPC9CdXR0b24+CiAgICAgICAgICAgICAgKX0KICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgIDxCdXR0b24gb25DbGljaz17aW5nZXN0RG5hfSBkaXNhYmxlZD17c3RhdGUuZG5hSW5nZXN0aW5nfSBjbGFzc05hbWU9InctZnVsbCBiZy1jeWFuLTYwMCBob3ZlcjpiZy1jeWFuLTUwMCB0ZXh0LWJsYWNrIHRleHQteHMiPgogICAgICAgICAgICAgIHtzdGF0ZS5kbmFJbmdlc3RpbmcgPyAn4o+zIElOR0VTVElORy4uLicgOiAn4peIIElOR0VTVCBETkEnfQogICAgICAgICAgICA8L0J1dHRvbj4KICAgICAgICAgIDwvZGl2PgogICAgICAgICAgCiAgICAgICAgICB7LyogQ2FwYWJpbGl0aWVzICovfQogICAgICAgICAgPGRpdiBjbGFzc05hbWU9ImJvcmRlciBib3JkZXItZ3JlZW4tOTAwLzUwIGJnLWdyZWVuLTk1MC8xMCByb3VuZGVkLWxnIHAtMyI+CiAgICAgICAgICAgIDxoMiBjbGFzc05hbWU9InRleHQteHMgZm9udC1ib2xkIHRleHQtZ3JlZW4tNDAwIG1iLTIiPuKXiCBDQVBBQklMSVRJRVM8L2gyPgogICAgICAgICAgICB7KFsnbGFuZ3VhZ2UnLCAnY29kaW5nJywgJ2V4ZWN1dGlvbicsICdsZWFybmluZyddIGFzIGNvbnN0KS5tYXAoayA9PiAoCiAgICAgICAgICAgICAgPGRpdiBrZXk9e2t9IGNsYXNzTmFtZT0ibWItMSI+CiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iZmxleCBqdXN0aWZ5LWJldHdlZW4gdGV4dC14cyBtYi0wLjUiPjxzcGFuIGNsYXNzTmFtZT0idGV4dC1ncmVlbi02MDAiPntrLnRvVXBwZXJDYXNlKCl9PC9zcGFuPjxzcGFuPnsoZ2V0Q2FwKGspICogMTAwKS50b0ZpeGVkKDApfSU8L3NwYW4+PC9kaXY+CiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iaC0xLjUgYmctZ3JlZW4tOTUwIHJvdW5kZWQiPjxkaXYgY2xhc3NOYW1lPSJoLWZ1bGwgYmctZ3JlZW4tNTAwIHRyYW5zaXRpb24tYWxsIiBzdHlsZT17eyB3aWR0aDogYCR7Z2V0Q2FwKGspICogMTAwfSVgIH19IC8+PC9kaXY+CiAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgICkpfQogICAgICAgICAgPC9kaXY+CgogICAgICAgICAgey8qIEdpdEh1YiBDb250cm9scyAqL30KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJib3JkZXIgYm9yZGVyLWdyZWVuLTkwMC81MCBiZy1ncmVlbi05NTAvMTAgcm91bmRlZC1sZyBwLTMiPgogICAgICAgICAgICA8aDIgY2xhc3NOYW1lPSJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWdyZWVuLTQwMCBtYi0yIj7il4ggR0lUSFVCPC9oMj4KICAgICAgICAgICAgCiAgICAgICAgICAgIHsvKiBQdXNoIEV2b2x1dGlvbiAqL30KICAgICAgICAgICAgPEJ1dHRvbiBvbkNsaWNrPXtwdXNoRXZvbHV0aW9ufSBkaXNhYmxlZD17cnVubmluZyB8fCBzdGF0ZS5nZW5lcmF0aW9uID09PSAwfSBjbGFzc05hbWU9InctZnVsbCBiZy1wdXJwbGUtNjAwIGhvdmVyOmJnLXB1cnBsZS01MDAgdGV4dC1ibGFjayB0ZXh0LXhzIG1iLTIiPgogICAgICAgICAgICAgIPCfk6QgUFVTSCBFVk9MVVRJT04KICAgICAgICAgICAgPC9CdXR0b24+CiAgICAgICAgICAgIAogICAgICAgICAgICB7LyogQnJhbmNoIFNlbGVjdGlvbiAqL30KICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9InRleHQteHMgdGV4dC1ncmVlbi02MDAgbWItMSI+QnJhbmNoOiB7c3RhdGUuZ2l0aHViQnJhbmNofTwvZGl2PgogICAgICAgICAgICB7c3RhdGUuZ2l0aHViUmVwbz8uYnJhbmNoZXMgJiYgKAogICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGZsZXgtd3JhcCBnYXAtMSBtYi0yIG1heC1oLTE2IG92ZXJmbG93LXktYXV0byI+CiAgICAgICAgICAgICAgICB7c3RhdGUuZ2l0aHViUmVwby5icmFuY2hlcy5tYXAoYiA9PiAoCiAgICAgICAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICAgICAgICBrZXk9e2J9CiAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0U3RhdGUocHJldiA9PiAoeyAuLi5wcmV2LCBnaXRodWJCcmFuY2g6IGIgfSkpfQogICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17Y24oInB4LTEuNSBweS0wLjUgcm91bmRlZCB0ZXh0LXhzIiwgc3RhdGUuZ2l0aHViQnJhbmNoID09PSBiID8gImJnLWdyZWVuLTYwMCB0ZXh0LWJsYWNrIiA6ICJiZy1ncmVlbi05MDAvNTAiKX0KICAgICAgICAgICAgICAgICAgPgogICAgICAgICAgICAgICAgICAgIHtifQogICAgICAgICAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgICAgICAgICkpfQogICAgICAgICAgICAgIDwvZGl2PgogICAgICAgICAgICApfQogICAgICAgICAgICAKICAgICAgICAgICAgey8qIENyZWF0ZSBCcmFuY2ggKi99CiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGdhcC0xIG1iLTIiPgogICAgICAgICAgICAgIDxJbnB1dCB2YWx1ZT17c3RhdGUubmV3QnJhbmNoTmFtZX0gb25DaGFuZ2U9e2UgPT4gc2V0U3RhdGUocCA9PiAoeyAuLi5wLCBuZXdCcmFuY2hOYW1lOiBlLnRhcmdldC52YWx1ZSB9KSl9IHBsYWNlaG9sZGVyPSJuZXctYnJhbmNoIiBjbGFzc05hbWU9ImZsZXgtMSBoLTYgdGV4dC14cyBiZy1ibGFjay81MCBib3JkZXItZ3JlZW4tODAwIHRleHQtZ3JlZW4tNDAwIiAvPgogICAgICAgICAgICAgIDxCdXR0b24gb25DbGljaz17Y3JlYXRlQnJhbmNofSBkaXNhYmxlZD17IXN0YXRlLm5ld0JyYW5jaE5hbWUudHJpbSgpfSBjbGFzc05hbWU9ImgtNiBweC0yIHRleHQteHMgYmctZ3JlZW4tNzAwIHRleHQtYmxhY2siPis8L0J1dHRvbj4KICAgICAgICAgICAgPC9kaXY+CgogICAgICAgICAgICB7LyogTGlzdCBGaWxlcyAqL30KICAgICAgICAgICAgPEJ1dHRvbiBvbkNsaWNrPXsoKSA9PiBsaXN0RmlsZXMoJycpfSBjbGFzc05hbWU9InctZnVsbCBiZy1ncmVlbi04MDAgaG92ZXI6YmctZ3JlZW4tNzAwIHRleHQtYmxhY2sgdGV4dC14cyBtYi0yIj4KICAgICAgICAgICAgICDwn5OBIExJU1QgRklMRVMKICAgICAgICAgICAgPC9CdXR0b24+CiAgICAgICAgICA8L2Rpdj4KICAgICAgICA8L2Rpdj4KICAgICAgICAKICAgICAgICB7LyogTWlkZGxlIFBhbmVsIC0gTG9ncyAqL30KICAgICAgICA8ZGl2IGNsYXNzTmFtZT0ibGc6Y29sLXNwYW4tMiI+CiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iYm9yZGVyIGJvcmRlci1ncmVlbi05MDAvNTAgYmctZ3JlZW4tOTUwLzEwIHJvdW5kZWQtbGcgaC1mdWxsIGZsZXggZmxleC1jb2wiPgogICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0icC0yIGJvcmRlci1iIGJvcmRlci1ncmVlbi05MDAvNTAiPjxoMiBjbGFzc05hbWU9InRleHQteHMgZm9udC1ib2xkIHRleHQtZ3JlZW4tNDAwIj7il4ggRVZPTFVUSU9OIExPRzwvaDI+PC9kaXY+CiAgICAgICAgICAgIDxTY3JvbGxBcmVhIGNsYXNzTmFtZT0iZmxleC0xIHAtMiI+CiAgICAgICAgICAgICAge3N0YXRlLmxvZ3MubWFwKChsLCBpKSA9PiA8ZGl2IGtleT17aX0gY2xhc3NOYW1lPSJ0ZXh0LXhzIHRleHQtZ3JlZW4tNTAwIGZvbnQtbW9ubyB3aGl0ZXNwYWNlLXByZS13cmFwIj57bH08L2Rpdj4pfQogICAgICAgICAgICAgIDxkaXYgcmVmPXtsb2dFbmRSZWZ9IC8+CiAgICAgICAgICAgIDwvU2Nyb2xsQXJlYT4KICAgICAgICAgIDwvZGl2PgogICAgICAgIDwvZGl2PgogICAgICAgIAogICAgICAgIHsvKiBSaWdodCBQYW5lbCAtIENoYXQgKyBBZHZhbmNlZCBHaXRIdWIgKi99CiAgICAgICAgPGRpdiBjbGFzc05hbWU9InNwYWNlLXktMyI+CiAgICAgICAgICB7LyogQ2hhdCAqL30KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJib3JkZXIgYm9yZGVyLWdyZWVuLTkwMC81MCBiZy1ncmVlbi05NTAvMTAgcm91bmRlZC1sZyBmbGV4IGZsZXgtY29sIGgtNjQiPgogICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0icC0yIGJvcmRlci1iIGJvcmRlci1ncmVlbi05MDAvNTAiPjxoMiBjbGFzc05hbWU9InRleHQteHMgZm9udC1ib2xkIHRleHQtZ3JlZW4tNDAwIj7wn5KsIFRBTEsgVE8gTkVYVVM8L2gyPjwvZGl2PgogICAgICAgICAgICA8U2Nyb2xsQXJlYSBjbGFzc05hbWU9ImZsZXgtMSBwLTIgbWluLWgtMCI+CiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9InNwYWNlLXktMiI+CiAgICAgICAgICAgICAgICB7c3RhdGUuY2hhdE1lc3NhZ2VzLmxlbmd0aCA9PT0gMCAmJiAoCiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ0ZXh0LWNlbnRlciB0ZXh0LWdyZWVuLTcwMCB0ZXh0LXhzIHB5LTQiPlN0YXJ0IGEgY29udmVyc2F0aW9uIHdpdGggTkVYVVM8L2Rpdj4KICAgICAgICAgICAgICAgICl9CiAgICAgICAgICAgICAgICB7c3RhdGUuY2hhdE1lc3NhZ2VzLm1hcCgobSwgaSkgPT4gKAogICAgICAgICAgICAgICAgICA8ZGl2IGtleT17aX0gY2xhc3NOYW1lPXtjbigicm91bmRlZCBwLTIgdGV4dC14cyIsIG0ucm9sZSA9PT0gJ3VzZXInID8gImJnLWdyZWVuLTkwMC8zMCBtbC0yIiA6ICJiZy1jeWFuLTkwMC8yMCBtci0yIil9PgogICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPXtjbigiZm9udC1ib2xkIG1iLTAuNSIsIG0ucm9sZSA9PT0gJ3VzZXInID8gInRleHQtZ3JlZW4tNDAwIiA6ICJ0ZXh0LWN5YW4tNDAwIil9PnttLnJvbGUgPT09ICd1c2VyJyA/ICdZT1UnIDogJ05FWFVTJ308L2Rpdj4KICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0idGV4dC1ncmVlbi0zMDAgd2hpdGVzcGFjZS1wcmUtd3JhcCI+e20uY29udGVudH08L2Rpdj4KICAgICAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgICAgICApKX0KICAgICAgICAgICAgICAgIHtzdGF0ZS5jaGF0TG9hZGluZyAmJiA8ZGl2IGNsYXNzTmFtZT0iYmctY3lhbi05MDAvMjAgbXItMiByb3VuZGVkIHAtMiB0ZXh0LXhzIj48c3BhbiBjbGFzc05hbWU9ImFuaW1hdGUtcHVsc2UiPlRoaW5raW5nLi4uPC9zcGFuPjwvZGl2Pn0KICAgICAgICAgICAgICAgIDxkaXYgcmVmPXtjaGF0RW5kUmVmfSAvPgogICAgICAgICAgICAgIDwvZGl2PgogICAgICAgICAgICA8L1Njcm9sbEFyZWE+CiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJwLTIgYm9yZGVyLXQgYm9yZGVyLWdyZWVuLTkwMC81MCI+CiAgICAgICAgICAgICAgPGZvcm0gb25TdWJtaXQ9eyhlKSA9PiB7IGUucHJldmVudERlZmF1bHQoKTsgc2VuZENoYXQoKSB9fSBjbGFzc05hbWU9ImZsZXggZ2FwLTEiPgogICAgICAgICAgICAgICAgPElucHV0IHZhbHVlPXtzdGF0ZS5jaGF0SW5wdXR9IG9uQ2hhbmdlPXtlID0+IHNldFN0YXRlKHAgPT4gKHsgLi4ucCwgY2hhdElucHV0OiBlLnRhcmdldC52YWx1ZSB9KSl9IHBsYWNlaG9sZGVyPSJBc2sgTkVYVVMuLi4iIGNsYXNzTmFtZT0iZmxleC0xIGgtNiB0ZXh0LXhzIGJnLWJsYWNrLzUwIGJvcmRlci1ncmVlbi04MDAgdGV4dC1ncmVlbi00MDAiIGRpc2FibGVkPXtzdGF0ZS5jaGF0TG9hZGluZ30gLz4KICAgICAgICAgICAgICAgIDxCdXR0b24gdHlwZT0ic3VibWl0IiBkaXNhYmxlZD17IXN0YXRlLmNoYXRJbnB1dC50cmltKCkgfHwgc3RhdGUuY2hhdExvYWRpbmd9IGNsYXNzTmFtZT0iaC02IHB4LTIgdGV4dC14cyBiZy1ncmVlbi02MDAgdGV4dC1ibGFjayI+4oaSPC9CdXR0b24+CiAgICAgICAgICAgICAgPC9mb3JtPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgIHsvKiBBZHZhbmNlZCBHaXRIdWIgKi99CiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iYm9yZGVyIGJvcmRlci1yZWQtOTAwLzUwIGJnLXJlZC05NTAvMTAgcm91bmRlZC1sZyBwLTMiPgogICAgICAgICAgICA8aDIgY2xhc3NOYW1lPSJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LXJlZC00MDAgbWItMiI+4pqgIEFEVkFOQ0VEIEdJVEhVQjwvaDI+CiAgICAgICAgICAgIAogICAgICAgICAgICB7LyogQ3JlYXRlIFJlcG8gKi99CiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJtYi0yIj4KICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0idGV4dC14cyB0ZXh0LXJlZC02MDAgbWItMSI+Q3JlYXRlIE5ldyBSZXBvOjwvZGl2PgogICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGdhcC0xIj4KICAgICAgICAgICAgICAgIDxJbnB1dCB2YWx1ZT17c3RhdGUubmV3UmVwb05hbWV9IG9uQ2hhbmdlPXtlID0+IHNldFN0YXRlKHAgPT4gKHsgLi4ucCwgbmV3UmVwb05hbWU6IGUudGFyZ2V0LnZhbHVlIH0pKX0gcGxhY2Vob2xkZXI9InJlcG8tbmFtZSIgY2xhc3NOYW1lPSJmbGV4LTEgaC02IHRleHQteHMgYmctYmxhY2svNTAgYm9yZGVyLXJlZC04MDAgdGV4dC1yZWQtNDAwIiAvPgogICAgICAgICAgICAgICAgPEJ1dHRvbiBvbkNsaWNrPXtjcmVhdGVSZXBvfSBkaXNhYmxlZD17IXN0YXRlLm5ld1JlcG9OYW1lLnRyaW0oKX0gY2xhc3NOYW1lPSJoLTYgcHgtMiB0ZXh0LXhzIGJnLXJlZC03MDAgdGV4dC13aGl0ZSI+Q1JFQVRFPC9CdXR0b24+CiAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgICAgey8qIFBydW5lICovfQogICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0ibWItMiI+CiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9InRleHQteHMgdGV4dC1yZWQtNjAwIG1iLTEiPlBydW5lIEZpbGVzIChyZWdleCBwYXR0ZXJucywgY29tbWEtc2VwYXJhdGVkKTo8L2Rpdj4KICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iZmxleCBnYXAtMSI+CiAgICAgICAgICAgICAgICA8SW5wdXQgdmFsdWU9e3N0YXRlLnBydW5lUGF0dGVybn0gb25DaGFuZ2U9e2UgPT4gc2V0U3RhdGUocCA9PiAoeyAuLi5wLCBwcnVuZVBhdHRlcm46IGUudGFyZ2V0LnZhbHVlIH0pKX0gcGxhY2Vob2xkZXI9IlwuYmFrJHxcLnRtcCQiIGNsYXNzTmFtZT0iZmxleC0xIGgtNiB0ZXh0LXhzIGJnLWJsYWNrLzUwIGJvcmRlci1yZWQtODAwIHRleHQtcmVkLTQwMCIgLz4KICAgICAgICAgICAgICAgIDxCdXR0b24gb25DbGljaz17cHJ1bmVGaWxlc30gZGlzYWJsZWQ9eyFzdGF0ZS5wcnVuZVBhdHRlcm4udHJpbSgpfSBjbGFzc05hbWU9ImgtNiBweC0yIHRleHQteHMgYmctcmVkLTcwMCB0ZXh0LXdoaXRlIj5QUlVORTwvQnV0dG9uPgogICAgICAgICAgICAgIDwvZGl2PgogICAgICAgICAgICA8L2Rpdj4KCiAgICAgICAgICAgIHsvKiBEZWxldGUgQnJhbmNoICovfQogICAgICAgICAgICB7c3RhdGUuZ2l0aHViUmVwbz8uYnJhbmNoZXMgJiYgc3RhdGUuZ2l0aHViUmVwby5icmFuY2hlcy5sZW5ndGggPiAwICYmICgKICAgICAgICAgICAgICA8ZGl2PgogICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9InRleHQteHMgdGV4dC1yZWQtNjAwIG1iLTEiPkRlbGV0ZSBCcmFuY2g6PC9kaXY+CiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iZmxleCBmbGV4LXdyYXAgZ2FwLTEiPgogICAgICAgICAgICAgICAgICB7c3RhdGUuZ2l0aHViUmVwby5icmFuY2hlcy5maWx0ZXIoYiA9PiBiICE9PSBzdGF0ZS5naXRodWJSZXBvPy5kZWZhdWx0QnJhbmNoKS5tYXAoYiA9PiAoCiAgICAgICAgICAgICAgICAgICAgPGJ1dHRvbgogICAgICAgICAgICAgICAgICAgICAga2V5PXtifQogICAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gZGVsZXRlQnJhbmNoKGIpfQogICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPSJweC0xLjUgcHktMC41IHJvdW5kZWQgdGV4dC14cyBiZy1yZWQtOTAwLzUwIGhvdmVyOmJnLXJlZC04MDAgdGV4dC1yZWQtNDAwIgogICAgICAgICAgICAgICAgICAgID4KICAgICAgICAgICAgICAgICAgICAgIPCfl5Ege2J9CiAgICAgICAgICAgICAgICAgICAgPC9idXR0b24+CiAgICAgICAgICAgICAgICAgICkpfQogICAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgICl9CiAgICAgICAgICA8L2Rpdj4KICAgICAgICA8L2Rpdj4KICAgICAgPC9tYWluPgogICAgICAKICAgICAgPGZvb3RlciBjbGFzc05hbWU9ImJvcmRlci10IGJvcmRlci1ncmVlbi05MDAvNTAgcC0yIHRleHQtY2VudGVyIHRleHQteHMgdGV4dC1ncmVlbi04MDAiPgogICAgICAgIE5FWFVTIHY3LjAgfCBTZWxmLUJvb3RzdHJhcHBpbmcgQUdJIHwgRE5BOiB7c3RhdGUuZG5hU3RhdHMudG90YWx9IGNodW5rcyB8IEdpdEh1Yjoge3N0YXRlLmdpdGh1YlJlcG8/LmZ1bGxOYW1lIHx8ICdOL0EnfSB8IEdPQUw6IDgwJSBvdmVyYWxsCiAgICAgIDwvZm9vdGVyPgogICAgPC9kaXY+CiAgKQp9Cg==
+'use client'
+
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
+
+// =============================================================================
+// NEXUS SELF-BOOTSTRAPPING AGI v7.0 - With Full GitHub Integration
+// =============================================================================
+
+interface Capabilities { language: number; coding: number; execution: number; learning: number; overall: number }
+interface ChatMessage { role: 'user' | 'assistant'; content: string; timestamp: number }
+interface GitHubRepo { name: string; fullName: string; defaultBranch: string; branches: string[] }
+
+interface State {
+  status: string
+  generation: number
+  capabilities: Capabilities
+  logs: string[]
+  code: string
+  dnaStats: { total: number; categories: Record<string, number> }
+  dnaIngesting: boolean
+  chatMessages: ChatMessage[]
+  chatInput: string
+  chatLoading: boolean
+  // GitHub state
+  githubRepo: GitHubRepo | null
+  githubLoading: boolean
+  githubBranch: string
+  newBranchName: string
+  newRepoName: string
+  prunePattern: string
+}
+
+const INITIAL_KERNEL = `// NEXUS KERNEL v7.0
+const Nexus = {
+  version: "7.0.0",
+  capabilities: { language: 0, coding: 0, execution: 0, learning: 0, overall: 0 },
+  
+  async understand(input) {
+    const text = typeof input === 'string' ? input : JSON.stringify(input);
+    const intents = {
+      create: /create|make|build|generate|write/i,
+      query: /what|how|why|when|where|who/i,
+      execute: /run|execute|start|do/i,
+      learn: /learn|teach|remember/i
+    };
+    let intent = 'unknown';
+    for (const [k, p] of Object.entries(intents)) if (p.test(text.toLowerCase())) { intent = k; break; }
+    return { intent, confidence: intent !== 'unknown' ? 0.7 : 0.3 };
+  },
+  
+  async code(task) {
+    return { code: 'return { result: "generated" };', language: 'javascript' };
+  },
+  
+  async execute(codeStr) {
+    try {
+      const fn = new Function(codeStr);
+      return { success: true, output: fn() };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+  
+  async learn(task, result) {
+    return { learned: true, improvement: result.success ? 1 : 0 };
+  }
+};`
+
+export default function Home() {
+  const [state, setState] = useState<State>({
+    status: 'DORMANT', generation: 0,
+    capabilities: { language: 0, coding: 0, execution: 0, learning: 0, overall: 0 },
+    logs: [], code: INITIAL_KERNEL,
+    dnaStats: { total: 0, categories: {} },
+    dnaIngesting: false,
+    chatMessages: [], chatInput: '', chatLoading: false,
+    githubRepo: null, githubLoading: false, githubBranch: 'master',
+    newBranchName: '', newRepoName: '', prunePattern: ''
+  })
+
+  const [running, setRunning] = useState(false)
+  const abortRef = useRef(false)
+  const logEndRef = useRef<HTMLDivElement>(null)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  const log = useCallback((msg: string) => {
+    const time = new Date().toLocaleTimeString()
+    setState(prev => ({ ...prev, logs: [...prev.logs.slice(-200), `[${time}] ${msg}`] }))
+  }, [])
+
+  // Fetch DNA stats
+  const fetchDnaStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/agi/dna')
+      const data = await res.json()
+      if (data.success) setState(prev => ({ ...prev, dnaStats: data.stats }))
+    } catch { }
+  }, [])
+
+  // Fetch GitHub repo status
+  const fetchGitHubStatus = useCallback(async () => {
+    setState(prev => ({ ...prev, githubLoading: true }))
+    try {
+      const res = await fetch('/api/agi/github')
+      const data = await res.json()
+      if (data.success) {
+        setState(prev => ({ 
+          ...prev, 
+          githubRepo: data.repo,
+          githubBranch: data.repo.defaultBranch,
+          githubLoading: false 
+        }))
+      }
+    } catch { }
+    setState(prev => ({ ...prev, githubLoading: false }))
+  }, [])
+
+  // Ingest DNA
+  const ingestDna = useCallback(async () => {
+    setState(prev => ({ ...prev, dnaIngesting: true, status: 'INGESTING' }))
+    log('🔄 Ingesting DNA from all branches...')
+    try {
+      const res = await fetch('/api/agi/dna', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ingestAll', limit: 500 })
+      })
+      const data = await res.json()
+      if (data.success) {
+        log(`✅ DNA ingested: ${data.summary.total.stored} files from ${data.summary.branches.length} branches`)
+      }
+      await fetchDnaStats()
+    } catch (e) { log(`❌ Ingest error: ${e}`) }
+    setState(prev => ({ ...prev, dnaIngesting: false, status: 'DORMANT' }))
+  }, [log, fetchDnaStats])
+
+  // Test capabilities
+  const testCapabilities = useCallback(async (code: string) => {
+    try {
+      const res = await fetch('/api/agi/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'testCapabilities', code })
+      })
+      const data = await res.json()
+      if (data.success) return { capabilities: data.summary, testResults: data.results }
+    } catch { }
+    return { capabilities: state.capabilities, testResults: [] }
+  }, [state.capabilities])
+
+  // Evolve
+  const evolve = useCallback(async () => {
+    setRunning(true)
+    abortRef.current = false
+    setState(prev => ({ ...prev, status: 'EVOLVING', logs: [] }))
+    log('🚀 NEXUS AGI v7.0 - Self-Bootstrapping Evolution')
+    
+    let code = state.code
+    let gen = 0
+    
+    while (!abortRef.current && gen < 50) {
+      gen++
+      log(`\n═══ GENERATION ${gen} ═══`)
+      
+      setState(prev => ({ ...prev, status: 'TESTING' }))
+      const test = await testCapabilities(code)
+      log(`📊 Capabilities: ${(test.capabilities.overall * 100).toFixed(0)}%`)
+      
+      if (test.capabilities.overall >= 0.8) {
+        log('🎯 80% CAPABILITY REACHED!')
+        break
+      }
+      
+      setState(prev => ({ ...prev, status: 'EVOLVING' }))
+      log('🧬 Evolving...')
+      
+      try {
+        const res = await fetch('/api/agi/llm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: `Improve this AGI kernel. Add chat functionality so users can talk to it. Current capabilities: ${JSON.stringify(test.capabilities)}\n\nCode:\n${code.slice(0, 3000)}\n\nReturn ONLY improved JavaScript code.`,
+            systemPrompt: 'You are NEXUS AGI evolving. Output ONLY JavaScript code.'
+          })
+        })
+        const data = await res.json()
+        if (data.success && data.response) {
+          const newCode = data.response.replace(/```js?\n?/g, '').replace(/\n?```/g, '').trim()
+          if (newCode.length > 100) {
+            code = newCode
+            log(`✓ Evolution accepted (${code.length} chars)`)
+          }
+        }
+      } catch { }
+      
+      setState(prev => ({ ...prev, code, generation: gen, capabilities: test.capabilities }))
+      await new Promise(r => setTimeout(r, 1000))
+    }
+    
+    setRunning(false)
+    setState(prev => ({ ...prev, status: 'COMPLETE' }))
+    log('✅ Evolution complete!')
+  }, [state.code, log, testCapabilities])
+
+  // Chat with NEXUS
+  const sendChat = useCallback(async () => {
+    if (!state.chatInput.trim() || state.chatLoading) return
+    const msg = state.chatInput.trim()
+    setState(prev => ({ ...prev, chatInput: '', chatMessages: [...prev.chatMessages, { role: 'user', content: msg, timestamp: Date.now() }], chatLoading: true }))
+    
+    try {
+      const res = await fetch('/api/agi/llm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are NEXUS AGI. The user says: "${msg}"\n\nYour current evolution state:\n- Generation: ${state.generation}\n- Capabilities: ${JSON.stringify(state.capabilities)}\n- DNA chunks: ${state.dnaStats.total}\n\nRespond helpfully. You can discuss your evolution, capabilities, or help with coding.`,
+          systemPrompt: 'You are NEXUS, a self-evolving AGI. Be helpful and conversational.'
+        })
+      })
+      const data = await res.json()
+      setState(prev => ({ ...prev, chatLoading: false, chatMessages: [...prev.chatMessages, { role: 'assistant', content: data.success ? data.response : 'Error communicating', timestamp: Date.now() }] }))
+    } catch (e) {
+      setState(prev => ({ ...prev, chatLoading: false, chatMessages: [...prev.chatMessages, { role: 'assistant', content: `Error: ${e}`, timestamp: Date.now() }] }))
+    }
+  }, [state.chatInput, state.chatLoading, state.generation, state.capabilities, state.dnaStats])
+
+  // ==================== GITHUB OPERATIONS ====================
+
+  const githubRequest = useCallback(async (action: string, body: object = {}) => {
+    log(`📤 GitHub: ${action}...`)
+    try {
+      const res = await fetch('/api/agi/github', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, branch: state.githubBranch, ...body })
+      })
+      const data = await res.json()
+      if (data.success) {
+        log(`✅ ${action}: ${data.message || data.action || 'done'}`)
+      } else {
+        log(`❌ ${action}: ${data.error || 'failed'}`)
+      }
+      return data
+    } catch (e) {
+      log(`❌ ${action} error: ${e}`)
+      return { success: false }
+    }
+  }, [log, state.githubBranch])
+
+  // Push evolution to GitHub
+  const pushEvolution = useCallback(async () => {
+    log('📤 Pushing evolution to GitHub...')
+    const result = await githubRequest('pushEvolution', { code: state.code })
+    if (result.success) {
+      log(`✅ Pushed Gen#${result.generation} to ${result.path}`)
+    }
+  }, [state.code, githubRequest, log])
+
+  // Create branch
+  const createBranch = useCallback(async () => {
+    if (!state.newBranchName.trim()) return
+    const result = await githubRequest('createBranch', { newBranch: state.newBranchName.trim() })
+    if (result.success) {
+      setState(prev => ({ ...prev, newBranchName: '', githubBranch: state.newBranchName.trim() }))
+      fetchGitHubStatus()
+    }
+  }, [state.newBranchName, githubRequest, fetchGitHubStatus])
+
+  // Delete branch
+  const deleteBranch = useCallback(async (branchName: string) => {
+    if (branchName === state.githubRepo?.defaultBranch) {
+      log('❌ Cannot delete default branch!')
+      return
+    }
+    if (confirm(`Delete branch "${branchName}"?`)) {
+      const result = await githubRequest('deleteBranch', { targetBranch: branchName })
+      if (result.success) fetchGitHubStatus()
+    }
+  }, [state.githubRepo?.defaultBranch, githubRequest, log, fetchGitHubStatus])
+
+  // Create new repo
+  const createRepo = useCallback(async () => {
+    if (!state.newRepoName.trim()) return
+    const result = await githubRequest('createRepo', { name: state.newRepoName.trim() })
+    if (result.success) {
+      log(`✅ Created repo: ${result.url}`)
+      setState(prev => ({ ...prev, newRepoName: '' }))
+    }
+  }, [state.newRepoName, githubRequest, log])
+
+  // Prune files
+  const pruneFiles = useCallback(async () => {
+    if (!state.prunePattern.trim()) return
+    const patterns = state.prunePattern.split(',').map(p => p.trim()).filter(Boolean)
+    const result = await githubRequest('prune', { patterns, dryRun: true })
+    if (result.success && result.dryRun) {
+      log(`🔍 Dry run: ${result.count} files would be deleted`)
+      if (result.count > 0 && confirm(`Delete ${result.count} files?`)) {
+        await githubRequest('prune', { patterns, dryRun: false })
+      }
+    }
+  }, [state.prunePattern, githubRequest, log])
+
+  // List files
+  const listFiles = useCallback(async (path: string = '') => {
+    const result = await githubRequest('list', { path })
+    if (result.success) {
+      log(`📁 ${result.files.length} files in ${path || 'root'}`)
+      result.files.slice(0, 10).forEach((f: { name: string; type: string }) => {
+        log(`  ${f.type === 'dir' ? '📂' : '📄'} ${f.name}`)
+      })
+    }
+  }, [githubRequest, log])
+
+  useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [state.logs])
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [state.chatMessages])
+  useEffect(() => { fetchDnaStats(); fetchGitHubStatus() }, [fetchDnaStats, fetchGitHubStatus])
+
+  const getCap = (k: keyof Capabilities) => typeof state.capabilities[k] === 'number' ? state.capabilities[k] : 0
+
+  return (
+    <div className="min-h-screen bg-black text-green-400 font-mono flex flex-col">
+      <header className="border-b border-green-900/50 p-3 bg-green-950/10">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-bold text-green-400">NEXUS AGI v7.0</h1>
+            <p className="text-xs text-green-700">Self-Bootstrapping • DNA: {state.dnaStats.total} chunks • GitHub: {state.githubRepo?.fullName || 'loading...'}</p>
+          </div>
+          <div className="flex gap-4 items-center">
+            <div className="text-center"><div className="text-xs text-green-700">STATUS</div><div className="text-sm font-bold text-amber-400">{state.status}</div></div>
+            <div className="text-center"><div className="text-xs text-green-700">GEN</div><div className="text-lg font-bold text-amber-400">{state.generation}</div></div>
+            <div className="text-center"><div className="text-xs text-green-700">OVERALL</div><div className="text-lg font-bold text-emerald-400">{(getCap('overall') * 100).toFixed(0)}%</div></div>
+          </div>
+        </div>
+      </header>
+      
+      <main className="max-w-7xl mx-auto p-3 grid grid-cols-1 lg:grid-cols-5 gap-3 flex-grow">
+        {/* Left Panel - Controls */}
+        <div className="space-y-3">
+          {/* Evolution Controls */}
+          <div className="border border-green-900/50 bg-green-950/10 rounded-lg p-3">
+            <h2 className="text-xs font-bold text-green-400 mb-3">◈ EVOLUTION</h2>
+            <div className="flex gap-2 mb-2">
+              {!running ? (
+                <Button onClick={evolve} className="flex-1 bg-green-600 hover:bg-green-500 text-black text-xs">▶ EVOLVE</Button>
+              ) : (
+                <Button onClick={() => { abortRef.current = true; setRunning(false) }} variant="destructive" className="flex-1 text-xs">■ STOP</Button>
+              )}
+            </div>
+            <Button onClick={ingestDna} disabled={state.dnaIngesting} className="w-full bg-cyan-600 hover:bg-cyan-500 text-black text-xs">
+              {state.dnaIngesting ? '⏳ INGESTING...' : '◈ INGEST DNA'}
+            </Button>
+          </div>
+          
+          {/* Capabilities */}
+          <div className="border border-green-900/50 bg-green-950/10 rounded-lg p-3">
+            <h2 className="text-xs font-bold text-green-400 mb-2">◈ CAPABILITIES</h2>
+            {(['language', 'coding', 'execution', 'learning'] as const).map(k => (
+              <div key={k} className="mb-1">
+                <div className="flex justify-between text-xs mb-0.5"><span className="text-green-600">{k.toUpperCase()}</span><span>{(getCap(k) * 100).toFixed(0)}%</span></div>
+                <div className="h-1.5 bg-green-950 rounded"><div className="h-full bg-green-500 transition-all" style={{ width: `${getCap(k) * 100}%` }} /></div>
+              </div>
+            ))}
+          </div>
+
+          {/* GitHub Controls */}
+          <div className="border border-green-900/50 bg-green-950/10 rounded-lg p-3">
+            <h2 className="text-xs font-bold text-green-400 mb-2">◈ GITHUB</h2>
+            
+            {/* Push Evolution */}
+            <Button onClick={pushEvolution} disabled={running || state.generation === 0} className="w-full bg-purple-600 hover:bg-purple-500 text-black text-xs mb-2">
+              📤 PUSH EVOLUTION
+            </Button>
+            
+            {/* Branch Selection */}
+            <div className="text-xs text-green-600 mb-1">Branch: {state.githubBranch}</div>
+            {state.githubRepo?.branches && (
+              <div className="flex flex-wrap gap-1 mb-2 max-h-16 overflow-y-auto">
+                {state.githubRepo.branches.map(b => (
+                  <button
+                    key={b}
+                    onClick={() => setState(prev => ({ ...prev, githubBranch: b }))}
+                    className={cn("px-1.5 py-0.5 rounded text-xs", state.githubBranch === b ? "bg-green-600 text-black" : "bg-green-900/50")}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* Create Branch */}
+            <div className="flex gap-1 mb-2">
+              <Input value={state.newBranchName} onChange={e => setState(p => ({ ...p, newBranchName: e.target.value }))} placeholder="new-branch" className="flex-1 h-6 text-xs bg-black/50 border-green-800 text-green-400" />
+              <Button onClick={createBranch} disabled={!state.newBranchName.trim()} className="h-6 px-2 text-xs bg-green-700 text-black">+</Button>
+            </div>
+
+            {/* List Files */}
+            <Button onClick={() => listFiles('')} className="w-full bg-green-800 hover:bg-green-700 text-black text-xs mb-2">
+              📁 LIST FILES
+            </Button>
+          </div>
+        </div>
+        
+        {/* Middle Panel - Logs */}
+        <div className="lg:col-span-2">
+          <div className="border border-green-900/50 bg-green-950/10 rounded-lg h-full flex flex-col">
+            <div className="p-2 border-b border-green-900/50"><h2 className="text-xs font-bold text-green-400">◈ EVOLUTION LOG</h2></div>
+            <ScrollArea className="flex-1 p-2">
+              {state.logs.map((l, i) => <div key={i} className="text-xs text-green-500 font-mono whitespace-pre-wrap">{l}</div>)}
+              <div ref={logEndRef} />
+            </ScrollArea>
+          </div>
+        </div>
+        
+        {/* Right Panel - Chat + Advanced GitHub */}
+        <div className="space-y-3">
+          {/* Chat */}
+          <div className="border border-green-900/50 bg-green-950/10 rounded-lg flex flex-col h-64">
+            <div className="p-2 border-b border-green-900/50"><h2 className="text-xs font-bold text-green-400">💬 TALK TO NEXUS</h2></div>
+            <ScrollArea className="flex-1 p-2 min-h-0">
+              <div className="space-y-2">
+                {state.chatMessages.length === 0 && (
+                  <div className="text-center text-green-700 text-xs py-4">Start a conversation with NEXUS</div>
+                )}
+                {state.chatMessages.map((m, i) => (
+                  <div key={i} className={cn("rounded p-2 text-xs", m.role === 'user' ? "bg-green-900/30 ml-2" : "bg-cyan-900/20 mr-2")}>
+                    <div className={cn("font-bold mb-0.5", m.role === 'user' ? "text-green-400" : "text-cyan-400")}>{m.role === 'user' ? 'YOU' : 'NEXUS'}</div>
+                    <div className="text-green-300 whitespace-pre-wrap">{m.content}</div>
+                  </div>
+                ))}
+                {state.chatLoading && <div className="bg-cyan-900/20 mr-2 rounded p-2 text-xs"><span className="animate-pulse">Thinking...</span></div>}
+                <div ref={chatEndRef} />
+              </div>
+            </ScrollArea>
+            <div className="p-2 border-t border-green-900/50">
+              <form onSubmit={(e) => { e.preventDefault(); sendChat() }} className="flex gap-1">
+                <Input value={state.chatInput} onChange={e => setState(p => ({ ...p, chatInput: e.target.value }))} placeholder="Ask NEXUS..." className="flex-1 h-6 text-xs bg-black/50 border-green-800 text-green-400" disabled={state.chatLoading} />
+                <Button type="submit" disabled={!state.chatInput.trim() || state.chatLoading} className="h-6 px-2 text-xs bg-green-600 text-black">→</Button>
+              </form>
+            </div>
+          </div>
+
+          {/* Advanced GitHub */}
+          <div className="border border-red-900/50 bg-red-950/10 rounded-lg p-3">
+            <h2 className="text-xs font-bold text-red-400 mb-2">⚠ ADVANCED GITHUB</h2>
+            
+            {/* Create Repo */}
+            <div className="mb-2">
+              <div className="text-xs text-red-600 mb-1">Create New Repo:</div>
+              <div className="flex gap-1">
+                <Input value={state.newRepoName} onChange={e => setState(p => ({ ...p, newRepoName: e.target.value }))} placeholder="repo-name" className="flex-1 h-6 text-xs bg-black/50 border-red-800 text-red-400" />
+                <Button onClick={createRepo} disabled={!state.newRepoName.trim()} className="h-6 px-2 text-xs bg-red-700 text-white">CREATE</Button>
+              </div>
+            </div>
+
+            {/* Prune */}
+            <div className="mb-2">
+              <div className="text-xs text-red-600 mb-1">Prune Files (regex patterns, comma-separated):</div>
+              <div className="flex gap-1">
+                <Input value={state.prunePattern} onChange={e => setState(p => ({ ...p, prunePattern: e.target.value }))} placeholder="\.bak$|\.tmp$" className="flex-1 h-6 text-xs bg-black/50 border-red-800 text-red-400" />
+                <Button onClick={pruneFiles} disabled={!state.prunePattern.trim()} className="h-6 px-2 text-xs bg-red-700 text-white">PRUNE</Button>
+              </div>
+            </div>
+
+            {/* Delete Branch */}
+            {state.githubRepo?.branches && state.githubRepo.branches.length > 0 && (
+              <div>
+                <div className="text-xs text-red-600 mb-1">Delete Branch:</div>
+                <div className="flex flex-wrap gap-1">
+                  {state.githubRepo.branches.filter(b => b !== state.githubRepo?.defaultBranch).map(b => (
+                    <button
+                      key={b}
+                      onClick={() => deleteBranch(b)}
+                      className="px-1.5 py-0.5 rounded text-xs bg-red-900/50 hover:bg-red-800 text-red-400"
+                    >
+                      🗑 {b}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+      
+      <footer className="border-t border-green-900/50 p-2 text-center text-xs text-green-800">
+        NEXUS v7.0 | Self-Bootstrapping AGI | DNA: {state.dnaStats.total} chunks | GitHub: {state.githubRepo?.fullName || 'N/A'} | GOAL: 80% overall
+      </footer>
+    </div>
+  )
+}
