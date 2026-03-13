@@ -1,24 +1,21 @@
-Grounding: 
-The original source and context are mentioned, which is a requirement.
+After reviewing the enhanced version of the code, I identified several issues with grounding, mechanism, and decoration. 
 
-Mechanism: 
-Some of the additions and changes are mechanistically justified, but there are concerns regarding speculative metaphors. For instance, the concept of 'siphoning DNA' has not been directly linked to any established concept or mechanism.
+1. **Grounding**: The enhanced version lacks clear references to the original source and context. Claims like "advanced design patterns for high-performance, asynchronous logic, and modular robustness" are not directly linked to established concepts or mechanisms.
 
-Decoration:
-The enhanced version of the code has added features that are primarily related to organizational and error handling improvements. However, certain parts may be considered 'decorative' or 'flowery,' such as the use of higher-order functions and the emphasis on specific features.
+2. **Mechanism**: The use of higher-order functions and "async function execute(context) { /* implementation */ }" is primarily for organization and ease of understanding, but the code does not clearly explain the underlying mechanisms or provide direct links to established theories or studies.
+
+3. **Decoration**: Some parts of the code are considered "decorative" or "flowery," such as the use of class names like "AsyncPipeline" and "PluginManager" that could be shortened or modified for better clarity.
 
 To strip unnecessary complexity and speculative metaphors, the following changes will be implemented:
 
-- Remove references to 'siphoning DNA' and any associated concepts, as they have not been mechanistically justified.
-
 - Improve the documentation and comments throughout the code to maintain clarity and avoid unnecessary decoration.
 
-- Consider separating the concerns of plugin lifecycle management and error handling into dedicated classes, as previously implemented, but maintain a clear connection to the original intent and purpose.
+- Consider separating the concerns of plugin lifecycle management and error handling into dedicated classes, but maintain a clear connection to the original intent and purpose.
 
 - Ensure that any 'decorative' elements are strictly minimized to provide a clear, high-precision version of the code.
 
 Cleaned Version:
-// Schema validator class
+// schemaValidator class
 class ConfigValidator {
   static #schemaCache = new WeakMap();
 
@@ -45,25 +42,24 @@ class ConfigValidator {
   static async getSchema(config) {
     const schema = ConfigValidator.defaultConfigSchema;
     if (!ConfigValidator.#schemaCache.has(config)) {
-      ConfigValidator.#schemaCache.set(config, schema);
+      ConfigValidator.#schemaCache.set(config, new ajv.defaultOptions().compile(schema));
     }
     return ConfigValidator.#schemaCache.get(config);
   }
 
   static async validateConfig(config) {
-    const validator = new Validator();
-    const schema = await ConfigValidator.getSchema(config);
-    const result = validator.validate(config, schema);
+    const validator = new ajv.defaultOptions().compile(ConfigValidator.defaultConfigSchema);
+    const result = validator(config);
 
-    if (result.errors.length > 0) {
-      const errorDetails = result.errors.map(e => e.stack).join('; ');
-      throw new Error(`Configuration Mismatch: ${errorDetails}`);
+    if (!result) {
+      throw new Error(`Configuration mismatch: ${JSON.stringify(validator.errors)}`);
     }
     return true;
   }
 }
 
-class AsyncPipeline {
+// AsyncPipeline class
+class Pipeline {
   constructor() {
     this.steps = [];
     this.interceptors = { pre: [], post: [] };
@@ -93,6 +89,7 @@ class AsyncPipeline {
   }
 }
 
+// PluginManager class
 class PluginManager {
   constructor() {
     this.plugins = new Map();
@@ -102,25 +99,21 @@ class PluginManager {
     if (this.plugins.has(pluginName)) {
       throw new Error(`Plugin '${pluginName}' is already attached`);
     }
-    this.plugins.set(pluginName, { status: 'ATTACHED' });
+    this.plugins.set(pluginName, plugin);
   }
 
   async detachPlugin(pluginName) {
     if (!this.plugins.has(pluginName)) {
       throw new Error(`Plugin '${pluginName}' is not attached`);
     }
-    const pluginInfo = this.plugins.get(pluginName);
-    if (pluginInfo.status === 'ATTACHED') {
-      pluginInfo.status = 'DETACHED';
-    }
+    this.plugins.delete(pluginName);
   }
 }
 
 class NexusCore {
   #status = 'IDLE';
   #config = null;
-  #pipeline = new AsyncPipeline();
-  #plugins = new Map();
+  #pipeline = new Pipeline();
   #pluginManager = new PluginManager();
 
   constructor() {
@@ -129,8 +122,7 @@ class NexusCore {
 
   #setupPipeline() {
     this.#pipeline
-      .addStep('VALIDATE_CONFIG', async (ctx) => await ConfigValidator.validateConfig(ctx.config));
-    this.#pipeline
+      .addStep('VALIDATE_CONFIG', ConfigValidator.validateConfig)
       .addStep('ATTACH_PLUGINS', async (ctx) => {
         try {
           await this.#pluginManager.validatePlugins(ctx.plugins);
@@ -144,6 +136,16 @@ class NexusCore {
           await this.#pluginManager.attachPlugin(plugin, plugin);
         }
       });
+  }
+
+  async validateConfig(config) {
+    const validator = new ajv.defaultOptions().compile(ConfigValidator.defaultConfigSchema);
+    const result = validator(config);
+
+    if (!result) {
+      throw new Error(`Configuration mismatch: ${JSON.stringify(validator.errors)}`);
+    }
+    return true;
   }
 
   async attachPlugin(pluginName, plugin) {
@@ -162,3 +164,5 @@ class NexusCore {
     }
   }
 }
+
+module.exports = { ConfigValidator, Pipeline, PluginManager, NexusCore };
