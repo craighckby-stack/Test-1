@@ -1,192 +1,245 @@
-import { performance, PerformanceObserver } from 'perf_hooks';
+import { performance } from 'perf_hooks';
 
 const DiagnosticCategory = {
-    Error: 0,
-    Warning: 1,
-    Message: 2,
-    Suggestion: 3
+  Warning: 0,
+  Error: 1,
+  Suggestion: 2,
+  Message: 3
 };
 
-const CoreState = {
-    Idle: 'IDLE',
-    Booting: 'BOOTING',
-    Ready: 'READY',
-    Executing: 'EXECUTING',
-    Finalizing: 'FINALIZING',
-    Error: 'ERROR',
-    Disposed: 'DISPOSED'
+const DiagnosticMessages = {
+  PHASE_ENTER: { code: 1000, category: DiagnosticCategory.Message, message: "Entering phase: {0}" },
+  BOOTSTRAP_START: { code: 1001, category: DiagnosticCategory.Message, message: "Bootstrap sequence initiated." },
+  CONFIG_VALIDATION_FAILED: { code: 2001, category: DiagnosticCategory.Error, message: "Configuration audit failed: Missing property '{0}'" },
+  PIPELINE_CANCELED: { code: 3001, category: DiagnosticCategory.Warning, message: "Pipeline execution preempted." },
+  PHASE_TRANSITION_ERROR: { code: 4001, category: DiagnosticCategory.Error, message: "Phase transition error from {0} to {1}: {2}" },
+  SYSTEM_READY: { code: 5001, category: DiagnosticCategory.Message, message: "System ready. Version: {0}. Path: {1}" },
+  METRIC_SUMMARY: { code: 6001, category: DiagnosticCategory.Suggestion, message: "Phase '{0}' (Step: '{1}') completed in {2}ms." }
 };
-
-class NexusSystemHost {
-    constructor() {
-        this.args = Object.freeze(process.argv.slice(2));
-        this.newLine = process.platform === 'win32' ? '\r\n' : '\n';
-    }
-
-    write(s) { process.stdout.write(s); }
-    writeError(s) { process.stderr.write(s); }
-    getCurrentDirectory() { return process.cwd(); }
-    getMemoryUsage() { return process.memoryUsage().heapUsed; }
-}
-
-class NexusDiagnostic {
-    constructor(category, code, message, detail = null) {
-        this.category = category;
-        this.code = code;
-        this.message = message;
-        this.detail = detail;
-        this.timestamp = performance.now();
-        this.relatedInformation = [];
-    }
-
-    addRelated(message, code) {
-        this.relatedInformation.push({ message, code, timestamp: performance.now() });
-        return this;
-    }
-}
-
-class DiagnosticReporter {
-    #diagnostics = [];
-    #errorCount = 0;
-
-    report(diagnostic) {
-        this.#diagnostics.push(diagnostic);
-        if (diagnostic.category === DiagnosticCategory.Error) {
-            this.#errorCount++;
-            const prefix = `[Error ${diagnostic.code}]`;
-            process.stderr.write(`${prefix}: ${diagnostic.message}${diagnostic.detail ? `\n${diagnostic.detail}` : ''}\n`);
-        }
-    }
-
-    getDiagnostics() {
-        return Object.freeze([...this.#diagnostics]);
-    }
-
-    hasErrors() {
-        return this.#errorCount > 0;
-    }
-}
 
 class CancellationToken {
-    #isCancelled = false;
-    #reason = null;
+  #isCancelled = false;
+  #listeners = new Set();
 
-    cancel(reason = 'MANUAL_CANCEL') {
-        this.#isCancelled = true;
-        this.#reason = reason;
-    }
+  get isCancellationRequested() {
+    return this.#isCancelled;
+  }
 
-    get isCancelled() {
-        return this.#isCancelled;
-    }
+  cancel() {
+    if (this.#isCancelled) return;
+    this.#isCancelled = true;
+    this.#listeners.forEach(fn => {
+      try { fn(); } catch (e) { }
+    });
+    this.#listeners.clear();
+  }
 
-    throwIfCancelled() {
-        if (this.#isCancelled) {
-            const err = new Error(`OPERATION_CANCELLED: ${this.#reason}`);
-            err.name = 'CancellationError';
-            throw err;
-        }
+  onCancellationRequested(fn) {
+    if (this.#isCancelled) {
+      fn();
+      return () => {};
     }
+    this.#listeners.add(fn);
+    return () => this.#listeners.delete(fn);
+  }
+
+  throwIfCancelled() {
+    if (this.#isCancelled) {
+      const error = new Error(DiagnosticMessages.PIPELINE_CANCELED.message);
+      error.code = DiagnosticMessages.PIPELINE_CANCELED.code;
+      error.isCancellation = true;
+      throw error;
+    }
+  }
 }
 
-class NexusEventHub {
-    #subscribers = new Map();
+class PerformanceTracker {
+  #marks = new Map();
+  
+  mark(name) {
+    this.#marks.set(name, performance.now());
+  }
 
-    subscribe(event, callback) {
-        if (!this.#subscribers.has(event)) this.#subscribers.set(event, []);
-        const listeners = this.#subscribers.get(event);
-        listeners.push(callback);
-        return () => {
-            const idx = listeners.indexOf(callback);
-            if (idx !== -1) listeners.splice(idx, 1);
-        };
-    }
-
-    async notify(event, data) {
-        const listeners = this.#subscribers.get(event);
-        if (!listeners) return;
-        for (const callback of listeners) {
-            try {
-                await Promise.resolve(callback(data));
-            } catch (e) {
-                process.stderr.write(`EventHub error [${event}]: ${e.message}\n`);
-            }
-        }
-    }
+  getDuration(name) {
+    const start = this.#marks.get(name);
+    return start ? performance.now() - start : 0;
+  }
 }
 
-class StepExecutor {
-    static decorate(step, reporter, eventHub) {
-        const originalExecute = step.execute.bind(step);
-        return async (context) => {
-            const markStart = `start-${step.name}`;
-            const markEnd = `end-${step.name}`;
-            performance.mark(markStart);
-            await eventHub.notify('step:start', { name: step.name });
-            try {
-                await originalExecute(context);
-            } catch (error) {
-                reporter.report(new NexusDiagnostic(DiagnosticCategory.Error, 5001, `Step ${step.name} failed`, error.stack));
-                throw error;
-            } finally {
-                performance.mark(markEnd);
-                performance.measure(step.name, markStart, markEnd);
-                await eventHub.notify('step:end', { name: step.name });
-            }
-        };
+class Host {
+  #config;
+  #perf = new PerformanceTracker();
+
+  constructor(config) {
+    this.#config = config;
+    this.diagnostics = [];
+  }
+
+  getCurrentDirectory() { return process.cwd(); }
+
+  getEnv(name) { return process.env[name] || this.#config[name]; }
+
+  reportDiagnostic(diagnostic, ...args) {
+    let formatted = diagnostic.message;
+    args.forEach((arg, i) => formatted = formatted.replace(`{${i}}`, String(arg)));
+
+    const entry = {
+      timestamp: Date.now(),
+      code: diagnostic.code,
+      category: diagnostic.category,
+      message: formatted
+    };
+    
+    this.diagnostics.push(entry);
+    this.#logToConsole(entry);
+  }
+
+  #logToConsole(entry) {
+    const categoryName = Object.keys(DiagnosticCategory)[entry.category].toUpperCase();
+    const logString = `[${entry.code}] [${categoryName}] ${entry.message}`;
+    if (entry.category === DiagnosticCategory.Error) console.error(logString);
+    else if (entry.category === DiagnosticCategory.Warning) console.warn(logString);
+    else console.log(logString);
+  }
+
+  getTimer() { return this.#perf; }
+}
+
+class NexusProgram {
+  #host;
+  #token;
+  #state = new Map();
+  #results = {};
+
+  constructor(host, token) {
+    this.#host = host;
+    this.#token = token;
+  }
+
+  get host() { return this.#host; }
+  get token() { return this.#token; }
+  get results() { return this.#results; }
+
+  setResult(key, value) { this.#results[key] = value; }
+  writeState(key, val) { this.#state.set(key, val); }
+  readState(key) { return this.#state.get(key); }
+}
+
+const StepDecorator = {
+  wrap(name, action) {
+    return async (program) => {
+      const timer = program.host.getTimer();
+      const key = `step-${name}`;
+      timer.mark(key);
+      try {
+        const result = await action(program);
+        program.host.reportDiagnostic(
+          DiagnosticMessages.METRIC_SUMMARY, 
+          "Engine", name, timer.getDuration(key).toFixed(4)
+        );
+        return result;
+      } catch (err) {
+        throw err;
+      }
+    };
+  }
+};
+
+class PhaseEngine {
+  #pipeline = new Map([
+    ['SETUP', []],
+    ['ANALYZE', []],
+    ['TRANSFORM', []],
+    ['EMIT', []]
+  ]);
+
+  registerStep(phase, name, action) {
+    if (!this.#pipeline.has(phase)) throw new Error(`Invalid Phase: ${phase}`);
+    this.#pipeline.get(phase).push({
+      name,
+      action: StepDecorator.wrap(name, action)
+    });
+    return this;
+  }
+
+  async run(program) {
+    for (const [phaseName, steps] of this.#pipeline) {
+      program.host.reportDiagnostic(DiagnosticMessages.PHASE_ENTER, phaseName);
+      for (const step of steps) {
+        program.token.throwIfCancelled();
+        try {
+          const result = await step.action(program);
+          program.setResult(step.name, result || true);
+        } catch (error) {
+          if (error.isCancellation) throw error;
+          program.host.reportDiagnostic(
+            DiagnosticMessages.PHASE_TRANSITION_ERROR, 
+            phaseName, step.name, error.message
+          );
+          throw error;
+        }
+      }
     }
+    return program.results;
+  }
 }
 
 class NexusCore {
-    #state = CoreState.Idle;
-    #reporter = new DiagnosticReporter();
-    #eventHub = new NexusEventHub();
-    #host = new NexusSystemHost();
-    #pipeline = [];
-    #config = null;
-    #perfObserver = null;
+  #host;
+  #engine;
+  #token;
+  #status = 'IDLE';
 
-    constructor(config = {}) {
-        this.#config = config;
-        this.#initializePerformanceTracking();
-        this.#initializePipeline();
+  constructor(config = {}) {
+    this.#host = new Host(config);
+    this.#engine = new PhaseEngine();
+    this.#token = new CancellationToken();
+    this.#initializePipeline();
+  }
+
+  #initializePipeline() {
+    this.#engine
+      .registerStep('SETUP', 'AUDIT_CONFIG', (prog) => {
+        const version = prog.host.getEnv('version');
+        if (!version) throw new Error("version");
+        prog.host.reportDiagnostic(DiagnosticMessages.BOOTSTRAP_START);
+      })
+      .registerStep('SETUP', 'RESOLVE_ENVIRONMENT', (prog) => {
+        prog.writeState('cwd', prog.host.getCurrentDirectory());
+      })
+      .registerStep('EMIT', 'FINAL_SIGNAL', (prog) => {
+        this.#status = 'READY';
+        prog.host.reportDiagnostic(
+          DiagnosticMessages.SYSTEM_READY, 
+          prog.host.getEnv('version'),
+          prog.readState('cwd')
+        );
+      });
+  }
+
+  async start() {
+    if (this.#status !== 'IDLE') return;
+    this.#status = 'RUNNING';
+    const program = new NexusProgram(this.#host, this.#token);
+    try {
+      const output = await this.#engine.run(program);
+      this.#status = 'SUCCESS';
+      return output;
+    } catch (err) {
+      this.#status = err.isCancellation ? 'CANCELLED' : 'FAULT';
+      throw err;
     }
+  }
 
-    #initializePerformanceTracking() {
-        this.#perfObserver = new PerformanceObserver((list) => {
-            list.getEntries().forEach((entry) => {
-                this.#eventHub.notify('telemetry', {
-                    name: entry.name,
-                    duration: entry.duration,
-                    type: entry.entryType,
-                    timestamp: performance.now()
-                });
-            });
-        });
-        this.#perfObserver.observe({ entryTypes: ['measure', 'mark'], buffered: true });
-    }
+  abort() { this.#token.cancel(); }
 
-    #transitionState(newState) {
-        this.#state = newState;
-        this.#eventHub.notify('state:transition', { state: newState });
-    }
-
-    #addPipelineStep(name, execute) {
-        this.#pipeline.push(StepExecutor.decorate({ name, execute }, this.#reporter, this.#eventHub));
-    }
-
-    #initializePipeline() {
-        this.#transitionState(CoreState.Booting);
-
-        this.#addPipelineStep('VALIDATE_CONFIG', async (ctx) => {
-            if (!this.#config || typeof this.#config !== 'object') {
-                this.#reporter.report(new NexusDiagnostic(DiagnosticCategory.Error, 1001, 'Invalid config'));
-                throw new Error('ERR_CONFIG_INVALID');
-            }
-            if (!this.#config.version) {
-                this.#reporter.report(new NexusDiagnostic(DiagnosticCategory.Error, 1002, 'Missing version'));
-                throw new Error('ERR_VERSION_MISSING');
-            }
-        });
-    }
+  get snapshot() {
+    return {
+      status: this.#status,
+      diagnostics: this.#host.diagnostics.length,
+      cancelled: this.#token.isCancellationRequested
+    };
+  }
 }
+
+export default NexusCore;
